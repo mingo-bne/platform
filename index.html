@@ -100,10 +100,28 @@ cursor:pointer;padding:0}
 .inline{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
 pre.sql{background:#fbfaf8;border:1px solid var(--line);border-radius:7px;padding:9px 11px;
 font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+/* modals — TMS pattern */
+.modal{position:fixed;inset:0;background:rgba(28,27,25,.5);z-index:80;display:flex;
+align-items:flex-start;justify-content:center;padding:44px 18px;overflow:auto}
+.modal .box{background:var(--card);border-radius:13px;width:100%;max-width:880px;
+overflow:hidden;box-shadow:var(--sh)}
+.modal .box.sm{max-width:560px}
+.mhead{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+gap:10px;background:#fbfaf8}
+.mhead h3{margin:0;font-size:16px;font-weight:600;flex:1}
+.mhead .x{border:1px solid var(--line2);background:#fff;border-radius:5px;width:24px;height:24px;
+cursor:pointer;color:var(--ink3);font-size:14px;line-height:1;padding:0}
+.mhead .x:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+.mbody{padding:12px 18px 18px;max-height:70vh;overflow:auto}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:4px 12px;font-size:12.5px}
+.kv dt{color:var(--ink2)}
+.kv dd{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
+word-break:break-all}
 </style>
 </head>
 <body>
-<div x-data="app()" x-init="boot()" x-cloak>
+<div x-data="app()" x-init="boot()" x-cloak @keydown.escape.window="modal=''">
 
 <!-- ────────────────────────── SETUP ────────────────────────── -->
 <template x-if="screen==='setup'">
@@ -111,21 +129,15 @@ font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,
   <header><div><h1>Coaching Platform</h1><div class="sub">first-time setup</div></div></header>
   <div id="shell"><div class="stage narrow">
     <div class="panel">
-      <div class="rhead">
-        <h2>Connect to your database</h2>
+      <div class="rhead"><h2>Connect to your database</h2>
         <div class="sub">One-time. Both values come from Supabase — Settings → API.
-          They are stored only in this browser.</div>
-      </div>
+          They are stored only in this browser.</div></div>
       <div class="pbody">
-        <div class="field">
-          <label class="fl">Project URL</label>
-          <input type="text" x-model="cfg.url" placeholder="https://xxxxxxxx.supabase.co">
-        </div>
-        <div class="field">
-          <label class="fl">Anon public key</label>
+        <div class="field"><label class="fl">Project URL</label>
+          <input type="text" x-model="cfg.url" placeholder="https://xxxxxxxx.supabase.co"></div>
+        <div class="field"><label class="fl">Anon public key</label>
           <textarea x-model="cfg.key" rows="3" placeholder="eyJhbGciOi..."></textarea>
-          <p class="note">Use the <b>anon public</b> key. Never paste the service_role key into a browser.</p>
-        </div>
+          <p class="note">Use the <b>anon public</b> key. Never paste the service_role key into a browser.</p></div>
         <button class="btn pri" @click="saveCfg()" :disabled="!cfg.url||!cfg.key">Connect</button>
         <p x-show="err" x-text="err" class="err"></p>
       </div>
@@ -143,10 +155,8 @@ font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,
       <div class="rhead"><h2>Sign in</h2>
         <div class="sub">We email you a link. No password to remember.</div></div>
       <div class="pbody">
-        <div class="field">
-          <label class="fl">Email address</label>
-          <input type="email" x-model="email" placeholder="you@example.com">
-        </div>
+        <div class="field"><label class="fl">Email address</label>
+          <input type="email" x-model="email" placeholder="you@example.com"></div>
         <button class="btn pri" @click="signIn()" :disabled="!email||busy"
           x-text="busy?'Sending…':'Email me a sign-in link'"></button>
         <p x-show="msg" x-text="msg" class="msg"></p>
@@ -171,8 +181,13 @@ font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,
       </div>
     </div>
     <div class="spacer"></div>
-    <button class="hb" @click="load()">Refresh</button>
-    <button class="hb" @click="signOut()">Sign out</button>
+    <template x-if="org">
+      <span>
+        <button class="hb" @click="modal='players'">Players…</button>
+        <button class="hb" @click="modal='rubrics'">Rubrics…</button>
+      </span>
+    </template>
+    <button class="hb" @click="modal='more'">More…</button>
   </header>
 
   <div id="shell"><div class="stage">
@@ -185,8 +200,8 @@ font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,
         <p class="warnbar">This is the security model working. With no membership row the database
           returns nothing at all — not an error, just nothing.</p>
         <div class="pbody">
-          <p class="note" style="margin-top:0">Run this in the Supabase SQL Editor to join the demo club.
-            Your user id is already filled in.</p>
+          <p class="note" style="margin-top:0">Run this in the Supabase SQL Editor to join the demo
+            club. Your user id is already filled in.</p>
           <pre class="sql">insert into membership (user_id, org_id, display_name, role, seniority)
 values (
   '<span x-text="userId"></span>',
@@ -198,30 +213,157 @@ values (
       </div>
     </template>
 
+    <!-- the working surface: rating sessions -->
     <template x-if="org">
-    <div>
-      <!-- overview -->
-      <div class="panel">
-        <div class="rhead"><h2>Overview</h2>
-          <div class="sub">Every count below comes from an unfiltered query. The database returns
-            only your organisation's rows.</div></div>
-        <div class="statrow">
-          <div><b x-text="orgs.length"></b>organisations</div>
-          <div><b x-text="people.length"></b>players</div>
-          <div><b x-text="sessions.length"></b>rating sessions</div>
-          <div><b x-text="members.length"></b>members</div>
-          <div><b x-text="measures.length"></b>rubric measures</div>
+    <div class="panel">
+      <div class="rhead" style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1">
+          <h2>Rating sessions</h2>
+          <div class="sub">A multi-day trial is one session. Days are added inside it.</div>
         </div>
-        <p x-show="err" class="warnbar" x-text="err"></p>
+        <button class="btn" @click="newSession.open=!newSession.open"
+                x-text="newSession.open?'Cancel':'New session'"></button>
       </div>
+      <div class="statrow">
+        <div><b x-text="sessions.length"></b>sessions</div>
+        <div><b x-text="sessions.filter(s=>s.status==='open').length"></b>open</div>
+        <div><b x-text="sessions.filter(s=>s.status==='confirmed').length"></b>confirmed</div>
+        <div><b x-text="people.length"></b>players</div>
+        <div><b x-text="members.length"></b>members</div>
+      </div>
+      <p x-show="err" class="warnbar" x-text="err"></p>
 
-      <!-- rubrics -->
-      <div class="panel">
-        <div class="rhead"><h2>Rubrics</h2>
-          <div class="sub">Locked, and identical for every club in the sport. Every club completes
-            Core; Extended is for clubs that can do more, and its measures roll up into Core so both
-            depths stay comparable.</div></div>
-        <div class="pbody">
+      <div class="pbody">
+        <div x-show="newSession.open" class="srow" style="background:#fbfaf8">
+          <div class="field"><label class="fl">Session name</label>
+            <input type="text" x-model="newSession.name" placeholder="e.g. U14 Trials 2027"></div>
+          <div class="row2">
+            <div class="field"><label class="fl">First day</label>
+              <input type="date" x-model="newSession.opens"></div>
+            <div class="field"><label class="fl">Last day</label>
+              <input type="date" x-model="newSession.closes" :min="newSession.opens"></div>
+          </div>
+          <div class="field"><label class="fl">Rubric</label>
+            <select x-model="newSession.rubric_id">
+              <template x-for="r in rubrics" :key="r.id">
+                <option :value="r.id" x-text="r.name+' ('+measuresOf(r.id).length+' measures)'"></option>
+              </template>
+            </select></div>
+          <p class="note" style="margin-bottom:8px">Every day you add must fall on or between
+            these two dates.</p>
+          <button class="btn pri" @click="createSession()"
+            :disabled="!newSession.name||!newSession.opens||!newSession.closes||busy">Create session</button>
+          <p x-show="err" x-text="err" class="err"></p>
+        </div>
+
+        <template x-if="!sessions.length"><div class="empty">No sessions yet.</div></template>
+
+        <template x-for="s in sessions" :key="s.id">
+          <div class="srow">
+            <div class="sflex">
+              <div class="body">
+                <div class="nm" x-text="s.name"></div>
+                <div class="meta">
+                  <span x-text="s.opens_at?.slice(0,10)"></span> →
+                  <span x-text="s.closes_at?.slice(0,10)"></span>
+                  · <span x-text="rubricName(s.rubric_id)"></span>
+                </div>
+              </div>
+              <span class="c" :class="{'':s.status==='draft','grp':s.status==='open',
+                    'wn':s.status==='closed','ok':s.status==='confirmed'}" x-text="s.status"></span>
+              <button class="btn sm" @click="openSession(s)"
+                      x-text="sel?.id===s.id?'Close':'Open'"></button>
+            </div>
+
+            <div x-show="sel?.id===s.id" class="sdet">
+              <div class="cath">Days in this session <b x-text="blocks.length"></b></div>
+              <template x-if="!blocks.length">
+                <div class="note" style="margin:0">No days yet.</div></template>
+              <table class="jt" x-show="blocks.length">
+                <thead><tr><th>Date</th><th style="width:110px">Time</th><th>Venue</th></tr></thead>
+                <tbody>
+                  <template x-for="b in blocks" :key="b.id">
+                    <tr><td x-text="b.block_date"></td>
+                        <td x-text="b.starts_at?.slice(0,5)+'–'+b.ends_at?.slice(0,5)"></td>
+                        <td x-text="b.venue"></td></tr>
+                  </template>
+                </tbody>
+              </table>
+              <p class="note">This session runs <b x-text="fmt(sel.opens_at)"></b> to
+                <b x-text="fmt(sel.closes_at)"></b>.</p>
+              <div class="inline">
+                <input type="date" x-model="newBlock.date"
+                       :min="sel.opens_at?.slice(0,10)" :max="sel.closes_at?.slice(0,10)">
+                <input type="time" x-model="newBlock.start" style="width:104px">
+                <input type="time" x-model="newBlock.end" style="width:104px">
+                <input type="text" x-model="newBlock.venue" placeholder="venue" style="width:130px">
+                <button class="btn sm" @click="addBlock()">Add day</button>
+              </div>
+              <p x-show="blockErr" x-text="blockErr" class="err"></p>
+
+              <div class="cath">Authorised raters <b x-text="auths.length"></b></div>
+              <p class="note" style="margin:0 0 5px">Being a coach in the club is not enough.
+                Authorisation is explicit and per session.</p>
+              <template x-if="!auths.length">
+                <div class="note" style="margin:0">Nobody authorised yet.</div></template>
+              <template x-for="a in auths" :key="a.id">
+                <div style="font-size:12.5px" x-text="nameOf(a.membership_id)"></div>
+              </template>
+              <div class="inline">
+                <select x-model="newAuth.membership_id">
+                  <option value="">choose a member…</option>
+                  <template x-for="m in members" :key="m.id">
+                    <option :value="m.id" x-text="m.display_name+' ('+m.role.replace('_',' ')+')'"></option>
+                  </template>
+                </select>
+                <button class="btn sm" @click="addAuth()"
+                        :disabled="!newAuth.membership_id">Authorise</button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+    </template>
+
+  </div></div>
+
+  <!-- ─────────── PLAYERS (modal) ─────────── -->
+  <template x-if="modal==='players'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box">
+        <div class="mhead"><h3>Players</h3>
+          <span class="c" x-text="people.length+' in this organisation'"></span>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <template x-if="!people.length"><div class="empty">No players yet.</div></template>
+          <table class="jt" x-show="people.length">
+            <thead><tr><th>Name</th><th style="width:70px">Gender</th>
+              <th style="width:120px">Date of birth</th><th style="width:70px"></th></tr></thead>
+            <tbody>
+              <template x-for="p in people" :key="p.id">
+                <tr><td x-text="p.given_name+' '+p.family_name"></td>
+                    <td x-text="p.gender"></td><td x-text="p.dob"></td>
+                    <td><span x-show="p.is_demo" class="c">DEMO</span></td></tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ─────────── RUBRICS (modal) ─────────── -->
+  <template x-if="modal==='rubrics'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box">
+        <div class="mhead"><h3>Rubrics</h3>
+          <span class="c">locked · scale 1–5</span>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <p class="note" style="margin-top:0">Identical for every club in the sport. Every club
+            completes <b>Core</b>. <b>Extended</b> is for clubs that can do more, and its measures
+            roll up into Core so both depths stay comparable.</p>
           <template x-for="r in rubrics" :key="r.id">
             <div class="rgrp">
               <div class="cath"><span x-text="r.name"></span>
@@ -238,147 +380,54 @@ values (
           </template>
         </div>
       </div>
-
-      <!-- players -->
-      <div class="panel">
-        <div class="rhead"><h2>Players</h2>
-          <div class="sub"><span x-text="people.length"></span> in this organisation</div></div>
-        <div class="pbody">
-          <template x-if="!people.length"><div class="empty">No players yet.</div></template>
-          <div class="scroll" x-show="people.length">
-            <table class="jt">
-              <thead><tr><th>Name</th><th style="width:56px">Gender</th>
-                <th style="width:110px">Date of birth</th><th style="width:70px"></th></tr></thead>
-              <tbody>
-                <template x-for="p in people" :key="p.id">
-                  <tr>
-                    <td x-text="p.given_name+' '+p.family_name"></td>
-                    <td x-text="p.gender"></td>
-                    <td x-text="p.dob"></td>
-                    <td><span x-show="p.is_demo" class="c">DEMO</span></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- sessions -->
-      <div class="panel">
-        <div class="rhead" style="display:flex;align-items:flex-start;gap:10px">
-          <div style="flex:1">
-            <h2>Rating sessions</h2>
-            <div class="sub">A multi-day trial is one session. Days are added inside it.</div>
-          </div>
-          <button class="btn" @click="newSession.open=!newSession.open"
-                  x-text="newSession.open?'Cancel':'New session'"></button>
-        </div>
-
-        <div class="pbody">
-          <div x-show="newSession.open" class="srow" style="background:#fbfaf8">
-            <div class="field">
-              <label class="fl">Session name</label>
-              <input type="text" x-model="newSession.name" placeholder="e.g. U14 Trials 2027">
-            </div>
-            <div class="row2">
-              <div class="field"><label class="fl">First day</label>
-                <input type="date" x-model="newSession.opens"></div>
-              <div class="field"><label class="fl">Last day</label>
-                <input type="date" x-model="newSession.closes" :min="newSession.opens"></div>
-            </div>
-            <div class="field">
-              <label class="fl">Rubric</label>
-              <select x-model="newSession.rubric_id">
-                <template x-for="r in rubrics" :key="r.id">
-                  <option :value="r.id" x-text="r.name+' ('+measuresOf(r.id).length+' measures)'"></option>
-                </template>
-              </select>
-            </div>
-            <p class="note" style="margin-bottom:8px">Every day you add must fall on or between
-              these two dates.</p>
-            <button class="btn pri" @click="createSession()"
-              :disabled="!newSession.name||!newSession.opens||!newSession.closes||busy">Create session</button>
-            <p x-show="err" x-text="err" class="err"></p>
-          </div>
-
-          <template x-if="!sessions.length"><div class="empty">No sessions yet.</div></template>
-
-          <template x-for="s in sessions" :key="s.id">
-            <div class="srow">
-              <div class="sflex">
-                <div class="body">
-                  <div class="nm" x-text="s.name"></div>
-                  <div class="meta">
-                    <span x-text="s.opens_at?.slice(0,10)"></span> →
-                    <span x-text="s.closes_at?.slice(0,10)"></span>
-                    · <span x-text="rubricName(s.rubric_id)"></span>
-                  </div>
-                </div>
-                <span class="c" :class="{'':s.status==='draft','grp':s.status==='open',
-                      'wn':s.status==='closed','ok':s.status==='confirmed'}" x-text="s.status"></span>
-                <button class="btn sm" @click="openSession(s)"
-                        x-text="sel?.id===s.id?'Close':'Open'"></button>
-              </div>
-
-              <div x-show="sel?.id===s.id" class="sdet">
-                <div class="cath">Days in this session <b x-text="blocks.length"></b></div>
-                <template x-if="!blocks.length">
-                  <div class="note" style="margin:0">No days yet.</div></template>
-                <table class="jt" x-show="blocks.length">
-                  <thead><tr><th>Date</th><th style="width:110px">Time</th><th>Venue</th></tr></thead>
-                  <tbody>
-                    <template x-for="b in blocks" :key="b.id">
-                      <tr><td x-text="b.block_date"></td>
-                          <td x-text="b.starts_at?.slice(0,5)+'–'+b.ends_at?.slice(0,5)"></td>
-                          <td x-text="b.venue"></td></tr>
-                    </template>
-                  </tbody>
-                </table>
-                <p class="note">This session runs <b x-text="fmt(sel.opens_at)"></b> to
-                  <b x-text="fmt(sel.closes_at)"></b>.</p>
-                <div class="inline">
-                  <input type="date" x-model="newBlock.date"
-                         :min="sel.opens_at?.slice(0,10)" :max="sel.closes_at?.slice(0,10)">
-                  <input type="time" x-model="newBlock.start" style="width:104px">
-                  <input type="time" x-model="newBlock.end" style="width:104px">
-                  <input type="text" x-model="newBlock.venue" placeholder="venue" style="width:130px">
-                  <button class="btn sm" @click="addBlock()">Add day</button>
-                </div>
-                <p x-show="blockErr" x-text="blockErr" class="err"></p>
-
-                <div class="cath">Authorised raters <b x-text="auths.length"></b></div>
-                <p class="note" style="margin:0 0 5px">Being a coach in the club is not enough.
-                  Authorisation is explicit and per session.</p>
-                <template x-if="!auths.length">
-                  <div class="note" style="margin:0">Nobody authorised yet.</div></template>
-                <template x-for="a in auths" :key="a.id">
-                  <div class="meta" style="font-size:12.5px;color:var(--ink)"
-                       x-text="nameOf(a.membership_id)"></div>
-                </template>
-                <div class="inline">
-                  <select x-model="newAuth.membership_id">
-                    <option value="">choose a member…</option>
-                    <template x-for="m in members" :key="m.id">
-                      <option :value="m.id" x-text="m.display_name+' ('+m.role.replace('_',' ')+')'"></option>
-                    </template>
-                  </select>
-                  <button class="btn sm" @click="addAuth()"
-                          :disabled="!newAuth.membership_id">Authorise</button>
-                </div>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <p class="note" style="text-align:center;padding-bottom:20px">
-        v0.1 · foundation. Rating capture, the formation engine and imports are the next increments.
-      </p>
     </div>
-    </template>
+  </template>
 
-  </div></div>
+  <!-- ─────────── MORE (modal) ─────────── -->
+  <template x-if="modal==='more'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box sm">
+        <div class="mhead"><h3>More</h3>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <div class="cath">This session</div>
+          <dl class="kv">
+            <dt>Signed in as</dt><dd x-text="userEmail"></dd>
+            <dt>User id</dt><dd x-text="userId"></dd>
+            <template x-if="org">
+              <span style="display:contents">
+                <dt>Organisation</dt><dd x-text="org.name"></dd>
+                <dt>Organisation id</dt><dd x-text="org.id"></dd>
+                <dt>Edition</dt><dd x-text="org.edition"></dd>
+              </span>
+            </template>
+            <dt>Database</dt><dd x-text="cfg.url"></dd>
+          </dl>
+
+          <div class="cath">Tenant isolation</div>
+          <p class="note" style="margin-top:0">Every count comes from an unfiltered query — there is
+            no <code>where org_id</code> anywhere in this app. The database returns only your
+            organisation's rows.</p>
+          <div class="statrow" style="border:1px solid var(--line);border-radius:8px">
+            <div><b x-text="orgs.length"></b>organisations</div>
+            <div><b x-text="people.length"></b>players</div>
+            <div><b x-text="members.length"></b>members</div>
+            <div><b x-text="measures.length"></b>rubric measures</div>
+          </div>
+
+          <div class="cath">Actions</div>
+          <div class="inline" style="margin-top:0">
+            <button class="btn" @click="load();modal=''">Reload data</button>
+            <button class="btn" @click="resetCfg()">Change database</button>
+            <button class="btn" @click="signOut()">Sign out</button>
+          </div>
+          <p class="note">v0.1 · foundation. Rating capture, the formation engine and imports are
+            the next increments.</p>
+        </div>
+      </div>
+    </div>
+  </template>
+
 </div>
 </template>
 
@@ -390,7 +439,7 @@ function app(){ return {
   email:'', msg:'', err:'', busy:false,
   userId:'', userEmail:'',
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
-  sel:null, blocks:[], auths:[], blockErr:'',
+  sel:null, blocks:[], auths:[], blockErr:'', modal:'',
   newSession:{open:false,name:'',opens:'',closes:'',rubric_id:''},
   newBlock:{date:'',start:'18:00',end:'20:00',venue:''},
   newAuth:{membership_id:''},
