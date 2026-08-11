@@ -118,6 +118,40 @@ tr.flag td{background:var(--warnbg)}
 pre.sql{background:#fbfaf8;border:1px solid var(--line);border-radius:7px;padding:9px 11px;
 font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
+/* ── the player card. Same tokens, deliberately NOT a ledger. ──────────
+   The review table is a ledger — you scan it. This is one player, so it reads
+   as rows of evidence: the measure, what each pass said, and where the mean
+   sits on the scale. Value first, colour second — every number is on screen,
+   the bar only repeats it. ── */
+.pc{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.pcr{display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.pcr:last-child{border-bottom:0}
+.pcr:nth-child(even){background:#fcfbf9}
+.pcr .lb{width:132px;flex:none;font-size:13px;font-weight:600}
+.pcr .passes{display:flex;gap:4px;flex:none}
+.pv{width:26px;height:26px;border-radius:6px;border:1px solid var(--line2);background:#fff;
+display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;
+color:var(--ink2)}
+.pv.none{color:var(--ink3);background:#f7f6f3}
+.meter{flex:1;min-width:70px;height:7px;border-radius:4px;background:#efeee9;position:relative}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--navy);
+display:block}
+.pcr .mn{width:38px;flex:none;text-align:right;font-size:14px;font-weight:600}
+.pcr .sp{width:52px;flex:none;text-align:right;font-size:11px;color:var(--ink3)}
+.pcr.wide{border-left:3px solid var(--warnline);background:var(--warnbg)}
+.pcr.wide .meter{background:#f0dfc2}
+.pcr.wide .sp{color:var(--warn);font-weight:600}
+.sess{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--line);
+border-radius:9px;margin-bottom:6px;background:#fff}
+.sess .body{flex:1;min-width:0}
+.sess .t{font-size:13px;font-weight:600}
+.sess .d{font-size:11px;color:var(--ink2);margin-top:1px}
+.sess .big{font-size:19px;font-weight:600;line-height:1}
+@media (max-width:640px){
+ .pcr{flex-wrap:wrap}
+ .pcr .lb{width:100%}
+ .meter{display:none}
+}
 /* ── courtside: the coach's own device. Same tokens, bigger targets. ── */
 .court{max-width:560px;margin:0 auto}
 .qbar{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:9px;
@@ -820,32 +854,34 @@ values (
 
               <div class="cath">What each rater said
                 <b x-text="'threshold '+review.threshold"></b></div>
-              <table class="jt">
-                <thead><tr><th>Measure</th>
-                  <template x-for="w in pmRaters()" :key="w.key">
-                    <th style="width:104px">
-                      <span x-text="w.name"></span>
-                      <small style="display:block;font-weight:400;color:var(--ink3)"
-                             x-text="w.when"></small>
-                    </th>
-                  </template>
-                  <th style="width:58px">Mean</th><th style="width:60px">Spread</th></tr></thead>
-                <tbody>
-                  <template x-for="m in pmMeasures()" :key="m.measure_id">
-                    <tr :class="m.spread > review.threshold ? 'flag' : ''">
-                      <td x-text="m.label"></td>
+              <div class="inline" style="margin:0 0 6px">
+                <template x-for="w in pmRaters()" :key="w.key">
+                  <span class="c grp"><span x-text="w.name"></span> ·
+                    <span x-text="w.when"></span></span>
+                </template>
+              </div>
+              <div class="pc">
+                <template x-for="m in pmMeasures()" :key="m.measure_id">
+                  <div class="pcr" :class="m.spread > review.threshold ? 'wide' : ''">
+                    <span class="lb" x-text="m.label"></span>
+                    <span class="passes">
                       <template x-for="w in pmRaters()" :key="w.key">
-                        <td x-text="m.by[w.key] ?? '—'"></td>
+                        <span class="pv" :class="m.by[w.key] == null ? 'none' : ''"
+                              x-text="m.by[w.key] ?? '–'"></span>
                       </template>
-                      <td><b x-text="m.mean"></b></td>
-                      <td x-text="m.spread || ''"></td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-              <p class="note" x-show="pmRaters().length>1">Each column is one rating pass. Where the
-                same coach rated twice the passes are shown separately — nothing is averaged away
-                before you see it.</p>
+                    </span>
+                    <span class="meter" :title="m.mean + ' of 5'">
+                      <i :style="'width:'+ (m.mean/5*100) +'%'"></i>
+                    </span>
+                    <span class="mn" x-text="m.mean"></span>
+                    <span class="sp" x-text="m.spread ? 'spread '+m.spread : ''"></span>
+                  </div>
+                </template>
+              </div>
+              <p class="note" x-show="pmRaters().length>1">One box per rating pass, in the order
+                they were taken. Where the same coach rated twice the passes stay separate —
+                nothing is averaged away before you see it. The bar repeats the mean; it does not
+                add anything the number does not already say.</p>
               <p class="note" x-show="pmRaters().length===1">One pass, so there is nothing to
                 disagree with yet. Spread appears once a second coach rates this player.</p>
             </div>
@@ -858,23 +894,20 @@ values (
           </template>
           <template x-if="pm.history.length">
             <div>
-              <table class="jt">
-                <thead><tr><th>Session</th><th style="width:96px">Date</th>
-                  <th style="width:70px">Rating</th><th style="width:80px">Measures</th>
-                  <th style="width:84px">Source</th></tr></thead>
-                <tbody>
-                  <template x-for="h in pmHistory()" :key="h.session_id">
-                    <tr><td x-text="h.session_name"></td>
-                        <td x-text="h.session_date"></td>
-                        <td><b x-text="h.mean"></b></td>
-                        <td x-text="h.n"></td>
-                        <td><span class="c" :class="h.anyResolved?'acc':''"
-                              x-text="h.anyResolved?'resolved':'mean'"></span></td></tr>
-                  </template>
-                </tbody>
-              </table>
-              <p class="note">One row per confirmed session, oldest first. The matrix and the trend
-                chart read from the same record.</p>
+              <template x-for="h in pmHistory()" :key="h.session_id">
+                <div class="sess">
+                  <span class="big" x-text="h.mean"></span>
+                  <div class="body">
+                    <div class="t" x-text="h.session_name"></div>
+                    <div class="d"><span x-text="h.session_date"></span> ·
+                      <span x-text="h.n"></span> measures</div>
+                  </div>
+                  <span class="c" :class="h.anyResolved?'acc':''"
+                        x-text="h.anyResolved?'resolved':'mean'"></span>
+                </div>
+              </template>
+              <p class="note">One card per confirmed session, oldest first. The matrix and the
+                trend chart will read from this same record.</p>
             </div>
           </template>
         </div>
