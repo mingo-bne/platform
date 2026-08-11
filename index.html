@@ -98,6 +98,23 @@ cursor:pointer;padding:0}
 .meta{font-size:11px;color:var(--ink2);margin-top:2px}
 .sdet{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 .inline{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.scale{display:flex;gap:4px}
+.sv{border:1px solid var(--line2);background:#fff;border-radius:6px;width:38px;height:32px;
+cursor:pointer;font-size:13px;font-weight:600;color:var(--ink2);padding:0}
+.sv:hover{border-color:var(--navy);color:var(--navy)}
+.sv.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.mrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.mrow:last-child{border-bottom:0}
+.mrow .lb{flex:1;font-size:13px;font-weight:600}
+.plist{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.pitem{display:flex;align-items:center;gap:8px;padding:6px 9px;border-bottom:1px solid var(--line);
+cursor:pointer;font-size:12.5px}
+.pitem:last-child{border-bottom:0}
+.pitem:hover{background:#fbfaf8}
+.pitem.on{background:var(--navy2);font-weight:600}
+.pitem .st{margin-left:auto;font-size:10px;color:var(--ink3)}
+.split{display:grid;grid-template-columns:240px 1fr;gap:14px}
+tr.flag td{background:var(--warnbg)}
 pre.sql{background:#fbfaf8;border:1px solid var(--line);border-radius:7px;padding:9px 11px;
 font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
@@ -231,7 +248,10 @@ values (
         <div><b x-text="people.length"></b>players</div>
         <div><b x-text="members.length"></b>members</div>
       </div>
-      <p x-show="err" class="warnbar" x-text="err"></p>
+      <p x-show="err" class="warnbar" style="display:flex;gap:10px;align-items:center">
+        <span style="flex:1" x-text="err"></span>
+        <button class="lnk" style="color:var(--warn)" @click="err=''">dismiss</button>
+      </p>
 
       <div class="pbody">
         <div x-show="newSession.open" class="srow" style="background:#fbfaf8">
@@ -243,7 +263,7 @@ values (
             <div class="field"><label class="fl">Last day</label>
               <input type="date" x-model="newSession.closes" :min="newSession.opens"></div>
           </div>
-          <div class="field"><label class="fl">Rubric</label>
+          <div class="field"><label class="fl">Rubric — most clubs want Core</label>
             <select x-model="newSession.rubric_id">
               <template x-for="r in rubrics" :key="r.id">
                 <option :value="r.id" x-text="r.name+' ('+measuresOf(r.id).length+' measures)'"></option>
@@ -267,6 +287,8 @@ values (
                   <span x-text="s.opens_at?.slice(0,10)"></span> →
                   <span x-text="s.closes_at?.slice(0,10)"></span>
                   · <span x-text="rubricName(s.rubric_id)"></span>
+                  <span class="c" :class="rubricLevel(s.rubric_id)==='core'?'grp':'acc'"
+                        x-text="rubricLevel(s.rubric_id)==='core'?'5 measures':'10 measures'"></span>
                 </div>
               </div>
               <span class="c" :class="{'':s.status==='draft','grp':s.status==='open',
@@ -289,11 +311,11 @@ values (
                   </template>
                 </tbody>
               </table>
-              <p class="note">This session runs <b x-text="fmt(sel.opens_at)"></b> to
-                <b x-text="fmt(sel.closes_at)"></b>.</p>
+              <p class="note">This session runs <b x-text="fmt(sel?.opens_at)"></b> to
+                <b x-text="fmt(sel?.closes_at)"></b>.</p>
               <div class="inline">
                 <input type="date" x-model="newBlock.date"
-                       :min="sel.opens_at?.slice(0,10)" :max="sel.closes_at?.slice(0,10)">
+                       :min="sel?.opens_at?.slice(0,10)" :max="sel?.closes_at?.slice(0,10)">
                 <input type="time" x-model="newBlock.start" style="width:104px">
                 <input type="time" x-model="newBlock.end" style="width:104px">
                 <input type="text" x-model="newBlock.venue" placeholder="venue" style="width:130px">
@@ -319,6 +341,17 @@ values (
                 <button class="btn sm" @click="addAuth()"
                         :disabled="!newAuth.membership_id">Authorise</button>
               </div>
+
+              <div class="cath">Do the work</div>
+              <div class="inline" style="margin-top:0">
+                <button class="btn pri" @click="openRate(s)"
+                        :disabled="s.status!=='open'">Rate players…</button>
+                <button class="btn" @click="openReview(s)">Review &amp; confirm…</button>
+              </div>
+              <p class="note" x-show="s.status!=='open'">
+                Ratings can only be recorded while a session is <b>open</b>. This one is
+                <b x-text="s.status"></b>.
+              </p>
             </div>
           </div>
         </template>
@@ -383,6 +416,143 @@ values (
     </div>
   </template>
 
+
+  <!-- ─────────── RATE (modal) ─────────── -->
+  <template x-if="modal==='rate'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box">
+        <div class="mhead"><h3>Rate players</h3>
+          <span class="c" x-text="rate.session?.name"></span>
+          <span class="c grp" x-text="rubricName(rate.session?.rubric_id)"></span>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <template x-if="!rate.authorised">
+            <p class="warnbar" style="border-radius:8px;border:1px solid var(--warnline)">
+              You are not authorised to rate in this session. Authorisation is explicit and per
+              session — add yourself under <b>Authorised raters</b> first.</p>
+          </template>
+
+          <template x-if="rate.authorised">
+          <div class="split">
+            <div>
+              <div class="cath">Players <b x-text="people.length"></b></div>
+              <div class="plist">
+                <template x-for="p in people" :key="p.id">
+                  <div class="pitem" :class="rate.person?.id===p.id?'on':''" @click="pickPlayer(p)">
+                    <span x-text="p.given_name+' '+p.family_name"></span>
+                    <span class="st" x-text="rate.done[p.id] ? '✓ rated' : ''"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <div>
+              <template x-if="!rate.person">
+                <div class="empty">Choose a player to start.</div>
+              </template>
+              <template x-if="rate.person">
+              <div>
+                <div class="cath">
+                  <span x-text="rate.person.given_name+' '+rate.person.family_name"></span>
+                  <b x-text="Object.keys(rate.scores).length+' of '+rateMeasures().length+' scored'"></b>
+                </div>
+                <template x-for="m in rateMeasures()" :key="m.id">
+                  <div class="mrow">
+                    <span class="lb" x-text="m.label"></span>
+                    <div class="scale">
+                      <template x-for="v in scaleOf(m)" :key="v">
+                        <button class="sv" :class="rate.scores[m.id]===v?'on':''"
+                                @click="rate.scores[m.id]=v" x-text="v"></button>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+                <div class="field" style="margin-top:10px">
+                  <label class="fl">Note (optional)</label>
+                  <input type="text" x-model="rate.note" placeholder="anything worth recording">
+                </div>
+                <div class="inline" style="margin-top:0">
+                  <button class="btn pri" @click="saveRating()"
+                          :disabled="!Object.keys(rate.scores).length||busy">Save rating</button>
+                  <button class="btn" @click="rate.scores={};rate.note=''">Clear</button>
+                </div>
+                <p class="note">Saved ratings cannot be edited. A correction is recorded as a
+                  resolution by the head coach, never by changing the original.</p>
+                <p x-show="rate.err" x-text="rate.err" class="err"></p>
+                <p x-show="rate.msg" x-text="rate.msg" class="msg"></p>
+              </div>
+              </template>
+            </div>
+          </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ─────────── REVIEW & CONFIRM (modal) ─────────── -->
+  <template x-if="modal==='review'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box">
+        <div class="mhead"><h3>Review &amp; confirm</h3>
+          <span class="c" x-text="review.session?.name"></span>
+          <span class="c" :class="review.session?.status==='confirmed'?'ok':'grp'"
+                x-text="review.session?.status"></span>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <div class="statrow" style="border:1px solid var(--line);border-radius:8px;margin-bottom:12px">
+            <div><b x-text="review.rows.filter(r=>r.coverage==='complete').length"></b>complete</div>
+            <div><b x-text="review.rows.filter(r=>r.coverage==='partial').length"></b>partial</div>
+            <div><b x-text="review.rows.filter(r=>r.coverage==='not rated').length"></b>not rated</div>
+            <div><b x-text="flagged().length"></b>to look at</div>
+          </div>
+
+          <div class="cath">Coverage and disagreement
+            <b x-text="'threshold '+review.threshold"></b></div>
+          <p class="note" style="margin-top:0">Rows are highlighted where two raters differ by more
+            than the threshold. Confirming with gaps is allowed and recorded.</p>
+          <div class="scroll" style="max-height:320px">
+            <table class="jt">
+              <thead><tr><th>Player</th><th style="width:90px">Coverage</th>
+                <th style="width:70px">Scored</th><th style="width:70px">Raters</th>
+                <th style="width:80px">Spread</th></tr></thead>
+              <tbody>
+                <template x-for="r in review.rows" :key="r.person_id">
+                  <tr :class="r.worst_spread > review.threshold ? 'flag' : ''">
+                    <td x-text="r.given_name+' '+r.family_name"></td>
+                    <td><span class="c" :class="r.coverage==='complete'?'ok':
+                          (r.coverage==='partial'?'wn':'')" x-text="r.coverage"></span></td>
+                    <td x-text="r.measures_scored+'/'+r.measure_count"></td>
+                    <td x-text="r.assessment_count"></td>
+                    <td x-text="r.worst_spread || ''"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cath">Confirm</div>
+          <template x-if="review.session?.status==='confirmed'">
+            <p class="okbar" style="border-radius:8px;border:1px solid var(--okline)">
+              Confirmed. The formation engine can now use this session — and it cannot be reopened.</p>
+          </template>
+          <template x-if="review.session?.status!=='confirmed'">
+            <div>
+              <p class="note" style="margin-top:0">Confirming closes the session as a whole and is
+                recorded against your name. Only a head coach or club admin can do it.</p>
+              <button class="btn pri" @click="confirmSession()"
+                :disabled="busy || !['head_coach','club_admin'].includes(me?.role)">
+                Confirm this session</button>
+              <p x-show="!['head_coach','club_admin'].includes(me?.role)" class="note">
+                Your role is <b x-text="me?.role"></b>, so you cannot confirm.</p>
+              <p x-show="review.err" x-text="review.err" class="err"></p>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <!-- ─────────── MORE (modal) ─────────── -->
   <template x-if="modal==='more'">
     <div class="modal" @click.self="modal=''">
@@ -440,6 +610,9 @@ function app(){ return {
   userId:'', userEmail:'',
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
   sel:null, blocks:[], auths:[], blockErr:'', modal:'',
+  authErr:'',
+  rate:{session:null,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''},
+  review:{session:null,rows:[],threshold:2,err:''},
   newSession:{open:false,name:'',opens:'',closes:'',rubric_id:''},
   newBlock:{date:'',start:'18:00',end:'20:00',venue:''},
   newAuth:{membership_id:''},
@@ -490,7 +663,7 @@ function app(){ return {
   },
 
   async load(){
-    this.err='';
+    this.err=''; this.authErr=''; this.blockErr='';
     const q = async (t,sel='*',order=null)=>{
       let r = this.sb.from(t).select(sel);
       if(order) r = r.order(order);
@@ -515,7 +688,8 @@ function app(){ return {
   nameOf(mid){ const m=this.members.find(x=>x.id===mid); return m? m.display_name : mid; },
   measuresOf(rid){ return this.measures.filter(m=>m.rubric_id===rid); },
   labelOf(mid){ return this.measures.find(m=>m.id===mid)?.label || ''; },
-  rubricName(rid){ return this.rubrics.find(r=>r.id===rid)?.name || ''; },
+  rubricName(rid){ return this.rubrics.find(r=>r.id===rid)?.name || '(unknown rubric)'; },
+  rubricLevel(rid){ return this.rubrics.find(r=>r.id===rid)?.level || ''; },
 
   fmt(iso){ return iso ? iso.slice(0,10) : ''; },
 
@@ -548,7 +722,7 @@ function app(){ return {
     this.blocks=b||[];
     const {data:a} = await this.sb.from('session_authorisation').select('*').eq('session_id',s.id);
     this.auths=a||[];
-    this.blockErr='';
+    this.blockErr=''; this.authErr='';
     this.newBlock.date = this.newBlock.date || s.opens_at.slice(0,10);
   },
 
@@ -578,13 +752,88 @@ function app(){ return {
     this.sel=null; await this.openSession(s);
   },
 
+  scaleOf(m){ const a=[]; for(let v=(m.scale_min??1); v<=(m.scale_max??5); v++) a.push(v); return a; },
+  rateMeasures(){ return this.measuresOf(this.rate.session?.rubric_id); },
+  flagged(){ return this.review.rows.filter(r=>r.worst_spread > this.review.threshold); },
+
+  async openRate(s){
+    this.modal='rate';
+    this.rate={session:s,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''};
+    const {data:a} = await this.sb.from('session_authorisation').select('membership_id')
+      .eq('session_id',s.id);
+    this.rate.authorised = (a||[]).some(x=>x.membership_id===this.me?.id);
+    const {data:mine} = await this.sb.from('assessment').select('person_id')
+      .eq('session_id',s.id).eq('membership_id',this.me?.id);
+    const done={}; (mine||[]).forEach(r=>done[r.person_id]=true);
+    this.rate.done=done;
+  },
+
+  pickPlayer(p){ this.rate.person=p; this.rate.scores={}; this.rate.note=''; 
+                 this.rate.err=''; this.rate.msg=''; },
+
+  async saveRating(){
+    this.rate.err=''; this.rate.msg=''; this.busy=true;
+    const {data:a, error:e1} = await this.sb.from('assessment').insert({
+      org_id:this.org.id, session_id:this.rate.session.id,
+      person_id:this.rate.person.id, membership_id:this.me.id,
+      submitted_at:new Date().toISOString()
+    }).select('id').single();
+    if(e1){ this.busy=false; this.rate.err=e1.message; return; }
+    const rows = Object.entries(this.rate.scores).map(([measure_id,score],i)=>({
+      assessment_id:a.id, measure_id, score,
+      note: i===0 && this.rate.note ? this.rate.note : null
+    }));
+    const {error:e2} = await this.sb.from('assessment_score').insert(rows);
+    this.busy=false;
+    if(e2){ this.rate.err=e2.message; return; }
+    this.rate.done[this.rate.person.id]=true;
+    this.rate.msg='Saved '+this.rate.person.given_name+'.';
+    const i=this.people.findIndex(p=>p.id===this.rate.person.id);
+    const next=this.people.slice(i+1).find(p=>!this.rate.done[p.id]);
+    if(next){ this.pickPlayer(next); this.rate.msg='Saved. Next: '+next.given_name+'.'; }
+    else { this.rate.person=null; this.rate.msg='All players rated.'; }
+  },
+
+  async openReview(s){
+    this.modal='review';
+    this.review={session:s,rows:[],threshold:2,err:''};
+    const {data:prof} = await this.sb.from('org_profile')
+      .select('divergence_threshold_measure').eq('org_id',this.org.id).maybeSingle();
+    if(prof) this.review.threshold = Number(prof.divergence_threshold_measure);
+    const {data:rows,error} = await this.sb.from('v_session_review').select('*')
+      .eq('session_id',s.id).order('family_name');
+    if(error){ this.review.err=error.message; return; }
+    this.review.rows = rows||[];
+  },
+
+  async confirmSession(){
+    this.review.err=''; this.busy=true;
+    const {error} = await this.sb.from('rating_session')
+      .update({status:'confirmed', confirmed_by:this.me.id})
+      .eq('id',this.review.session.id);
+    this.busy=false;
+    if(error){ this.review.err=error.message; return; }
+    this.review.session.status='confirmed';
+    await this.load();
+  },
+
+  unauthorisedMembers(){
+    const has = new Set(this.auths.map(a=>a.membership_id));
+    return this.members.filter(m=>!has.has(m.id));
+  },
+
   async addAuth(){
-    this.err='';
+    this.authErr='';
     const {error} = await this.sb.from('session_authorisation').insert({
       org_id:this.org.id, session_id:this.sel.id,
       membership_id:this.newAuth.membership_id, authorised_by:this.me.id
     });
-    if(error){ this.err=error.message; return; }
+    if(error){
+      this.authErr = error.code==='23505'
+        ? 'That person is already authorised for this session.'
+        : error.message;
+      return;
+    }
     this.newAuth.membership_id='';
     const s=this.sel; this.sel=null; await this.openSession(s);
   }
