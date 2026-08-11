@@ -302,12 +302,14 @@ values (
               <template x-if="!blocks.length">
                 <div class="note" style="margin:0">No days yet.</div></template>
               <table class="jt" x-show="blocks.length">
-                <thead><tr><th>Date</th><th style="width:110px">Time</th><th>Venue</th></tr></thead>
+                <thead><tr><th>Date</th><th style="width:110px">Time</th><th>Venue</th>
+                  <th style="width:74px"></th></tr></thead>
                 <tbody>
                   <template x-for="b in blocks" :key="b.id">
                     <tr><td x-text="b.block_date"></td>
                         <td x-text="b.starts_at?.slice(0,5)+'–'+b.ends_at?.slice(0,5)"></td>
-                        <td x-text="b.venue"></td></tr>
+                        <td x-text="b.venue"></td>
+                        <td><button class="btn sm" @click="removeBlock(b)">Remove</button></td></tr>
                   </template>
                 </tbody>
               </table>
@@ -329,7 +331,10 @@ values (
               <template x-if="!auths.length">
                 <div class="note" style="margin:0">Nobody authorised yet.</div></template>
               <template x-for="a in auths" :key="a.id">
-                <div style="font-size:12.5px" x-text="nameOf(a.membership_id)"></div>
+                <div class="inline" style="margin:0 0 3px;gap:8px">
+                  <span style="font-size:12.5px" x-text="nameOf(a.membership_id)"></span>
+                  <button class="btn sm" @click="removeAuth(a)">Remove</button>
+                </div>
               </template>
               <div class="inline">
                 <select x-model="newAuth.membership_id">
@@ -352,6 +357,26 @@ values (
                 Ratings can only be recorded while a session is <b>open</b>. This one is
                 <b x-text="s.status"></b>.
               </p>
+
+              <template x-if="s.status==='draft' || s.status==='open'">
+                <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+                  <div class="inline" style="margin:0">
+                    <button class="btn sm" x-show="delConfirm!==s.id"
+                            @click="delConfirm=s.id; delErr=''">Delete this session</button>
+                    <template x-if="delConfirm===s.id">
+                      <span class="inline" style="margin:0;gap:8px">
+                        <span class="note" style="margin:0">Delete
+                          <b x-text="s.name"></b> permanently?</span>
+                        <button class="btn sm pri" @click="deleteSession(s)">Yes, delete</button>
+                        <button class="btn sm" @click="delConfirm=''">Keep it</button>
+                      </span>
+                    </template>
+                  </div>
+                  <p class="note" style="margin:6px 0 0">A session that holds ratings cannot be
+                    deleted — close it instead. Ratings are a permanent record.</p>
+                  <p x-show="delErr" x-text="delErr" class="err"></p>
+                </div>
+              </template>
             </div>
           </div>
         </template>
@@ -369,15 +394,18 @@ values (
           <span class="c" x-text="people.length+' in this organisation'"></span>
           <button class="x" @click="modal=''" title="Close">×</button></div>
         <div class="mbody">
+          <p x-show="peopleErr" x-text="peopleErr" class="err" style="margin-top:0"></p>
           <template x-if="!people.length"><div class="empty">No players yet.</div></template>
           <table class="jt" x-show="people.length">
             <thead><tr><th>Name</th><th style="width:70px">Gender</th>
-              <th style="width:120px">Date of birth</th><th style="width:70px"></th></tr></thead>
+              <th style="width:120px">Date of birth</th><th style="width:70px"></th>
+              <th style="width:74px"></th></tr></thead>
             <tbody>
               <template x-for="p in people" :key="p.id">
                 <tr><td x-text="p.given_name+' '+p.family_name"></td>
                     <td x-text="p.gender"></td><td x-text="p.dob"></td>
-                    <td><span x-show="p.is_demo" class="c">DEMO</span></td></tr>
+                    <td><span x-show="p.is_demo" class="c">DEMO</span></td>
+                    <td><button class="btn sm" @click="deletePerson(p)">Delete</button></td></tr>
               </template>
             </tbody>
           </table>
@@ -609,7 +637,7 @@ function app(){ return {
   email:'', msg:'', err:'', busy:false,
   userId:'', userEmail:'',
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
-  sel:null, blocks:[], auths:[], blockErr:'', modal:'',
+  sel:null, blocks:[], auths:[], blockErr:'', modal:'', delConfirm:'', delErr:'', peopleErr:'',
   authErr:'',
   rate:{session:null,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''},
   review:{session:null,rows:[],threshold:2,err:''},
@@ -722,7 +750,7 @@ function app(){ return {
     this.blocks=b||[];
     const {data:a} = await this.sb.from('session_authorisation').select('*').eq('session_id',s.id);
     this.auths=a||[];
-    this.blockErr=''; this.authErr='';
+    this.blockErr=''; this.authErr=''; this.delErr=''; this.delConfirm='';
     this.newBlock.date = this.newBlock.date || s.opens_at.slice(0,10);
   },
 
@@ -820,6 +848,53 @@ function app(){ return {
   unauthorisedMembers(){
     const has = new Set(this.auths.map(a=>a.membership_id));
     return this.members.filter(m=>!has.has(m.id));
+  },
+
+  // ── removal ────────────────────────────────────────────────────────────
+  // The database is the authority on all three of these. Every message below
+  // is either the trigger's own words or a plain reading of a Postgres code —
+  // nothing here decides whether the delete is allowed.
+  friendlyDeleteError(error, fallback){
+    const m = error?.message || '';
+    if (error?.code === '23503') return 'Something still depends on this, so it cannot be removed.';
+    if (error?.code === '42501' || /row-level security/i.test(m))
+      return 'You do not have permission to remove this.';
+    return m || fallback;
+  },
+
+  async removeBlock(b){
+    this.blockErr='';
+    const {error} = await this.sb.from('session_block').delete().eq('id', b.id);
+    if(error){ this.blockErr = this.friendlyDeleteError(error,'That day could not be removed.'); return; }
+    const s=this.sel; this.sel=null; await this.openSession(s);
+  },
+
+  async removeAuth(a){
+    this.authErr='';
+    const {error} = await this.sb.from('session_authorisation').delete().eq('id', a.id);
+    if(error){ this.authErr = this.friendlyDeleteError(error,'That authorisation could not be removed.'); return; }
+    const s=this.sel; this.sel=null; await this.openSession(s);
+  },
+
+  async deleteSession(s){
+    this.delErr='';
+    const {error} = await this.sb.from('rating_session').delete().eq('id', s.id);
+    if(error){
+      this.delErr = this.friendlyDeleteError(error,'That session could not be deleted.');
+      return;
+    }
+    this.delConfirm=''; this.sel=null;
+    await this.load();
+  },
+
+  async deletePerson(p){
+    this.peopleErr='';
+    const {error} = await this.sb.from('person').delete().eq('id', p.id);
+    if(error){
+      this.peopleErr = this.friendlyDeleteError(error,'That player could not be deleted.');
+      return;
+    }
+    await this.load();
   },
 
   async addAuth(){
