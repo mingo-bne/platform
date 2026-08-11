@@ -347,6 +347,36 @@ values (
                         :disabled="!newAuth.membership_id">Authorise</button>
               </div>
 
+              <div class="cath">Where this session is up to</div>
+              <div class="inline" style="margin-top:0">
+                <span class="c" :class="s.status==='draft'?'':'ok'">1 · draft</span>
+                <span class="c" :class="['open','closed','confirmed'].includes(s.status)?'ok':''">2 · open</span>
+                <span class="c" :class="['closed','confirmed'].includes(s.status)?'ok':''">3 · closed</span>
+                <span class="c" :class="s.status==='confirmed'?'ok':''">4 · confirmed</span>
+              </div>
+
+              <div class="inline">
+                <template x-if="s.status==='draft'">
+                  <button class="btn pri" @click="setStatus(s,'open')"
+                          :disabled="!blocks.length || !auths.length">Open this session</button>
+                </template>
+                <template x-if="s.status==='open'">
+                  <button class="btn" @click="setStatus(s,'closed')">Close for now</button>
+                </template>
+                <template x-if="s.status==='closed'">
+                  <button class="btn" @click="setStatus(s,'open')">Reopen</button>
+                </template>
+              </div>
+              <p class="note" x-show="s.status==='draft' && openBlockers()"
+                 style="margin:4px 0 0">
+                Before this can open it needs <b x-text="openBlockers()"></b>.
+              </p>
+              <p class="note" x-show="s.status==='closed'" style="margin:4px 0 0">
+                Closed stops new ratings but is not final — reopen it if a coach still has players
+                to get through. Confirming is the step that cannot be undone.
+              </p>
+              <p x-show="statusErr" x-text="statusErr" class="err"></p>
+
               <div class="cath">Do the work</div>
               <div class="inline" style="margin-top:0">
                 <button class="btn pri" @click="openRate(s)"
@@ -637,7 +667,7 @@ function app(){ return {
   email:'', msg:'', err:'', busy:false,
   userId:'', userEmail:'',
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
-  sel:null, blocks:[], auths:[], blockErr:'', modal:'', delConfirm:'', delErr:'', peopleErr:'',
+  sel:null, blocks:[], auths:[], blockErr:'', modal:'', delConfirm:'', delErr:'', peopleErr:'', statusErr:'',
   authErr:'',
   rate:{session:null,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''},
   review:{session:null,rows:[],threshold:2,err:''},
@@ -750,7 +780,7 @@ function app(){ return {
     this.blocks=b||[];
     const {data:a} = await this.sb.from('session_authorisation').select('*').eq('session_id',s.id);
     this.auths=a||[];
-    this.blockErr=''; this.authErr=''; this.delErr=''; this.delConfirm='';
+    this.blockErr=''; this.authErr=''; this.delErr=''; this.delConfirm=''; this.statusErr='';
     this.newBlock.date = this.newBlock.date || s.opens_at.slice(0,10);
   },
 
@@ -848,6 +878,29 @@ function app(){ return {
   unauthorisedMembers(){
     const has = new Set(this.auths.map(a=>a.membership_id));
     return this.members.filter(m=>!has.has(m.id));
+  },
+
+  // ── lifecycle ──────────────────────────────────────────────────────────
+  // What is still stopping the open session from opening, in one phrase.
+  // Returns '' when nothing is. The database enforces the same rule.
+  openBlockers(){
+    const missing = [];
+    if(!this.blocks.length) missing.push('at least one day');
+    if(!this.auths.length)  missing.push('at least one authorised rater');
+    return missing.join(' and ');
+  },
+
+  // draft → open → closed → confirmed, and closed can reopen. The database
+  // owns which moves exist and what opening requires; this just asks.
+  async setStatus(s, next){
+    this.statusErr='';
+    const {error} = await this.sb.from('rating_session')
+      .update({status: next}).eq('id', s.id);
+    if(error){ this.statusErr = error.message; return; }
+    s.status = next;
+    const keep = this.sel; this.sel=null;
+    await this.load();
+    if(keep) await this.openSession(this.sessions.find(x=>x.id===keep.id) || keep);
   },
 
   // ── removal ────────────────────────────────────────────────────────────
