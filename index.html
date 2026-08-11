@@ -139,6 +139,20 @@ display:block}
 .pcr .mn{width:38px;flex:none;text-align:right;font-size:14px;font-weight:600}
 .pcr .sp{width:52px;flex:none;text-align:right;font-size:11px;color:var(--ink3)}
 .pcr.wide{border-left:3px solid var(--warnline);background:var(--warnbg)}
+.pcr.settled{border-left:3px solid var(--okline);background:var(--okbg)}
+.pcr.gap{border-left:3px solid var(--line2)}
+.pcr.gap .lb,.pcr.gap .mn{color:var(--ink3)}
+.pcr.settled .meter{background:#c8ebdd}
+.pcr.settled .meter i{background:var(--ok)}
+.pcr .act{flex:none}
+.rz{padding:10px 12px;background:#fbfaf8;border-top:1px solid var(--line)}
+.rz .opt{display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid var(--line);
+border-radius:8px;margin-bottom:5px;background:#fff;cursor:pointer;font-size:12.5px}
+.rz .opt:hover{border-color:var(--navy)}
+.rz .opt.on{border-color:var(--navy);background:var(--navy2);font-weight:600}
+.rz .opt .v{width:26px;height:26px;border-radius:6px;background:var(--navy);color:#fff;flex:none;
+display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12.5px}
+.rz .opt.on .v{background:var(--ok)}
 .pcr.wide .meter{background:#f0dfc2}
 .pcr.wide .sp{color:var(--warn);font-weight:600}
 .sess{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--line);
@@ -862,7 +876,10 @@ values (
               </div>
               <div class="pc">
                 <template x-for="m in pmMeasures()" :key="m.measure_id">
-                  <div class="pcr" :class="m.spread > review.threshold ? 'wide' : ''">
+                  <div>
+                  <div class="pcr" :class="res(m.measure_id) ? 'settled'
+                                        : (!m.rated ? 'gap'
+                                        : (m.spread > review.threshold ? 'wide' : ''))">
                     <span class="lb" x-text="m.label"></span>
                     <span class="passes">
                       <template x-for="w in pmRaters()" :key="w.key">
@@ -870,11 +887,62 @@ values (
                               x-text="m.by[w.key] ?? '–'"></span>
                       </template>
                     </span>
-                    <span class="meter" :title="m.mean + ' of 5'">
-                      <i :style="'width:'+ (m.mean/5*100) +'%'"></i>
+                    <span class="meter" :title="effOf(m) + ' of 5'">
+                      <i :style="'width:'+ (isNaN(effOf(m)) ? 0 : effOf(m)/5*100) +'%'"></i>
                     </span>
-                    <span class="mn" x-text="m.mean"></span>
-                    <span class="sp" x-text="m.spread ? 'spread '+m.spread : ''"></span>
+                    <span class="mn" x-text="effOf(m)"></span>
+                    <span class="sp" x-text="res(m.measure_id)
+                          ? (res(m.measure_id).source==='adopted'
+                              ? 'took '+res(m.measure_id).adopted_name
+                              : 'HC call')
+                          : (!m.rated ? 'not rated' : (m.spread ? 'spread '+m.spread : ''))"></span>
+                    <span class="act">
+                      <button class="btn sm" x-show="canResolve()"
+                              @click="toggleResolve(m)"
+                              x-text="rz.measure_id===m.measure_id ? 'Cancel'
+                                    : (res(m.measure_id) ? 'Change' : 'Override')"></button>
+                    </span>
+                  </div>
+
+                  <!-- Pick one of the raters, or record your own. Both are the head
+                       coach's call; only the record of WHOSE call differs. -->
+                  <div class="rz" x-show="rz.measure_id===m.measure_id">
+                    <div class="cath" style="margin-top:0">The head coach's call</div>
+                    <p class="note" style="margin:0 0 7px">A session is usually run by the coaching
+                      staff; the head coach carries the final say on every rating, and the
+                      explanation with it.</p>
+                    <template x-for="w in pmRaters()" :key="w.key">
+                      <div class="opt" x-show="m.by[w.key] != null"
+                           :class="rz.source==='adopted' && rz.adopted===w.mid ? 'on' : ''"
+                           @click="rz.source='adopted'; rz.adopted=w.mid; rz.score=m.by[w.key]">
+                        <span class="v" x-text="m.by[w.key]"></span>
+                        <span>Take <b x-text="w.name"></b>'s rating</span>
+                      </div>
+                    </template>
+                    <div class="opt" :class="rz.source==='own' ? 'on' : ''"
+                         @click="rz.source='own'; rz.adopted=null">
+                      <span class="v" x-text="rz.source==='own' && rz.score ? rz.score : '?'"></span>
+                      <span>Record my own</span>
+                      <span class="scale" style="margin-left:auto">
+                        <template x-for="v in scaleOf(rzMeasure())" :key="v">
+                          <button class="sv" :class="rz.source==='own' && rz.score===v ? 'on' : ''"
+                                  @click.stop="rz.source='own'; rz.adopted=null; rz.score=v"
+                                  x-text="v"></button>
+                        </template>
+                      </span>
+                    </div>
+                    <div class="field" style="margin:8px 0 0">
+                      <label class="fl">Why — this is the explanation you will give a parent</label>
+                      <input type="text" x-model="rz.rationale"
+                             placeholder="e.g. watched the second half">
+                    </div>
+                    <div class="inline" style="margin-top:8px">
+                      <button class="btn pri" @click="saveResolution(m)"
+                              :disabled="!rz.score || rz.busy">Save the call</button>
+                      <button class="btn" @click="rz.measure_id=''">Cancel</button>
+                    </div>
+                    <p x-show="rz.err" x-text="rz.err" class="err"></p>
+                  </div>
                   </div>
                 </template>
               </div>
@@ -976,7 +1044,8 @@ function app(){ return {
   rate:{session:null,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''},
   review:{session:null,rows:[],threshold:2,err:'',scores:{}},
   pm:{open:false,personId:'',name:'',sessionName:'',mean:'',coverage:'',
-      detail:[],history:[],err:''},
+      detail:[],history:[],resolutions:[],err:''},
+  rz:{measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false},
   stage:'admin',
   court:{sessions:[],session:null,people:[],measures:[],rated:{},person:null,
          scores:{},note:'',err:'',msg:''},
@@ -1431,16 +1500,73 @@ function app(){ return {
       coverage: row.coverage || '',
       detail: [], history: [], err: ''
     };
-    const [{data:d, error:e1}, {data:h, error:e2}] = await Promise.all([
+    this.rz = {measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false};
+    const [{data:d, error:e1}, {data:h, error:e2}, {data:rs}] = await Promise.all([
       this.sb.from('v_rating_detail').select('*')
         .eq('session_id', this.review.session.id).eq('person_id', personId)
         .order('measure_sort'),
       this.sb.from('v_player_history').select('*')
-        .eq('person_id', personId).order('session_date')
+        .eq('person_id', personId).order('session_date'),
+      this.sb.from('v_session_resolution').select('*')
+        .eq('session_id', this.review.session.id).eq('person_id', personId)
     ]);
     if(e1){ this.pm.err = e1.message; return; }
-    this.pm.detail  = d || [];
-    this.pm.history = e2 ? [] : (h || []);
+    this.pm.detail      = d  || [];
+    this.pm.history     = e2 ? [] : (h || []);
+    this.pm.resolutions = (rs || []).filter(r => r.is_resolved);
+  },
+
+  // ── settling a divergence ──────────────────────────────────────────────
+  // Two acts, one record. ADOPTED means the head coach picked a rater and said
+  // that one is right; OWN means he formed his own judgement. Neither writes an
+  // assessment — a head coach's score is not a fourth rating. If it were, it
+  // would join the mean and move the spread, rewriting what the coaches said.
+  res(measureId){ return (this.pm.resolutions || []).find(r => r.measure_id === measureId) || null; },
+  effOf(m){
+    const r = this.res(m.measure_id);
+    return r ? Number(r.resolved_score).toFixed(2) : (m.mean ?? '–');
+  },
+  canResolve(){
+    return ['head_coach','club_admin'].includes(this.me?.role)
+        && ['open','closed'].includes(this.review.session?.status);
+  },
+  rzMeasure(){
+    return this.pmMeasures().find(m => m.measure_id === this.rz.measure_id)
+        || {scale_min:1, scale_max:5};
+  },
+  toggleResolve(m){
+    if(this.rz.measure_id === m.measure_id){ this.rz.measure_id=''; return; }
+    const existing = this.res(m.measure_id);
+    this.rz = {
+      measure_id: m.measure_id,
+      source: existing?.source || '',
+      adopted: existing?.adopted_membership_id || null,
+      score: existing ? Number(existing.resolved_score) : null,
+      rationale: existing?.rationale || '',
+      err:'', busy:false
+    };
+  },
+  async saveResolution(m){
+    this.rz.err=''; this.rz.busy=true;
+    const row = {
+      org_id: this.org.id,
+      session_id: this.review.session.id,
+      person_id: this.pm.personId,
+      measure_id: m.measure_id,
+      resolved_score: this.rz.score,
+      resolving_membership_id: this.me.id,
+      source: this.rz.source || 'own',
+      adopted_membership_id: this.rz.source === 'adopted' ? this.rz.adopted : null,
+      rationale: this.rz.rationale || null
+    };
+    const {error} = await this.sb.from('assessment_resolution')
+      .upsert(row, {onConflict:'session_id,person_id,measure_id'});
+    this.rz.busy=false;
+    if(error){ this.rz.err = error.message; return; }
+    this.rz.measure_id='';
+    const {data:rs} = await this.sb.from('v_session_resolution').select('*')
+      .eq('session_id', this.review.session.id).eq('person_id', this.pm.personId);
+    this.pm.resolutions = (rs || []).filter(r => r.is_resolved);
   },
 
   // One column per rating PASS, oldest first. Two passes by the same coach stay
@@ -1450,16 +1576,26 @@ function app(){ return {
     (this.pm.detail || []).forEach(d => {
       if(!seen.has(d.assessment_id))
         seen.set(d.assessment_id, {key:d.assessment_id, name:d.rater_name,
+                                   mid:d.membership_id,
                                    at:d.recorded_at, when:this.shortWhen(d.recorded_at)});
     });
     return [...seen.values()].sort((a,b) => String(a.at).localeCompare(String(b.at)));
   },
+  // Every measure in the session's rubric, whether anybody rated it or not.
+  // A gap is the head coach's to close as much as a disagreement is his to
+  // settle — he is the one who explains the whole record to a parent.
   pmMeasures(){
     const byMeasure = new Map();
+    (this.measuresOf(this.review.session?.rubric_id) || []).forEach(m => {
+      byMeasure.set(m.id, {measure_id:m.id, label:m.label, sort:m.sort_order,
+                           scale_min:m.scale_min ?? 1, scale_max:m.scale_max ?? 5,
+                           by:{}, vals:[]});
+    });
     (this.pm.detail || []).forEach(d => {
       if(!byMeasure.has(d.measure_id))
         byMeasure.set(d.measure_id,
-          {measure_id:d.measure_id, label:d.measure_label, sort:d.measure_sort, by:{}, vals:[]});
+          {measure_id:d.measure_id, label:d.measure_label, sort:d.measure_sort,
+           scale_min:1, scale_max:5, by:{}, vals:[]});
       const m = byMeasure.get(d.measure_id);
       m.by[d.assessment_id] = d.score;
       m.vals.push(Number(d.score));
@@ -1467,8 +1603,9 @@ function app(){ return {
     return [...byMeasure.values()]
       .sort((a,b) => a.sort - b.sort)
       .map(m => ({...m,
-        mean: (m.vals.reduce((a,b)=>a+b,0) / m.vals.length).toFixed(2),
-        spread: Math.max(...m.vals) - Math.min(...m.vals)}));
+        rated: m.vals.length > 0,
+        mean:  m.vals.length ? (m.vals.reduce((a,b)=>a+b,0) / m.vals.length).toFixed(2) : null,
+        spread: m.vals.length ? Math.max(...m.vals) - Math.min(...m.vals) : 0}));
   },
   pmWorst(){
     const v = this.pmMeasures().map(m => m.spread);
