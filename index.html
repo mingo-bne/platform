@@ -118,6 +118,26 @@ tr.flag td{background:var(--warnbg)}
 pre.sql{background:#fbfaf8;border:1px solid var(--line);border-radius:7px;padding:9px 11px;
 font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
+/* ── courtside: the coach's own device. Same tokens, bigger targets. ── */
+.court{max-width:560px;margin:0 auto}
+.qbar{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:9px;
+font-size:12.5px;margin-bottom:11px;border:1px solid}
+.qbar.wait{background:var(--warnbg);border-color:var(--warnline);color:var(--warn)}
+.qbar.done{background:var(--okbg);border-color:var(--okline);color:var(--ok)}
+.qbar .spacer{flex:1}
+.prow{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);
+border-radius:10px;margin-bottom:7px;background:#fff;cursor:pointer}
+.prow:active{background:#fbfaf8}
+.prow .nm{flex:1;min-width:0;font-size:15px;font-weight:600}
+.prow .who{font-size:11px;color:var(--ink2);font-weight:400;display:block;margin-top:1px}
+.mrow.big{padding:11px 0}
+.mrow.big .lb{font-size:15px}
+.scale.big{gap:6px}
+.scale.big .sv{width:46px;height:44px;font-size:16px}
+@media (max-width:600px){
+ .scale.big .sv{width:100%;flex:1}
+ .stage{padding:0 11px}
+}
 /* modals — TMS pattern */
 .modal{position:fixed;inset:0;background:rgba(28,27,25,.5);z-index:80;display:flex;
 align-items:flex-start;justify-content:center;padding:44px 18px;overflow:auto}
@@ -201,14 +221,136 @@ word-break:break-all}
     <div class="spacer"></div>
     <template x-if="org">
       <span>
-        <button class="hb" @click="modal='players'">Players…</button>
-        <button class="hb" @click="modal='rubrics'">Rubrics…</button>
+        <button class="hb" :class="stage==='court'?'pri':''"
+                @click="stage==='court' ? (stage='admin') : openCourt()"
+                x-text="stage==='court' ? 'Club' : 'Courtside'"></button>
+        <button class="hb" x-show="stage==='admin'" @click="modal='players'">Players…</button>
+        <button class="hb" x-show="stage==='admin'" @click="modal='rubrics'">Rubrics…</button>
       </span>
     </template>
     <button class="hb" @click="modal='more'">More…</button>
   </header>
 
   <div id="shell"><div class="stage">
+
+    <!-- ══════════════════ COURTSIDE — the coach's own device ══════════════════
+         Same app, same tokens, phone-shaped. A coach sees only the sessions they
+         are authorised for. Ratings save to THIS DEVICE first and upload when
+         there is a connection — a school hall on trial night is exactly where a
+         live-only form dies, mid-rating, with a child standing in front of you.
+         Nobody is pre-assigned: the list shows who has already been rated and by
+         whom, and coaches pick up whoever has not been. -->
+    <template x-if="stage==='court'">
+      <div class="court">
+        <div class="qbar" :class="queue.length ? 'wait' : 'done'">
+          <b x-text="queue.length ? queue.length + (queue.length===1?' rating waiting':' ratings waiting')
+                                  : 'Everything is saved'"></b>
+          <span class="spacer"></span>
+          <span x-show="!online" class="c wn">offline</span>
+          <button class="btn sm" x-show="queue.length" :disabled="syncing || !online"
+                  @click="flushQueue()" x-text="syncing?'Sending…':'Send now'"></button>
+        </div>
+        <p class="note" x-show="queue.length && !online" style="margin:-6px 0 11px">
+          No connection. Keep rating — everything is held on this device and goes up by itself
+          when you are back.</p>
+        <p x-show="court.err" x-text="court.err" class="err" style="margin-top:0"></p>
+
+        <!-- pick a session -->
+        <template x-if="!court.session">
+          <div class="panel">
+            <div class="rhead"><h2>Your rating sessions</h2>
+              <div class="sub">Only sessions you have been authorised to rate in.</div></div>
+            <div class="pbody">
+              <template x-if="!court.sessions.length">
+                <div class="empty">Nothing open for you right now. The club opens a session and
+                  authorises you before it appears here.</div>
+              </template>
+              <template x-for="s in court.sessions" :key="s.id">
+                <div class="prow" @click="pickCourtSession(s)">
+                  <div class="nm"><span x-text="s.name"></span>
+                    <span class="who"><span x-text="s.opens_at?.slice(0,10)"></span> →
+                      <span x-text="s.closes_at?.slice(0,10)"></span></span></div>
+                  <span class="c grp" x-text="s.status"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- the squad -->
+        <template x-if="court.session && !court.person">
+          <div class="panel">
+            <div class="rhead" style="display:flex;align-items:center;gap:10px">
+              <div style="flex:1">
+                <h2 x-text="court.session.name"></h2>
+                <div class="sub"><span x-text="courtDone()"></span> of
+                  <span x-text="court.people.length"></span> rated by anyone</div>
+              </div>
+              <button class="btn sm" @click="court.session=null;court.person=null">Back</button>
+            </div>
+            <div class="pbody">
+              <p class="note" style="margin:0 0 9px">Nobody is assigned. Pick up whoever has not
+                been rated — the list shows who already has.</p>
+              <template x-for="p in court.people" :key="p.id">
+                <div class="prow" @click="pickCourtPlayer(p)">
+                  <div class="nm"><span x-text="p.given_name+' '+p.family_name"></span>
+                    <span class="who" x-text="courtWho(p.id)"></span></div>
+                  <span class="c" :class="courtMine(p.id) ? 'ok' : (courtRated(p.id) ? 'grp' : '')"
+                        x-text="courtMine(p.id) ? 'you' : (courtRated(p.id) ? 'rated' : 'to do')"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- rate one player -->
+        <template x-if="court.person">
+          <div class="panel">
+            <div class="rhead" style="display:flex;align-items:center;gap:10px">
+              <div style="flex:1">
+                <h2 x-text="(court.person?.given_name||'')+' '+(court.person?.family_name||'')"></h2>
+                <div class="sub"><span x-text="Object.keys(court.scores).length"></span> of
+                  <span x-text="courtMeasures().length"></span> scored</div>
+              </div>
+              <button class="btn sm" @click="court.person=null">Back</button>
+            </div>
+            <div class="pbody">
+              <p class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);margin-bottom:10px"
+                 x-show="courtMine(court.person?.id)">
+                You have already rated this player in this session. Rating again is allowed and both
+                are kept — the head coach sees the spread.</p>
+              <template x-for="m in courtMeasures()" :key="m.id">
+                <div class="mrow big">
+                  <span class="lb" x-text="m.label"></span>
+                  <div class="scale big">
+                    <template x-for="v in scaleOf(m)" :key="v">
+                      <button class="sv" :class="court.scores[m.id]===v?'on':''"
+                              @click="court.scores[m.id]=v" x-text="v"></button>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <div class="field" style="margin-top:10px">
+                <label class="fl">Note (optional)</label>
+                <input type="text" x-model="court.note" placeholder="anything worth recording">
+              </div>
+              <div class="inline" style="margin-top:0">
+                <button class="btn pri" @click="saveCourt()"
+                        :disabled="!Object.keys(court.scores).length">Save and next</button>
+                <button class="btn" @click="court.scores={};court.note=''">Clear</button>
+              </div>
+              <p class="note">Saved on this device straight away. It goes up on its own — you do not
+                have to wait for it. A saved rating cannot be edited; a correction is a resolution by
+                the head coach.</p>
+              <p x-show="court.msg" x-text="court.msg" class="msg"></p>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <template x-if="stage==='admin'">
+    <div>
 
     <!-- no membership -->
     <template x-if="!org">
@@ -412,6 +554,9 @@ values (
           </div>
         </template>
       </div>
+    </div>
+    </template>
+
     </div>
     </template>
 
@@ -772,6 +917,10 @@ function app(){ return {
   review:{session:null,rows:[],threshold:2,err:'',scores:{}},
   pm:{open:false,personId:'',name:'',sessionName:'',mean:'',coverage:'',
       detail:[],history:[],err:''},
+  stage:'admin',
+  court:{sessions:[],session:null,people:[],measures:[],rated:{},person:null,
+         scores:{},note:'',err:'',msg:''},
+  queue:[], syncing:false, online:true,
   newSession:{open:false,name:'',opens:'',closes:'',rubric_id:''},
   newBlock:{date:'',start:'18:00',end:'20:00',venue:''},
   newAuth:{membership_id:''},
@@ -818,7 +967,13 @@ function app(){ return {
 
   async afterLogin(session){
     this.userId = session.user.id; this.userEmail = session.user.email;
-    this.screen='app'; await this.load();
+    this.screen='app';
+    this.loadQueue();
+    this.online = navigator.onLine !== false;
+    addEventListener('online',  () => { this.online = true;  this.flushQueue(); });
+    addEventListener('offline', () => { this.online = false; });
+    await this.load();
+    this.flushQueue();
   },
 
   async load(){
@@ -981,6 +1136,183 @@ function app(){ return {
     const v = Object.values(this.review.scores || {}).map(x => Number(x.mean_score));
     if(!v.length) return '—';
     return (v.reduce((a,b)=>a+b,0) / v.length).toFixed(2);
+  },
+
+  // ══════════════════════ COURTSIDE ══════════════════════
+  // The coach's own device. Two rules shape all of this:
+  //
+  //   1. A rating is SAVED THE MOMENT IT IS TAKEN, to this device. Uploading is
+  //      a separate, later, retryable thing. A school hall on trial night has no
+  //      usable wifi and that is precisely when this has to work.
+  //   2. Nobody is pre-assigned. The squad list shows who has already been rated
+  //      and by whom, and coaches pick up whoever has not been. Two coaches
+  //      rating the same player is allowed by design (decision F4) — both are
+  //      kept and the head coach sees the spread.
+  //
+  // Idempotence comes free from the schema: the client generates the assessment
+  // id, and assessment_score is keyed on (assessment_id, measure_id). A retry
+  // that re-posts the same rating writes nothing new.
+
+  QKEY(){ return 'platform.queue.' + (this.userId || 'anon'); },
+  loadQueue(){
+    try { this.queue = JSON.parse(localStorage.getItem(this.QKEY()) || '[]'); }
+    catch { this.queue = []; }
+  },
+  saveQueue(){ localStorage.setItem(this.QKEY(), JSON.stringify(this.queue)); },
+
+  CKEY(id){ return 'platform.court.' + id; },
+  cacheSession(bundle){
+    try { localStorage.setItem(this.CKEY(bundle.session.id), JSON.stringify(bundle)); } catch {}
+  },
+  cachedSession(id){
+    try { return JSON.parse(localStorage.getItem(this.CKEY(id)) || 'null'); } catch { return null; }
+  },
+
+  uuid(){
+    if(crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = crypto.getRandomValues(new Uint8Array(1))[0] % 16;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  },
+
+  async openCourt(){
+    this.stage = 'court';
+    this.court.err = ''; this.court.session = null; this.court.person = null;
+    const {data, error} = await this.sb.from('session_authorisation')
+      .select('session_id, rating_session!inner(id,name,status,opens_at,closes_at,rubric_id)')
+      .eq('membership_id', this.me.id);
+    if(error){
+      // No connection: fall back to whatever this device already knows.
+      this.court.sessions = this.knownSessions();
+      this.court.err = this.court.sessions.length ? '' :
+        'Cannot reach the database, and this device has no session saved yet.';
+      return;
+    }
+    this.court.sessions = (data || [])
+      .map(r => r.rating_session)
+      .filter(s => s && s.status === 'open');
+    this.court.sessions.forEach(s => {
+      const b = this.cachedSession(s.id) || {};
+      this.cacheSession({...b, session: s});
+    });
+  },
+  knownSessions(){
+    const out = [];
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(!k || k.indexOf('platform.court.') !== 0) continue;
+      try { const b = JSON.parse(localStorage.getItem(k)); if(b?.session) out.push(b.session); }
+      catch {}
+    }
+    return out;
+  },
+
+  async pickCourtSession(s){
+    this.court.session = s; this.court.person = null;
+    this.court.err = ''; this.court.msg = '';
+    const cached = this.cachedSession(s.id);
+    if(cached){ this.court.people = cached.people || []; this.court.measures = cached.measures || [];
+                this.court.rated = cached.rated || {}; }
+    const [{data:ppl, error:e1}, {data:ms, error:e2}, {data:det}] = await Promise.all([
+      this.sb.from('person').select('id,given_name,family_name').order('family_name'),
+      this.sb.from('rubric_measure').select('*').eq('rubric_id', s.rubric_id).order('sort_order'),
+      this.sb.from('v_rating_detail').select('person_id,membership_id,rater_name')
+        .eq('session_id', s.id)
+    ]);
+    if(e1 || e2){
+      if(!cached) this.court.err =
+        'Cannot reach the database, and this session is not saved on this device yet. ' +
+        'Open it once while you have a connection.';
+      return;
+    }
+    this.court.people   = ppl || [];
+    this.court.measures = ms  || [];
+    const rated = {};
+    (det || []).forEach(d => {
+      rated[d.person_id] = rated[d.person_id] || {names:new Set(), mine:false};
+      rated[d.person_id].names.add(d.rater_name);
+      if(d.membership_id === this.me.id) rated[d.person_id].mine = true;
+    });
+    // Sets do not survive JSON, so store plain arrays.
+    this.court.rated = Object.fromEntries(Object.entries(rated)
+      .map(([k,v]) => [k, {names:[...v.names], mine:v.mine}]));
+    this.applyQueueToRated();
+    this.cacheSession({session:s, people:this.court.people,
+                       measures:this.court.measures, rated:this.court.rated});
+  },
+  // Anything still sitting in the queue counts as rated — the coach did the work,
+  // it just has not left the device.
+  applyQueueToRated(){
+    this.queue.filter(q => q.session_id === this.court.session?.id).forEach(q => {
+      const r = this.court.rated[q.person_id] || {names:[], mine:false};
+      if(!r.names.includes(this.me.display_name)) r.names.push(this.me.display_name);
+      r.mine = true;
+      this.court.rated[q.person_id] = r;
+    });
+  },
+  courtMeasures(){ return this.court.measures; },
+  courtRated(id){ return !!this.court.rated[id]; },
+  courtMine(id){ return !!this.court.rated[id]?.mine; },
+  courtWho(id){
+    const r = this.court.rated[id];
+    if(!r) return 'not rated yet';
+    return 'rated by ' + r.names.join(', ');
+  },
+  courtDone(){ return Object.keys(this.court.rated).length; },
+
+  pickCourtPlayer(p){
+    this.court.person = p; this.court.scores = {}; this.court.note = ''; this.court.msg = '';
+  },
+
+  // Save = write to this device. Uploading is a separate concern.
+  saveCourt(){
+    const q = {
+      id: this.uuid(),
+      org_id: this.org.id,
+      session_id: this.court.session.id,
+      person_id: this.court.person.id,
+      membership_id: this.me.id,
+      submitted_at: new Date().toISOString(),
+      note: this.court.note || null,
+      scores: Object.entries(this.court.scores).map(([measure_id, score]) => ({measure_id, score}))
+    };
+    this.queue.push(q); this.saveQueue();
+    const r = this.court.rated[q.person_id] || {names:[], mine:false};
+    if(!r.names.includes(this.me.display_name)) r.names.push(this.me.display_name);
+    r.mine = true; this.court.rated[q.person_id] = r;
+    this.cacheSession({session:this.court.session, people:this.court.people,
+                       measures:this.court.measures, rated:this.court.rated});
+    this.court.person = null; this.court.scores = {}; this.court.note = '';
+    this.flushQueue();
+  },
+
+  async flushQueue(){
+    if(this.syncing || !this.queue.length) return;
+    this.syncing = true;
+    const still = [];
+    for(const q of this.queue){
+      const ok = await this.sendOne(q);
+      if(!ok) still.push(q);
+    }
+    this.queue = still; this.saveQueue();
+    this.syncing = false;
+  },
+  async sendOne(q){
+    // The id is generated on the device, so re-sending the same rating is a
+    // no-op rather than a duplicate.
+    const {error:e1} = await this.sb.from('assessment').upsert({
+      id:q.id, org_id:q.org_id, session_id:q.session_id, person_id:q.person_id,
+      membership_id:q.membership_id, submitted_at:q.submitted_at
+    }, {onConflict:'id', ignoreDuplicates:true});
+    if(e1){ this.online = false; return false; }
+    const {error:e2} = await this.sb.from('assessment_score').upsert(
+      q.scores.map(x => ({assessment_id:q.id, measure_id:x.measure_id,
+                          score:x.score, note:q.note})),
+      {onConflict:'assessment_id,measure_id', ignoreDuplicates:true});
+    if(e2){ this.online = false; return false; }
+    this.online = true;
+    return true;
   },
 
   // ── the player modal ───────────────────────────────────────────────────
