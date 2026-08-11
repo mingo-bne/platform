@@ -138,7 +138,8 @@ word-break:break-all}
 </style>
 </head>
 <body>
-<div x-data="app()" x-init="boot()" x-cloak @keydown.escape.window="modal=''">
+<div x-data="app()" x-init="boot()" x-cloak
+     @keydown.escape.window="pm.open ? (pm.open=false) : (modal='')">
 
 <!-- ────────────────────────── SETUP ────────────────────────── -->
 <template x-if="screen==='setup'">
@@ -576,8 +577,8 @@ values (
                 <th style="width:90px">Coverage</th>
                 <th style="width:70px">Scored</th><th style="width:70px">Raters</th>
                 <th style="width:74px">Spread</th><th style="width:64px"></th></tr></thead>
-              <template x-for="r in review.rows" :key="r.person_id">
-                <tbody>
+              <tbody>
+                <template x-for="r in review.rows" :key="r.person_id">
                   <tr :class="r.worst_spread > review.threshold ? 'flag' : ''">
                     <td x-text="r.given_name+' '+r.family_name"></td>
                     <td><b x-text="meanOf(r.person_id)"></b></td>
@@ -587,40 +588,10 @@ values (
                     <td x-text="r.assessment_count"></td>
                     <td x-text="r.worst_spread || ''"></td>
                     <td><button class="btn sm" x-show="r.measures_scored"
-                          @click="toggleDetail(r.person_id)"
-                          x-text="review.openPerson===r.person_id?'Hide':'Detail'"></button></td>
+                          @click="openPlayer(r.person_id)">Detail</button></td>
                   </tr>
-                  <tr x-show="review.openPerson===r.person_id">
-                    <td colspan="7" style="background:#fbfaf8;padding:9px 11px">
-                      <div class="cath" style="margin-top:0">What each rater said</div>
-                      <table class="jt" style="background:#fff">
-                        <thead><tr><th>Measure</th>
-                          <template x-for="w in detailRaters()" :key="w.key">
-                            <th style="width:96px" x-text="w.name"></th>
-                          </template>
-                          <th style="width:60px">Mean</th><th style="width:62px">Spread</th></tr></thead>
-                        <tbody>
-                          <template x-for="m in detailMeasures()" :key="m.measure_id">
-                            <tr :class="m.spread > review.threshold ? 'flag' : ''">
-                              <td x-text="m.label"></td>
-                              <template x-for="w in detailRaters()" :key="w.key">
-                                <td x-text="m.by[w.key] ?? '—'"></td>
-                              </template>
-                              <td><b x-text="m.mean"></b></td>
-                              <td x-text="m.spread || ''"></td>
-                            </tr>
-                          </template>
-                        </tbody>
-                      </table>
-                      <p class="note" x-show="detailRaters().length>1">
-                        Each column is one rating pass. Where the same coach rated twice the passes
-                        are shown separately — nothing is averaged away before you see it.
-                      </p>
-                      <p x-show="review.detailErr" x-text="review.detailErr" class="err"></p>
-                    </td>
-                  </tr>
-                </tbody>
-              </template>
+                </template>
+              </tbody>
             </table>
           </div>
 
@@ -639,6 +610,99 @@ values (
               <p x-show="!['head_coach','club_admin'].includes(me?.role)" class="note">
                 Your role is <b x-text="me?.role"></b>, so you cannot confirm.</p>
               <p x-show="review.err" x-text="review.err" class="err"></p>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ─────────── PLAYER (modal) ─────────── -->
+  <!-- Layered above Review, because it is summoned FROM Review and Review is still
+       the thing you are doing. Escape or the × returns you to it, in place. -->
+  <template x-if="pm.open">
+    <div class="modal" data-modal="player" style="z-index:90" @click.self="pm.open=false">
+      <div class="box">
+        <div class="mhead">
+          <h3 x-text="pm.name"></h3>
+          <span class="c grp" x-text="pm.sessionName"></span>
+          <span class="c" x-show="pm.mean" x-text="'rating '+pm.mean"></span>
+          <span class="c" :class="pm.coverage==='complete'?'ok':(pm.coverage==='partial'?'wn':'')"
+                x-show="pm.coverage" x-text="pm.coverage"></span>
+          <button class="x" @click="pm.open=false" title="Close">×</button>
+        </div>
+        <div class="mbody">
+          <p x-show="pm.err" x-text="pm.err" class="err" style="margin-top:0"></p>
+          <template x-if="!pm.detail.length && !pm.err">
+            <div class="empty">Nothing recorded for this player in this session yet.</div>
+          </template>
+
+          <template x-if="pm.detail.length">
+            <div>
+              <div class="statrow" style="border:1px solid var(--line);border-radius:8px;margin-bottom:12px">
+                <div><b x-text="pm.mean"></b>rating</div>
+                <div><b x-text="pmRaters().length"></b><span x-text="pmRaters().length===1?'pass':'passes'"></span></div>
+                <div><b x-text="pmMeasures().length"></b>measures</div>
+                <div><b x-text="pmWorst()"></b>worst spread</div>
+              </div>
+
+              <div class="cath">What each rater said
+                <b x-text="'threshold '+review.threshold"></b></div>
+              <table class="jt">
+                <thead><tr><th>Measure</th>
+                  <template x-for="w in pmRaters()" :key="w.key">
+                    <th style="width:104px">
+                      <span x-text="w.name"></span>
+                      <small style="display:block;font-weight:400;color:var(--ink3)"
+                             x-text="w.when"></small>
+                    </th>
+                  </template>
+                  <th style="width:58px">Mean</th><th style="width:60px">Spread</th></tr></thead>
+                <tbody>
+                  <template x-for="m in pmMeasures()" :key="m.measure_id">
+                    <tr :class="m.spread > review.threshold ? 'flag' : ''">
+                      <td x-text="m.label"></td>
+                      <template x-for="w in pmRaters()" :key="w.key">
+                        <td x-text="m.by[w.key] ?? '—'"></td>
+                      </template>
+                      <td><b x-text="m.mean"></b></td>
+                      <td x-text="m.spread || ''"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <p class="note" x-show="pmRaters().length>1">Each column is one rating pass. Where the
+                same coach rated twice the passes are shown separately — nothing is averaged away
+                before you see it.</p>
+              <p class="note" x-show="pmRaters().length===1">One pass, so there is nothing to
+                disagree with yet. Spread appears once a second coach rates this player.</p>
+            </div>
+          </template>
+
+          <div class="cath">Approved record</div>
+          <template x-if="!pm.history.length">
+            <p class="note" style="margin-top:0">Nothing approved yet. A rating enters this player's
+              permanent record when the head coach confirms the session it came from.</p>
+          </template>
+          <template x-if="pm.history.length">
+            <div>
+              <table class="jt">
+                <thead><tr><th>Session</th><th style="width:96px">Date</th>
+                  <th style="width:70px">Rating</th><th style="width:80px">Measures</th>
+                  <th style="width:84px">Source</th></tr></thead>
+                <tbody>
+                  <template x-for="h in pmHistory()" :key="h.session_id">
+                    <tr><td x-text="h.session_name"></td>
+                        <td x-text="h.session_date"></td>
+                        <td><b x-text="h.mean"></b></td>
+                        <td x-text="h.n"></td>
+                        <td><span class="c" :class="h.anyResolved?'acc':''"
+                              x-text="h.anyResolved?'resolved':'mean'"></span></td></tr>
+                  </template>
+                </tbody>
+              </table>
+              <p class="note">One row per confirmed session, oldest first. The matrix and the trend
+                chart read from the same record.</p>
             </div>
           </template>
         </div>
@@ -705,7 +769,9 @@ function app(){ return {
   sel:null, blocks:[], auths:[], blockErr:'', modal:'', delConfirm:'', delErr:'', peopleErr:'', statusErr:'',
   authErr:'',
   rate:{session:null,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''},
-  review:{session:null,rows:[],threshold:2,err:'',scores:{},detail:[],openPerson:'',detailErr:''},
+  review:{session:null,rows:[],threshold:2,err:'',scores:{}},
+  pm:{open:false,personId:'',name:'',sessionName:'',mean:'',coverage:'',
+      detail:[],history:[],err:''},
   newSession:{open:false,name:'',opens:'',closes:'',rubric_id:''},
   newBlock:{date:'',start:'18:00',end:'20:00',venue:''},
   newAuth:{membership_id:''},
@@ -889,7 +955,8 @@ function app(){ return {
 
   async openReview(s){
     this.modal='review';
-    this.review={session:s,rows:[],threshold:2,err:'',scores:{},detail:[],openPerson:'',detailErr:''};
+    this.review={session:s,rows:[],threshold:2,err:'',scores:{}};
+    this.pm.open=false;
     const {data:prof} = await this.sb.from('org_profile')
       .select('divergence_threshold_measure').eq('org_id',this.org.id).maybeSingle();
     if(prof) this.review.threshold = Number(prof.divergence_threshold_measure);
@@ -916,31 +983,47 @@ function app(){ return {
     return (v.reduce((a,b)=>a+b,0) / v.length).toFixed(2);
   },
 
-  // ── the history ────────────────────────────────────────────────────────
-  // Every individual score, laid out measure by measure with one column per
-  // rating pass. Two passes by the same coach stay separate — the whole point
-  // is to see what was actually said, not a number that hides it.
-  async toggleDetail(personId){
-    if(this.review.openPerson === personId){ this.review.openPerson=''; return; }
-    this.review.openPerson = personId;
-    this.review.detail = []; this.review.detailErr='';
-    const {data,error} = await this.sb.from('v_rating_detail').select('*')
-      .eq('session_id', this.review.session.id).eq('person_id', personId)
-      .order('measure_sort');
-    if(error){ this.review.detailErr = error.message; return; }
-    this.review.detail = data || [];
+  // ── the player modal ───────────────────────────────────────────────────
+  // Summoned from Review (and later from the Players list). It carries two
+  // things: what happened in THIS session, pass by pass, and the player's
+  // approved record across every session that has been confirmed.
+  async openPlayer(personId){
+    const row = this.review.rows.find(r => r.person_id === personId) || {};
+    const sc  = this.review.scores?.[personId];
+    this.pm = {
+      open:true, personId,
+      name: [row.given_name, row.family_name].filter(Boolean).join(' '),
+      sessionName: this.review.session?.name || '',
+      mean: sc ? Number(sc.mean_score).toFixed(2) : '',
+      coverage: row.coverage || '',
+      detail: [], history: [], err: ''
+    };
+    const [{data:d, error:e1}, {data:h, error:e2}] = await Promise.all([
+      this.sb.from('v_rating_detail').select('*')
+        .eq('session_id', this.review.session.id).eq('person_id', personId)
+        .order('measure_sort'),
+      this.sb.from('v_player_history').select('*')
+        .eq('person_id', personId).order('session_date')
+    ]);
+    if(e1){ this.pm.err = e1.message; return; }
+    this.pm.detail  = d || [];
+    this.pm.history = e2 ? [] : (h || []);
   },
-  detailRaters(){
+
+  // One column per rating PASS, oldest first. Two passes by the same coach stay
+  // separate — seeing what was actually said is the whole point.
+  pmRaters(){
     const seen = new Map();
-    (this.review.detail || []).forEach(d => {
+    (this.pm.detail || []).forEach(d => {
       if(!seen.has(d.assessment_id))
-        seen.set(d.assessment_id, {key:d.assessment_id, name:d.rater_name, at:d.recorded_at});
+        seen.set(d.assessment_id, {key:d.assessment_id, name:d.rater_name,
+                                   at:d.recorded_at, when:this.shortWhen(d.recorded_at)});
     });
     return [...seen.values()].sort((a,b) => String(a.at).localeCompare(String(b.at)));
   },
-  detailMeasures(){
+  pmMeasures(){
     const byMeasure = new Map();
-    (this.review.detail || []).forEach(d => {
+    (this.pm.detail || []).forEach(d => {
       if(!byMeasure.has(d.measure_id))
         byMeasure.set(d.measure_id,
           {measure_id:d.measure_id, label:d.measure_label, sort:d.measure_sort, by:{}, vals:[]});
@@ -953,6 +1036,31 @@ function app(){ return {
       .map(m => ({...m,
         mean: (m.vals.reduce((a,b)=>a+b,0) / m.vals.length).toFixed(2),
         spread: Math.max(...m.vals) - Math.min(...m.vals)}));
+  },
+  pmWorst(){
+    const v = this.pmMeasures().map(m => m.spread);
+    return v.length ? Math.max(...v) : 0;
+  },
+  // The approved record, one row per confirmed session, oldest first.
+  pmHistory(){
+    const bySession = new Map();
+    (this.pm.history || []).forEach(h => {
+      if(!bySession.has(h.session_id))
+        bySession.set(h.session_id, {session_id:h.session_id, session_name:h.session_name,
+                                     session_date:h.session_date, vals:[], anyResolved:false});
+      const x = bySession.get(h.session_id);
+      x.vals.push(Number(h.score));
+      if(h.source === 'resolved') x.anyResolved = true;
+    });
+    return [...bySession.values()]
+      .sort((a,b) => String(a.session_date).localeCompare(String(b.session_date)))
+      .map(x => ({...x, n:x.vals.length,
+        mean:(x.vals.reduce((a,b)=>a+b,0) / x.vals.length).toFixed(2)}));
+  },
+  shortWhen(ts){
+    if(!ts) return '';
+    const d = String(ts).slice(0,10), t = String(ts).slice(11,16);
+    return d + (t ? ' ' + t : '');
   },
 
   async confirmSession(){
