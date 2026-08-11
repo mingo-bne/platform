@@ -563,6 +563,7 @@ values (
             <div><b x-text="review.rows.filter(r=>r.coverage==='partial').length"></b>partial</div>
             <div><b x-text="review.rows.filter(r=>r.coverage==='not rated').length"></b>not rated</div>
             <div><b x-text="flagged().length"></b>to look at</div>
+            <div><b x-text="sessionMean()"></b>session mean</div>
           </div>
 
           <div class="cath">Coverage and disagreement
@@ -571,21 +572,55 @@ values (
             than the threshold. Confirming with gaps is allowed and recorded.</p>
           <div class="scroll" style="max-height:320px">
             <table class="jt">
-              <thead><tr><th>Player</th><th style="width:90px">Coverage</th>
+              <thead><tr><th>Player</th><th style="width:66px">Rating</th>
+                <th style="width:90px">Coverage</th>
                 <th style="width:70px">Scored</th><th style="width:70px">Raters</th>
-                <th style="width:80px">Spread</th></tr></thead>
-              <tbody>
-                <template x-for="r in review.rows" :key="r.person_id">
+                <th style="width:74px">Spread</th><th style="width:64px"></th></tr></thead>
+              <template x-for="r in review.rows" :key="r.person_id">
+                <tbody>
                   <tr :class="r.worst_spread > review.threshold ? 'flag' : ''">
                     <td x-text="r.given_name+' '+r.family_name"></td>
+                    <td><b x-text="meanOf(r.person_id)"></b></td>
                     <td><span class="c" :class="r.coverage==='complete'?'ok':
                           (r.coverage==='partial'?'wn':'')" x-text="r.coverage"></span></td>
                     <td x-text="r.measures_scored+'/'+r.measure_count"></td>
                     <td x-text="r.assessment_count"></td>
                     <td x-text="r.worst_spread || ''"></td>
+                    <td><button class="btn sm" x-show="r.measures_scored"
+                          @click="toggleDetail(r.person_id)"
+                          x-text="review.openPerson===r.person_id?'Hide':'Detail'"></button></td>
                   </tr>
-                </template>
-              </tbody>
+                  <tr x-show="review.openPerson===r.person_id">
+                    <td colspan="7" style="background:#fbfaf8;padding:9px 11px">
+                      <div class="cath" style="margin-top:0">What each rater said</div>
+                      <table class="jt" style="background:#fff">
+                        <thead><tr><th>Measure</th>
+                          <template x-for="w in detailRaters()" :key="w.key">
+                            <th style="width:96px" x-text="w.name"></th>
+                          </template>
+                          <th style="width:60px">Mean</th><th style="width:62px">Spread</th></tr></thead>
+                        <tbody>
+                          <template x-for="m in detailMeasures()" :key="m.measure_id">
+                            <tr :class="m.spread > review.threshold ? 'flag' : ''">
+                              <td x-text="m.label"></td>
+                              <template x-for="w in detailRaters()" :key="w.key">
+                                <td x-text="m.by[w.key] ?? '—'"></td>
+                              </template>
+                              <td><b x-text="m.mean"></b></td>
+                              <td x-text="m.spread || ''"></td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                      <p class="note" x-show="detailRaters().length>1">
+                        Each column is one rating pass. Where the same coach rated twice the passes
+                        are shown separately — nothing is averaged away before you see it.
+                      </p>
+                      <p x-show="review.detailErr" x-text="review.detailErr" class="err"></p>
+                    </td>
+                  </tr>
+                </tbody>
+              </template>
             </table>
           </div>
 
@@ -670,7 +705,7 @@ function app(){ return {
   sel:null, blocks:[], auths:[], blockErr:'', modal:'', delConfirm:'', delErr:'', peopleErr:'', statusErr:'',
   authErr:'',
   rate:{session:null,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''},
-  review:{session:null,rows:[],threshold:2,err:''},
+  review:{session:null,rows:[],threshold:2,err:'',scores:{},detail:[],openPerson:'',detailErr:''},
   newSession:{open:false,name:'',opens:'',closes:'',rubric_id:''},
   newBlock:{date:'',start:'18:00',end:'20:00',venue:''},
   newAuth:{membership_id:''},
@@ -854,7 +889,7 @@ function app(){ return {
 
   async openReview(s){
     this.modal='review';
-    this.review={session:s,rows:[],threshold:2,err:''};
+    this.review={session:s,rows:[],threshold:2,err:'',scores:{},detail:[],openPerson:'',detailErr:''};
     const {data:prof} = await this.sb.from('org_profile')
       .select('divergence_threshold_measure').eq('org_id',this.org.id).maybeSingle();
     if(prof) this.review.threshold = Number(prof.divergence_threshold_measure);
@@ -862,6 +897,62 @@ function app(){ return {
       .eq('session_id',s.id).order('family_name');
     if(error){ this.review.err=error.message; return; }
     this.review.rows = rows||[];
+    // The average is a plain mean over every measure rated, Size included —
+    // the same arithmetic the TMS uses (ratingAvgAt). Computed in the database.
+    const {data:sc} = await this.sb.from('v_session_player_score').select('*')
+      .eq('session_id',s.id);
+    this.review.scores = {};
+    (sc||[]).forEach(x => this.review.scores[x.person_id] = x);
+  },
+
+  // ── the number ─────────────────────────────────────────────────────────
+  meanOf(personId){
+    const x = this.review.scores?.[personId];
+    return x ? Number(x.mean_score).toFixed(2) : '—';
+  },
+  sessionMean(){
+    const v = Object.values(this.review.scores || {}).map(x => Number(x.mean_score));
+    if(!v.length) return '—';
+    return (v.reduce((a,b)=>a+b,0) / v.length).toFixed(2);
+  },
+
+  // ── the history ────────────────────────────────────────────────────────
+  // Every individual score, laid out measure by measure with one column per
+  // rating pass. Two passes by the same coach stay separate — the whole point
+  // is to see what was actually said, not a number that hides it.
+  async toggleDetail(personId){
+    if(this.review.openPerson === personId){ this.review.openPerson=''; return; }
+    this.review.openPerson = personId;
+    this.review.detail = []; this.review.detailErr='';
+    const {data,error} = await this.sb.from('v_rating_detail').select('*')
+      .eq('session_id', this.review.session.id).eq('person_id', personId)
+      .order('measure_sort');
+    if(error){ this.review.detailErr = error.message; return; }
+    this.review.detail = data || [];
+  },
+  detailRaters(){
+    const seen = new Map();
+    (this.review.detail || []).forEach(d => {
+      if(!seen.has(d.assessment_id))
+        seen.set(d.assessment_id, {key:d.assessment_id, name:d.rater_name, at:d.recorded_at});
+    });
+    return [...seen.values()].sort((a,b) => String(a.at).localeCompare(String(b.at)));
+  },
+  detailMeasures(){
+    const byMeasure = new Map();
+    (this.review.detail || []).forEach(d => {
+      if(!byMeasure.has(d.measure_id))
+        byMeasure.set(d.measure_id,
+          {measure_id:d.measure_id, label:d.measure_label, sort:d.measure_sort, by:{}, vals:[]});
+      const m = byMeasure.get(d.measure_id);
+      m.by[d.assessment_id] = d.score;
+      m.vals.push(Number(d.score));
+    });
+    return [...byMeasure.values()]
+      .sort((a,b) => a.sort - b.sort)
+      .map(m => ({...m,
+        mean: (m.vals.reduce((a,b)=>a+b,0) / m.vals.length).toFixed(2),
+        spread: Math.max(...m.vals) - Math.min(...m.vals)}));
   },
 
   async confirmSession(){
