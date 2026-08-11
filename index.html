@@ -253,6 +253,33 @@ word-break:break-all}
         <p class="note" x-show="queue.length && !online" style="margin:-6px 0 11px">
           No connection. Keep rating — everything is held on this device and goes up by itself
           when you are back.</p>
+
+        <!-- A refusal is not a network problem and must never be retried into a loop.
+             The database said no; the coach is told what it said and decides. -->
+        <template x-if="rejected.length">
+          <div class="panel" style="border-color:var(--badline);margin-bottom:11px">
+            <div class="rhead" style="background:var(--badbg);border-color:var(--badline)">
+              <h2 style="font-size:15px">
+                <span x-text="rejected.length"></span>
+                <span x-text="rejected.length===1?'rating was not accepted':'ratings were not accepted'"></span>
+              </h2>
+              <div class="sub">These did not fail to send — they reached the database and it refused
+                them. Nothing is lost; nothing will be retried on its own.</div>
+            </div>
+            <div class="pbody">
+              <template x-for="r in rejected" :key="r.id">
+                <div style="padding:8px 0;border-bottom:1px solid var(--line)">
+                  <div style="font-size:13px;font-weight:600" x-text="nameOfPerson(r.person_id)"></div>
+                  <div class="note" style="margin:2px 0 6px" x-text="r.reason"></div>
+                  <div class="inline" style="margin:0">
+                    <button class="btn sm" @click="requeueRejected(r.id)">Try again</button>
+                    <button class="btn sm" @click="discardRejected(r.id)">Discard</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
         <p x-show="court.err" x-text="court.err" class="err" style="margin-top:0"></p>
 
         <!-- pick a session -->
@@ -920,7 +947,7 @@ function app(){ return {
   stage:'admin',
   court:{sessions:[],session:null,people:[],measures:[],rated:{},person:null,
          scores:{},note:'',err:'',msg:''},
-  queue:[], syncing:false, online:true,
+  queue:[], rejected:[], syncing:false, online:true,
   newSession:{open:false,name:'',opens:'',closes:'',rubric_id:''},
   newBlock:{date:'',start:'18:00',end:'20:00',venue:''},
   newAuth:{membership_id:''},
@@ -968,7 +995,7 @@ function app(){ return {
   async afterLogin(session){
     this.userId = session.user.id; this.userEmail = session.user.email;
     this.screen='app';
-    this.loadQueue();
+    this.loadQueue(); this.loadRejected();
     this.online = navigator.onLine !== false;
     addEventListener('online',  () => { this.online = true;  this.flushQueue(); });
     addEventListener('offline', () => { this.online = false; });
@@ -1159,6 +1186,12 @@ function app(){ return {
     catch { this.queue = []; }
   },
   saveQueue(){ localStorage.setItem(this.QKEY(), JSON.stringify(this.queue)); },
+  RKEY(){ return 'platform.rejected.' + (this.userId || 'anon'); },
+  loadRejected(){
+    try { this.rejected = JSON.parse(localStorage.getItem(this.RKEY()) || '[]'); }
+    catch { this.rejected = []; }
+  },
+  saveRejected(){ localStorage.setItem(this.RKEY(), JSON.stringify(this.rejected)); },
 
   CKEY(id){ return 'platform.court.' + id; },
   cacheSession(bundle){
@@ -1292,27 +1325,62 @@ function app(){ return {
     this.syncing = true;
     const still = [];
     for(const q of this.queue){
-      const ok = await this.sendOne(q);
-      if(!ok) still.push(q);
+      const r = await this.sendOne(q);
+      if(r.status === 'retry')   { still.push(q); }
+      if(r.status === 'refused') { this.rejected.push({...q, reason:r.reason}); }
+      // 'sent' simply falls off the queue.
     }
-    this.queue = still; this.saveQueue();
+    this.queue = still; this.saveQueue(); this.saveRejected();
     this.syncing = false;
   },
+  // A refusal is the coach's to see and decide about. It is never silently
+  // dropped and never retried into a loop.
+  discardRejected(id){
+    this.rejected = this.rejected.filter(r => r.id !== id);
+    this.saveRejected();
+  },
+  requeueRejected(id){
+    const r = this.rejected.find(x => x.id === id);
+    if(!r) return;
+    this.rejected = this.rejected.filter(x => x.id !== id);
+    const {reason, ...clean} = r;
+    this.queue.push(clean);
+    this.saveRejected(); this.saveQueue();
+    this.flushQueue();
+  },
+  nameOfPerson(id){
+    const p = (this.court.people || []).find(x => x.id === id);
+    return p ? p.given_name + ' ' + p.family_name : 'a player';
+  },
+  // Three outcomes, not two. A rating that COULD NOT BE SENT and a rating the
+  // database REFUSED are different problems and must not share a code path:
+  // the first is worth retrying forever, the second never will be. Treating a
+  // refusal as a network failure loops it silently and reports the app offline
+  // while it is sitting on wifi.
+  //
+  // The discriminator is whether the request reached the database at all. If it
+  // did, PostgREST returns an error carrying a `code` — a SQLSTATE from one of
+  // our own triggers (P0001), an RLS refusal (42501), a constraint. If it did
+  // not, there is no code, only a transport message.
   async sendOne(q){
-    // The id is generated on the device, so re-sending the same rating is a
-    // no-op rather than a duplicate.
     const {error:e1} = await this.sb.from('assessment').upsert({
       id:q.id, org_id:q.org_id, session_id:q.session_id, person_id:q.person_id,
       membership_id:q.membership_id, submitted_at:q.submitted_at
     }, {onConflict:'id', ignoreDuplicates:true});
-    if(e1){ this.online = false; return false; }
+    if(e1) return this.classify(e1);
     const {error:e2} = await this.sb.from('assessment_score').upsert(
       q.scores.map(x => ({assessment_id:q.id, measure_id:x.measure_id,
                           score:x.score, note:q.note})),
       {onConflict:'assessment_id,measure_id', ignoreDuplicates:true});
-    if(e2){ this.online = false; return false; }
+    if(e2) return this.classify(e2);
     this.online = true;
-    return true;
+    return {status:'sent'};
+  },
+  classify(error){
+    const reachedTheDatabase = !!error?.code;
+    if(!reachedTheDatabase){ this.online = false; return {status:'retry'}; }
+    this.online = true;
+    return {status:'refused', reason: error.message || 'The database refused this rating.'};
   },
 
   // ── the player modal ───────────────────────────────────────────────────
