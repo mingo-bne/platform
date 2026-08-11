@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coaching Platform — v0.1</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<style>
+  [x-cloak]{display:none!important}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+<div x-data="app()" x-init="boot()" x-cloak class="min-h-screen">
+
+<!-- ══════════════════════════════ SETUP ══════════════════════════════ -->
+<template x-if="screen==='setup'">
+  <div class="max-w-xl mx-auto p-6 pt-16">
+    <h1 class="text-2xl font-semibold mb-1">Connect to your database</h1>
+    <p class="text-sm text-slate-500 mb-6">
+      One-time. These two values come from your Supabase project —
+      Settings → API. They are stored only in this browser.
+    </p>
+    <div class="bg-white rounded-xl shadow p-6 space-y-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">Project URL</label>
+        <input x-model="cfg.url" placeholder="https://xxxxxxxx.supabase.co"
+               class="w-full border rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Anon public key</label>
+        <textarea x-model="cfg.key" rows="3" placeholder="eyJhbGciOi..."
+               class="w-full border rounded-lg px-3 py-2 text-xs font-mono"></textarea>
+        <p class="text-xs text-slate-500 mt-1">
+          The <strong>anon public</strong> key. Never paste the service_role key into a browser.
+        </p>
+      </div>
+      <button @click="saveCfg()" :disabled="!cfg.url||!cfg.key"
+              class="w-full bg-slate-900 disabled:bg-slate-300 text-white rounded-lg py-2.5 text-sm font-medium">
+        Connect
+      </button>
+      <p x-show="err" x-text="err" class="text-sm text-red-600"></p>
+    </div>
+  </div>
+</template>
+
+<!-- ══════════════════════════════ SIGN IN ══════════════════════════════ -->
+<template x-if="screen==='signin'">
+  <div class="max-w-md mx-auto p-6 pt-24">
+    <h1 class="text-2xl font-semibold mb-1">Sign in</h1>
+    <p class="text-sm text-slate-500 mb-6">We email you a link. No password to remember.</p>
+    <div class="bg-white rounded-xl shadow p-6 space-y-4">
+      <input x-model="email" type="email" placeholder="you@example.com"
+             class="w-full border rounded-lg px-3 py-2 text-sm">
+      <button @click="signIn()" :disabled="!email||busy"
+              class="w-full bg-slate-900 disabled:bg-slate-300 text-white rounded-lg py-2.5 text-sm font-medium">
+        <span x-text="busy?'Sending…':'Email me a sign-in link'"></span>
+      </button>
+      <p x-show="msg" x-text="msg" class="text-sm text-green-700"></p>
+      <p x-show="err" x-text="err" class="text-sm text-red-600"></p>
+      <button @click="resetCfg()" class="text-xs text-slate-400 underline">Change database connection</button>
+    </div>
+  </div>
+</template>
+
+<!-- ══════════════════════════════ APP ══════════════════════════════ -->
+<template x-if="screen==='app'">
+<div>
+  <header class="bg-slate-900 text-white">
+    <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div>
+        <div class="text-xs uppercase tracking-wide text-slate-400">Coaching Platform v0.1</div>
+        <div class="text-lg font-semibold" x-text="org?.name || 'No organisation'"></div>
+      </div>
+      <div class="text-right">
+        <div class="text-sm" x-text="me?.display_name || userEmail"></div>
+        <div class="text-xs text-slate-400">
+          <span x-text="me?.role"></span> · seniority <span x-text="me?.seniority"></span>
+        </div>
+        <button @click="signOut()" class="text-xs text-slate-400 underline mt-1">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- no membership -->
+  <template x-if="!org">
+    <div class="max-w-3xl mx-auto p-6 pt-12">
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-6">
+        <h2 class="font-semibold mb-2">You are signed in, but not a member of any organisation.</h2>
+        <p class="text-sm text-slate-600 mb-3">
+          Row Level Security is doing its job — with no membership row you can see nothing at all.
+          Add yourself in the Supabase SQL Editor:
+        </p>
+        <pre class="bg-white border rounded-lg p-3 text-xs overflow-x-auto">insert into membership (user_id, org_id, display_name, role, seniority)
+values (
+  '<span x-text="userId"></span>',
+  '11111111-0000-0000-0000-000000000001',
+  'Your Name', 'head_coach', 10
+);</pre>
+        <button @click="load()" class="mt-3 text-sm bg-slate-900 text-white rounded-lg px-4 py-2">
+          I've done that — reload
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <template x-if="org">
+  <main class="max-w-5xl mx-auto p-6 space-y-6">
+
+    <!-- isolation proof -->
+    <div class="bg-white rounded-xl shadow p-5">
+      <h2 class="font-semibold mb-3">Tenant isolation</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+        <div><div class="text-2xl font-semibold" x-text="orgs.length"></div>
+             <div class="text-xs text-slate-500">organisations visible</div></div>
+        <div><div class="text-2xl font-semibold" x-text="people.length"></div>
+             <div class="text-xs text-slate-500">players visible</div></div>
+        <div><div class="text-2xl font-semibold" x-text="sessions.length"></div>
+             <div class="text-xs text-slate-500">rating sessions</div></div>
+        <div><div class="text-2xl font-semibold" x-text="measures.length"></div>
+             <div class="text-xs text-slate-500">core measures</div></div>
+      </div>
+      <p class="text-xs text-slate-500 mt-3">
+        These counts come from unfiltered queries — no <code>where org_id = …</code> anywhere in this app.
+        The database returns only your organisation's rows. That is the foundation everything else sits on.
+      </p>
+    </div>
+
+    <!-- core rubric -->
+    <div class="bg-white rounded-xl shadow p-5">
+      <div class="flex items-baseline justify-between mb-3">
+        <h2 class="font-semibold">Core rubric <span class="text-xs font-normal text-slate-500">— locked, identical for every organisation</span></h2>
+        <span class="text-xs text-slate-400">scale 1–5</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <template x-for="m in measures" :key="m.id">
+          <span class="text-xs px-2.5 py-1 rounded-full border"
+                :class="m.counts_toward_strength ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200 text-amber-800'"
+                x-text="m.label + (m.counts_toward_strength ? '' : ' (not a strength)')"></span>
+        </template>
+      </div>
+    </div>
+
+    <!-- players -->
+    <div class="bg-white rounded-xl shadow p-5">
+      <h2 class="font-semibold mb-3">Players <span class="text-sm font-normal text-slate-400" x-text="'('+people.length+')'"></span></h2>
+      <div class="max-h-64 overflow-y-auto border rounded-lg">
+        <table class="w-full text-sm">
+          <tbody>
+            <template x-for="p in people" :key="p.id">
+              <tr class="border-b last:border-0">
+                <td class="px-3 py-2" x-text="p.given_name+' '+p.family_name"></td>
+                <td class="px-3 py-2 text-slate-500" x-text="p.gender"></td>
+                <td class="px-3 py-2 text-slate-500" x-text="p.dob"></td>
+                <td class="px-3 py-2 text-right">
+                  <span x-show="p.is_demo" class="text-xs bg-slate-100 px-2 py-0.5 rounded">DEMO</span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- sessions -->
+    <div class="bg-white rounded-xl shadow p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold">Rating sessions</h2>
+        <button @click="newSession.open=!newSession.open"
+                class="text-sm bg-slate-900 text-white rounded-lg px-3 py-1.5">New session</button>
+      </div>
+
+      <div x-show="newSession.open" class="border rounded-lg p-4 mb-4 bg-slate-50 space-y-3">
+        <p class="text-xs text-slate-500">
+          A multi-day trial is <strong>one</strong> session. Add a day for each block.
+        </p>
+        <input x-model="newSession.name" placeholder="e.g. U14 Trials 2027"
+               class="w-full border rounded-lg px-3 py-2 text-sm">
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs text-slate-500">Opens</label>
+            <input type="date" x-model="newSession.opens" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+          <div><label class="text-xs text-slate-500">Closes</label>
+            <input type="date" x-model="newSession.closes" class="w-full border rounded-lg px-3 py-2 text-sm"></div>
+        </div>
+        <button @click="createSession()" :disabled="!newSession.name||busy"
+                class="bg-slate-900 disabled:bg-slate-300 text-white rounded-lg px-4 py-2 text-sm">Create</button>
+        <p x-show="err" x-text="err" class="text-sm text-red-600"></p>
+      </div>
+
+      <template x-if="!sessions.length">
+        <p class="text-sm text-slate-400">No sessions yet.</p>
+      </template>
+      <div class="space-y-2">
+        <template x-for="s in sessions" :key="s.id">
+          <div class="border rounded-lg p-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium text-sm" x-text="s.name"></div>
+                <div class="text-xs text-slate-500">
+                  <span x-text="s.opens_at?.slice(0,10)"></span> →
+                  <span x-text="s.closes_at?.slice(0,10)"></span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs px-2 py-0.5 rounded-full"
+                      :class="{'bg-slate-100':s.status==='draft','bg-blue-100 text-blue-800':s.status==='open',
+                               'bg-amber-100 text-amber-800':s.status==='closed','bg-green-100 text-green-800':s.status==='confirmed'}"
+                      x-text="s.status"></span>
+                <button @click="openSession(s)" class="text-xs underline text-slate-500">open</button>
+              </div>
+            </div>
+
+            <div x-show="sel?.id===s.id" class="mt-3 pt-3 border-t space-y-3">
+              <!-- blocks -->
+              <div>
+                <div class="text-xs font-medium text-slate-500 mb-1">Days in this session</div>
+                <template x-if="!blocks.length"><p class="text-xs text-slate-400">No days yet.</p></template>
+                <template x-for="b in blocks" :key="b.id">
+                  <div class="text-sm py-0.5">
+                    <span x-text="b.block_date"></span> ·
+                    <span x-text="b.starts_at?.slice(0,5)+'–'+b.ends_at?.slice(0,5)"></span>
+                    <span class="text-slate-400" x-text="b.venue"></span>
+                  </div>
+                </template>
+                <div class="flex gap-2 mt-2">
+                  <input type="date" x-model="newBlock.date" class="border rounded px-2 py-1 text-xs">
+                  <input type="time" x-model="newBlock.start" class="border rounded px-2 py-1 text-xs">
+                  <input type="time" x-model="newBlock.end" class="border rounded px-2 py-1 text-xs">
+                  <input x-model="newBlock.venue" placeholder="venue" class="border rounded px-2 py-1 text-xs w-28">
+                  <button @click="addBlock()" class="text-xs bg-slate-200 rounded px-2 py-1">add day</button>
+                </div>
+              </div>
+              <!-- authorised raters -->
+              <div>
+                <div class="text-xs font-medium text-slate-500 mb-1">
+                  Authorised raters
+                  <span class="font-normal">— being a coach is not enough, authorisation is per session</span>
+                </div>
+                <template x-if="!auths.length"><p class="text-xs text-slate-400">Nobody authorised yet.</p></template>
+                <template x-for="a in auths" :key="a.id">
+                  <div class="text-sm py-0.5" x-text="nameOf(a.membership_id)"></div>
+                </template>
+                <div class="flex gap-2 mt-2">
+                  <select x-model="newAuth.membership_id" class="border rounded px-2 py-1 text-xs">
+                    <option value="">choose a member…</option>
+                    <template x-for="m in members" :key="m.id">
+                      <option :value="m.id" x-text="m.display_name+' ('+m.role+')'"></option>
+                    </template>
+                  </select>
+                  <button @click="addAuth()" :disabled="!newAuth.membership_id"
+                          class="text-xs bg-slate-200 disabled:opacity-40 rounded px-2 py-1">authorise</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <p class="text-xs text-slate-400 text-center pb-8">
+      v0.1 · foundation only. Rating capture, formation engine and import are the next increments.
+    </p>
+  </main>
+  </template>
+</div>
+</template>
+</div>
+
+<script>
+function app(){ return {
+  screen:'setup', cfg:{url:'',key:''}, sb:null,
+  email:'', msg:'', err:'', busy:false,
+  userId:'', userEmail:'',
+  orgs:[], org:null, me:null, members:[], people:[], measures:[], sessions:[],
+  sel:null, blocks:[], auths:[],
+  newSession:{open:false,name:'',opens:'',closes:''},
+  newBlock:{date:'',start:'18:00',end:'20:00',venue:''},
+  newAuth:{membership_id:''},
+
+  async boot(){
+    const saved = localStorage.getItem('platform.cfg');
+    if(!saved){ this.screen='setup'; return; }
+    this.cfg = JSON.parse(saved);
+    this.connect();
+    const {data:{session}} = await this.sb.auth.getSession();
+    if(session){ await this.afterLogin(session); } else { this.screen='signin'; }
+    this.sb.auth.onAuthStateChange(async (_e,s)=>{ if(s) await this.afterLogin(s); });
+  },
+
+  connect(){ this.sb = window.supabase.createClient(this.cfg.url, this.cfg.key); },
+
+  saveCfg(){
+    this.err='';
+    try{
+      if(!/^https:\/\/.+\.supabase\.co\/?$/.test(this.cfg.url.trim()))
+        throw new Error('That does not look like a Supabase project URL.');
+      this.cfg.url = this.cfg.url.trim().replace(/\/$/,'');
+      this.cfg.key = this.cfg.key.trim();
+      if(this.cfg.key.includes('service_role'))
+        throw new Error('That looks like the service_role key. Use the anon public key.');
+      localStorage.setItem('platform.cfg', JSON.stringify(this.cfg));
+      this.connect(); this.screen='signin';
+    }catch(e){ this.err = e.message; }
+  },
+
+  resetCfg(){ localStorage.removeItem('platform.cfg'); location.reload(); },
+
+  async signIn(){
+    this.busy=true; this.err=''; this.msg='';
+    const {error} = await this.sb.auth.signInWithOtp({
+      email:this.email, options:{ emailRedirectTo: window.location.href.split('#')[0] }
+    });
+    this.busy=false;
+    if(error){ this.err = error.message; }
+    else { this.msg = 'Check your email — the link signs you straight in.'; }
+  },
+
+  async signOut(){ await this.sb.auth.signOut(); location.reload(); },
+
+  async afterLogin(session){
+    this.userId = session.user.id; this.userEmail = session.user.email;
+    this.screen='app'; await this.load();
+  },
+
+  async load(){
+    this.err='';
+    const q = async (t,sel='*',order=null)=>{
+      let r = this.sb.from(t).select(sel);
+      if(order) r = r.order(order);
+      const {data,error} = await r;
+      if(error){ this.err = t+': '+error.message; return []; }
+      return data||[];
+    };
+    this.orgs     = await q('organisation');
+    this.org      = this.orgs[0] || null;
+    this.members  = await q('membership');
+    this.me       = this.members.find(m=>m.user_id===this.userId) || null;
+    this.people   = await q('person','*','family_name');
+    this.measures = await q('rubric_measure','*','sort_order');
+    this.sessions = await q('rating_session','*','opens_at');
+  },
+
+  nameOf(mid){ const m=this.members.find(x=>x.id===mid); return m? m.display_name : mid; },
+
+  async createSession(){
+    this.busy=true; this.err='';
+    const core = this.measures[0]?.rubric_id;
+    const {error} = await this.sb.from('rating_session').insert({
+      org_id:this.org.id, rubric_id:core, name:this.newSession.name,
+      opens_at:new Date(this.newSession.opens||Date.now()).toISOString(),
+      closes_at:new Date(this.newSession.closes||Date.now()+2592e5).toISOString(),
+      status:'draft'
+    });
+    this.busy=false;
+    if(error){ this.err=error.message; return; }
+    this.newSession={open:false,name:'',opens:'',closes:''};
+    await this.load();
+  },
+
+  async openSession(s){
+    if(this.sel?.id===s.id){ this.sel=null; return; }
+    this.sel=s;
+    const {data:b} = await this.sb.from('session_block').select('*')
+      .eq('session_id',s.id).order('sort_order');
+    this.blocks=b||[];
+    const {data:a} = await this.sb.from('session_authorisation').select('*').eq('session_id',s.id);
+    this.auths=a||[];
+  },
+
+  async addBlock(){
+    this.err='';
+    const s = this.sel;
+    if(!this.newBlock.date){ this.err='Pick a date for the day.'; return; }
+    const {error} = await this.sb.from('session_block').insert({
+      org_id:this.org.id, session_id:s.id,
+      block_date:this.newBlock.date, starts_at:this.newBlock.start,
+      ends_at:this.newBlock.end, venue:this.newBlock.venue,
+      sort_order:this.blocks.length+1
+    });
+    if(error){ this.err=error.message; return; }
+    this.newBlock={date:'',start:'18:00',end:'20:00',venue:''};
+    this.sel=null; await this.openSession(s);
+  },
+
+  async addAuth(){
+    this.err='';
+    const {error} = await this.sb.from('session_authorisation').insert({
+      org_id:this.org.id, session_id:this.sel.id,
+      membership_id:this.newAuth.membership_id, authorised_by:this.me.id
+    });
+    if(error){ this.err=error.message; return; }
+    this.newAuth.membership_id='';
+    const s=this.sel; this.sel=null; await this.openSession(s);
+  }
+}}
+</script>
+</body>
+</html>
