@@ -159,6 +159,16 @@ display:flex;align-items:center;justify-content:center;font-weight:600;font-size
 .shape .leg{font-size:11.5px;color:var(--ink2);min-width:150px}
 .shape .leg div{display:flex;align-items:center;gap:7px;margin-bottom:4px}
 .shape .leg i{width:16px;height:0;border-top-width:2px;border-top-style:solid;display:block;flex:none}
+/* formation */
+.tcol{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.tcol .h{padding:8px 11px;background:#fbfaf8;border-bottom:1px solid var(--line);
+display:flex;align-items:center;gap:8px}
+.tcol .h b{flex:1;font-size:13px}
+.tcol .p{display:flex;align-items:center;gap:8px;padding:6px 11px;border-bottom:1px solid var(--line);
+font-size:12.5px}
+.tcol .p:last-child{border-bottom:0}
+.tcol .p .r{margin-left:auto;font-weight:600}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
 .vals{margin-top:8px;border-top:1px solid var(--line)}
 .vrow{display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--line)}
 .vrow .l{flex:1;min-width:0;font-size:12.5px}
@@ -626,6 +636,80 @@ values (
                 to get through. Confirming is the step that cannot be undone.
               </p>
               <p x-show="statusErr" x-text="statusErr" class="err"></p>
+
+              <div class="cath" x-show="s.status==='confirmed'">Form teams</div>
+              <template x-if="s.status==='confirmed'">
+                <div>
+                  <p class="note" style="margin-top:0">Runs on the approved record from this
+                    session. It is a constraint solver, not a guess — the same session and the same
+                    plan always produce the same teams, and anything it cannot place is named.</p>
+                  <div class="inline">
+                    <input type="text" x-model="fm.plan" style="flex:1;min-width:200px"
+                           placeholder="Gold 8, Navy 8, White 8">
+                    <button class="btn pri" @click="runFormation(s)"
+                            :disabled="fm.busy || !fm.plan.trim()"
+                            x-text="fm.busy ? 'Working…' : 'Propose teams'"></button>
+                  </div>
+                  <p class="note" style="margin:4px 0 0">Name each team and how many it holds.
+                    Add <b>F</b> or <b>M</b> for a single-gender team — <i>Girls 8 F, Open 10</i>.</p>
+                  <p x-show="fm.err" x-text="fm.err" class="err"></p>
+                </div>
+              </template>
+
+              <template x-if="fm.result && fm.sessionId===s.id">
+                <div style="margin-top:10px">
+                  <div class="statrow" style="border:1px solid var(--line);border-radius:8px;margin-bottom:10px">
+                    <div><b x-text="fm.result.teams.length"></b>teams</div>
+                    <div><b x-text="fm.result.teams.reduce((n,t)=>n+t.size,0)"></b>placed</div>
+                    <div><b x-text="fm.result.unplaced.length"></b>unplaced</div>
+                    <div><b x-text="fm.result.spread"></b>spread</div>
+                    <div><b x-text="fm.result.swaps"></b>swaps</div>
+                  </div>
+                  <div class="grid3">
+                    <template x-for="t in fm.result.teams" :key="t.label">
+                      <div class="tcol">
+                        <div class="h"><b x-text="t.label"></b>
+                          <span class="c" x-text="t.size + '/' + t.planned_size"></span>
+                          <span class="c grp" x-text="'avg ' + (t.average ?? '–')"></span></div>
+                        <template x-for="pl in t.players" :key="pl.person_id">
+                          <div class="p">
+                            <span x-text="pl.name"></span>
+                            <span class="c ok" x-show="pl.forced">HC</span>
+                            <span class="c" x-show="pl.locked && !pl.forced">locked</span>
+                            <span class="r" x-text="Number(pl.rating).toFixed(2)"></span>
+                            <button class="btn sm" @click="toggleLock(s, pl, t.label)"
+                                    x-text="pl.locked ? 'Unlock' : 'Lock'"></button>
+                          </div>
+                        </template>
+                        <template x-if="!t.players.length">
+                          <div class="p" style="color:var(--ink3)">nobody yet</div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+
+                  <template x-if="fm.result.unplaced.length">
+                    <div class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);margin-top:10px">
+                      <b x-text="fm.result.unplaced.length + ' not placed'"></b> — nobody is dropped
+                      silently.
+                      <template x-for="u in fm.result.unplaced" :key="u.person_id">
+                        <div style="margin-top:3px"><b x-text="u.name"></b>
+                          <span x-text="' — ' + u.reason"></span></div>
+                      </template>
+                    </div>
+                  </template>
+
+                  <template x-if="fm.result.notes.length">
+                    <div style="margin-top:8px">
+                      <div class="cath">Decisions the engine was told to respect</div>
+                      <template x-for="(n, ix) in fm.result.notes" :key="ix">
+                        <div class="note" style="margin:2px 0" x-text="n"></div>
+                      </template>
+                    </div>
+                  </template>
+                  <p class="note" x-text="fm.result.method"></p>
+                </div>
+              </template>
 
               <div class="cath">Do the work</div>
               <div class="inline" style="margin-top:0">
@@ -1144,6 +1228,7 @@ function app(){ return {
       detail:[],history:[],resolutions:[],err:''},
   rz:{measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false},
   stage:'admin', queueRows:[], onlyWaiting:false,
+  fm:{plan:'Gold 8, Navy 8, White 8', busy:false, err:'', result:null, sessionId:''},
   court:{sessions:[],session:null,people:[],measures:[],rated:{},person:null,
          scores:{},note:'',err:'',msg:''},
   queue:[], rejected:[], syncing:false, online:true,
@@ -1253,6 +1338,55 @@ function app(){ return {
     if(error){ this.err=error.message; return; }
     this.newSession={open:false,name:'',opens:'',closes:'',rubric_id:this.newSession.rubric_id};
     await this.load();
+  },
+
+  // ── forming teams ──────────────────────────────────────────────────────
+  // The engine itself is NOT here. It runs as a Supabase Edge Function, because
+  // this file is served from a public repository and the solver is the one
+  // piece of the product worth protecting. All this does is describe the teams,
+  // ask, and show what came back.
+  parsePlan(text){
+    // "Gold 8, Navy 8 F, U12 White 10" -> [{label,size,gender}]
+    return String(text).split(',').map(x => x.trim()).filter(Boolean).map(part => {
+      const m = part.match(/^(.*?)\s+(\d+)\s*([FM])?$/i);
+      if(!m) return {label: part, size: 10, gender: null};
+      return {label: m[1].trim(), size: Number(m[2]),
+              gender: m[3] ? m[3].toUpperCase() : null};
+    }).filter(t => t.label && t.size > 0);
+  },
+
+  async runFormation(s){
+    this.fm.err = ''; this.fm.busy = true; this.fm.sessionId = s.id;
+    const teams = this.parsePlan(this.fm.plan);
+    if(!teams.length){ this.fm.busy=false; this.fm.err='Describe at least one team.'; return; }
+    const dup = teams.map(t=>t.label).filter((l,i,a)=>a.indexOf(l)!==i);
+    if(dup.length){ this.fm.busy=false; this.fm.err='Two teams cannot share the name "'+dup[0]+'".'; return; }
+    const {data, error} = await this.sb.functions.invoke('formation', {
+      body: {session_id: s.id, teams}
+    });
+    this.fm.busy = false;
+    if(error){ this.fm.err = error.message || String(error); return; }
+    if(data?.error){ this.fm.err = data.error; return; }
+    this.fm.result = data;
+  },
+
+  // A lock says "leave this player here when you re-run". It belongs to the
+  // SESSION, not to the run, so it survives a regenerate — which is the whole
+  // point of it.
+  async toggleLock(s, pl, label){
+    this.fm.err = '';
+    if(pl.locked){
+      const {error} = await this.sb.from('formation_lock').delete()
+        .eq('session_id', s.id).eq('person_id', pl.person_id);
+      if(error){ this.fm.err = error.message; return; }
+    } else {
+      const {error} = await this.sb.from('formation_lock').insert({
+        org_id: this.org.id, session_id: s.id, person_id: pl.person_id,
+        team_label: label, locked_by: this.me.id
+      });
+      if(error){ this.fm.err = error.message; return; }
+    }
+    await this.runFormation(s);
   },
 
   // ── what is waiting ────────────────────────────────────────────────────
