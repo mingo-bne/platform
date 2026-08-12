@@ -155,6 +155,19 @@ display:flex;align-items:center;justify-content:center;font-weight:600;font-size
 .rz .opt.on .v{background:var(--ok)}
 .pcr.wide .meter{background:#f0dfc2}
 .pcr.wide .sp{color:var(--warn);font-weight:600}
+.shape{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.shape .leg{font-size:11.5px;color:var(--ink2);min-width:150px}
+.shape .leg div{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.shape .leg i{width:16px;height:0;border-top-width:2px;border-top-style:solid;display:block;flex:none}
+.vals{margin-top:8px;border-top:1px solid var(--line)}
+.vrow{display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--line)}
+.vrow .l{flex:1;min-width:0;font-size:12.5px}
+.vrow .n{font-size:13px;font-weight:600;width:38px;text-align:right}
+.trend{width:100%;overflow-x:auto}
+.tline{display:flex;align-items:flex-end;gap:2px;height:34px}
+.tline b{flex:1;min-width:5px;background:var(--navy);border-radius:2px 2px 0 0;display:block}
+.dlt{font-size:11px;font-weight:600}
+.dlt.up{color:var(--ok)} .dlt.dn{color:var(--bad)} .dlt.flat{color:var(--ink3)}
 .sess{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--line);
 border-radius:9px;margin-bottom:6px;background:#fff}
 .sess .body{flex:1;min-width:0}
@@ -974,6 +987,71 @@ values (
             </div>
           </template>
 
+          <!-- The shape. Ported from the TMS `radarSVG` so the two systems draw a
+               player the same way. Series are distinguished by BOTH colour and
+               dash, and every value is written out beside the chart, so nothing
+               depends on telling two colours apart. -->
+          <template x-if="pmHistory().length">
+            <div>
+              <div class="cath">The shape
+                <b x-text="pmHistory().length > 1
+                     ? 'latest against the one before'
+                     : 'one confirmed session so far'"></b></div>
+              <div class="shape">
+                <div x-html="playerRadar()"></div>
+                <div class="leg">
+                  <div><i :style="'border-color:var(--navy)'"></i>
+                    <span x-text="pmHistory()[pmHistory().length-1]?.session_name"></span></div>
+                  <div x-show="pmHistory().length > 1">
+                    <i style="border-color:var(--ink3);border-top-style:dashed"></i>
+                    <span x-text="pmHistory()[pmHistory().length-2]?.session_name"></span></div>
+                  <div class="vals">
+                    <template x-for="r in pmShapeRows()" :key="r.measure_id">
+                      <div class="vrow">
+                        <span class="l" x-text="r.label"></span>
+                        <span class="n" x-text="r.now.toFixed(2)"></span>
+                        <span class="dlt" x-show="pmHistory().length>1"
+                              :class="r.delta > 0 ? 'up' : (r.delta < 0 ? 'dn' : 'flat')"
+                              x-text="r.delta == null ? '—'
+                                    : (r.delta > 0 ? '▲ +' : (r.delta < 0 ? '▼ ' : '– '))
+                                      + (r.delta === 0 ? '0.00' : r.delta.toFixed(2))"></span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- The trend. One bar per confirmed session, oldest first. With a
+               single session it is a single bar and says so — better than an
+               empty frame pretending a line exists. -->
+          <template x-if="pmHistory().length">
+            <div>
+              <div class="cath">Overall, session by session</div>
+              <div class="trend">
+                <div class="tline">
+                  <template x-for="h in pmHistory()" :key="h.session_id">
+                    <b :style="'height:'+ Math.max(3, h.mean/5*34) +'px'"
+                       :title="h.session_name + ' — ' + h.mean"></b>
+                  </template>
+                </div>
+                <div class="inline" style="margin-top:5px">
+                  <template x-for="h in pmHistory()" :key="h.session_id">
+                    <span class="c"><span x-text="h.session_date"></span> ·
+                      <b x-text="h.mean"></b></span>
+                  </template>
+                </div>
+              </div>
+              <p class="note" x-show="pmHistory().length === 1">
+                One confirmed session. The trend fills in as more are signed off — this is the
+                first point on it.</p>
+              <p class="note" x-show="pmHistory().length > 1">
+                Overall is the plain mean across every approved measure in that session, the same
+                arithmetic the rating itself uses.</p>
+            </div>
+          </template>
+
           <div class="cath">Approved record</div>
           <template x-if="!pm.history.length">
             <p class="note" style="margin-top:0">Nothing approved yet. A rating enters this player's
@@ -1665,6 +1743,90 @@ function app(){ return {
       .map(x => ({...x, n:x.vals.length,
         mean:(x.vals.reduce((a,b)=>a+b,0) / x.vals.length).toFixed(2)}));
   },
+  // ── the shape and the trend ────────────────────────────────────────────
+  // `radarSVG` is ported from the TMS (build/src/app.js) unchanged in geometry
+  // and nearly unchanged in code, so a player drawn here and a player drawn
+  // there are the same picture. Rings at 1..5, the 3 ring dashed as the
+  // reference line, axis names outside, long names broken over two lines.
+  //
+  // Accessibility: two series are told apart by dash AND colour, and the table
+  // beside the chart writes out every value and every change. Nothing here is
+  // encoded by colour alone.
+  esc(t){ return String(t).replace(/[&<>"]/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); },
+
+  radarSVG(labels, series, size){
+    const N = labels.length; if(!N) return '';
+    const padx = 58;
+    const R = size/2 - 30, cx = size/2, cy = size/2 + 2;
+    const ang = i => (Math.PI*2*i/N) - Math.PI/2;
+    const pt  = (i,v) => [cx + Math.cos(ang(i))*R*(v/5), cy + Math.sin(ang(i))*R*(v/5)];
+    const poly = v => labels.map((_,i) => pt(i,v).join(',')).join(' ');
+    let h = `<svg viewBox="${-padx} 0 ${size+padx*2} ${size}" width="${size+padx*2}" `
+          + `height="${size}" style="display:block" role="img" `
+          + `aria-label="Rating shape across ${N} measures, scored 1 to 5">`;
+    for(let r=1; r<=5; r++)
+      h += `<polygon points="${poly(r)}" fill="none" `
+         + `stroke="${r===3?'#b9b7ae':'#e6e4dc'}" stroke-width="${r===3?1.1:0.8}"`
+         + `${r===3?' stroke-dasharray="3 2"':''}/>`;
+    labels.forEach((_,i) => { const [x,y] = pt(i,5);
+      h += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e6e4dc" stroke-width="0.8"/>`; });
+    series.forEach(sr => {
+      const pts = labels.map((_,i) => { const v = sr.vals[i]; return pt(i, v==null?0:v).join(','); }).join(' ');
+      h += `<polygon points="${pts}" fill="${sr.fill||'none'}" stroke="${sr.stroke}" `
+         + `stroke-width="${sr.w||1.6}"${sr.dash?` stroke-dasharray="${sr.dash}"`:''}/>`;
+      if(sr.dot) labels.forEach((_,i) => { const v = sr.vals[i]; if(v==null) return;
+        const [x,y] = pt(i,v); h += `<circle cx="${x}" cy="${y}" r="2.4" fill="${sr.stroke}"/>`; });
+    });
+    labels.forEach((lab,i) => { const [x,y] = pt(i,5.8);
+      const an = ang(i), mid = Math.abs(Math.cos(an)) < 0.25;
+      const anc = mid ? 'middle' : (Math.cos(an) > 0 ? 'start' : 'end');
+      const sp = String(lab).indexOf(' ');
+      const two = (String(lab).length > 11 && sp > 0);
+      const lines = two ? [String(lab).slice(0,sp), String(lab).slice(sp+1)] : [String(lab)];
+      const y0 = y + 3 - (two ? 5 : 0);
+      h += `<text x="${x}" y="${y0}" font-size="9" fill="#55554E" text-anchor="${anc}">`
+         + lines.map((l,k) => `<tspan x="${x}" dy="${k?10:0}">${this.esc(l)}</tspan>`).join('')
+         + '</text>';
+    });
+    return h + '</svg>';
+  },
+
+  // One row per measure of the LATEST confirmed session, with the change since
+  // the one before it. Measures are ordered as the rubric orders them.
+  pmShapeRows(){
+    const hist = this.pmHistory();
+    if(!hist.length) return [];
+    const latest = hist[hist.length-1].session_id;
+    const prev   = hist.length > 1 ? hist[hist.length-2].session_id : null;
+    const byMeasure = new Map();
+    (this.pm.history || []).forEach(h => {
+      if(!byMeasure.has(h.measure_id))
+        byMeasure.set(h.measure_id,
+          {measure_id:h.measure_id, label:h.measure_label, sort:h.measure_sort,
+           now:null, was:null});
+      const m = byMeasure.get(h.measure_id);
+      if(h.session_id === latest) m.now = Number(h.score);
+      if(prev && h.session_id === prev) m.was = Number(h.score);
+    });
+    return [...byMeasure.values()]
+      .filter(m => m.now != null)
+      .sort((a,b) => a.sort - b.sort)
+      .map(m => ({...m, delta: m.was == null ? null : m.now - m.was}));
+  },
+
+  playerRadar(){
+    const rows = this.pmShapeRows();
+    if(!rows.length) return '';
+    const labels = rows.map(r => r.label);
+    const series = [];
+    if(rows.some(r => r.was != null))
+      series.push({vals: rows.map(r => r.was), stroke:'#8b8981', dash:'4 3', w:1.3});
+    series.push({vals: rows.map(r => r.now), stroke:'#1F3864',
+                 fill:'rgba(31,56,100,.10)', w:1.8, dot:true});
+    return this.radarSVG(labels, series, 210);
+  },
+
   shortWhen(ts){
     if(!ts) return '';
     const d = String(ts).slice(0,10), t = String(ts).slice(11,16);
