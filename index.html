@@ -463,8 +463,18 @@ values (
         <div><b x-text="sessions.length"></b>sessions</div>
         <div><b x-text="sessions.filter(s=>s.status==='open').length"></b>open</div>
         <div><b x-text="sessions.filter(s=>s.status==='confirmed').length"></b>confirmed</div>
+        <div><b x-text="waitingCount()"></b>waiting on you</div>
+        <div><b x-text="toSettleCount()"></b>calls to make</div>
         <div><b x-text="people.length"></b>players</div>
-        <div><b x-text="members.length"></b>members</div>
+      </div>
+      <div class="statrow" style="padding-top:8px;padding-bottom:8px" x-show="waitingCount()">
+        <div style="min-width:0;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn sm" :class="onlyWaiting ? 'pri' : ''"
+                  @click="onlyWaiting=!onlyWaiting"
+                  x-text="onlyWaiting ? 'Showing what is waiting' : 'Show only what is waiting'"></button>
+          <span class="note" style="margin:0">A session appears here once anybody in it is fully
+            rated, or a disagreement is waiting on your call.</span>
+        </div>
       </div>
       <p x-show="err" class="warnbar" style="display:flex;gap:10px;align-items:center">
         <span style="flex:1" x-text="err"></span>
@@ -496,7 +506,7 @@ values (
 
         <template x-if="!sessions.length"><div class="empty">No sessions yet.</div></template>
 
-        <template x-for="s in sessions" :key="s.id">
+        <template x-for="s in visibleSessions()" :key="s.id">
           <div class="srow">
             <div class="sflex">
               <div class="body">
@@ -511,6 +521,15 @@ values (
               </div>
               <span class="c" :class="{'':s.status==='draft','grp':s.status==='open',
                     'wn':s.status==='closed','ok':s.status==='confirmed'}" x-text="s.status"></span>
+              <span class="c wn" x-show="q(s.id)?.outside_window"
+                    title="Ratings are gated by status, never the clock — this is a reminder, not a block"
+                    >outside its window</span>
+              <span class="c acc" x-show="q(s.id)?.to_settle"
+                    x-text="q(s.id)?.to_settle + ' to settle'"></span>
+              <span class="c" x-show="q(s.id)?.complete"
+                    x-text="q(s.id)?.complete + '/' + q(s.id)?.players + ' rated'"></span>
+              <button class="btn sm" x-show="q(s.id)?.needs_you" @click="openReview(s)"
+                      >Review…</button>
               <button class="btn sm" @click="openSession(s)"
                       x-text="sel?.id===s.id?'Close':'Open'"></button>
             </div>
@@ -1046,7 +1065,7 @@ function app(){ return {
   pm:{open:false,personId:'',name:'',sessionName:'',mean:'',coverage:'',
       detail:[],history:[],resolutions:[],err:''},
   rz:{measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false},
-  stage:'admin',
+  stage:'admin', queueRows:[], onlyWaiting:false,
   court:{sessions:[],session:null,people:[],measures:[],rated:{},person:null,
          scores:{},note:'',err:'',msg:''},
   queue:[], rejected:[], syncing:false, online:true,
@@ -1126,6 +1145,7 @@ function app(){ return {
       this.newSession.rubric_id = (core||this.rubrics[0])?.id || '';
     }
     this.sessions = await q('rating_session','*','opens_at');
+    await this.loadSessionQueue();
   },
 
   nameOf(mid){ const m=this.members.find(x=>x.id===mid); return m? m.display_name : mid; },
@@ -1155,6 +1175,23 @@ function app(){ return {
     if(error){ this.err=error.message; return; }
     this.newSession={open:false,name:'',opens:'',closes:'',rubric_id:this.newSession.rubric_id};
     await this.load();
+  },
+
+  // ── what is waiting ────────────────────────────────────────────────────
+  // One read for the whole club: how far each session got, how many calls are
+  // still the head coach's to make, and anything sitting open past its own
+  // window. The window flag is a REMINDER — ratings are gated by status, never
+  // by the clock.
+  q(sessionId){ return this.queueRows.find(r => r.session_id === sessionId) || null; },
+  waitingCount(){ return this.queueRows.filter(r => r.needs_you).length; },
+  toSettleCount(){ return this.queueRows.reduce((n, r) => n + (r.to_settle || 0), 0); },
+  visibleSessions(){
+    if(!this.onlyWaiting) return this.sessions;
+    return this.sessions.filter(s => this.q(s.id)?.needs_you);
+  },
+  async loadSessionQueue(){
+    const {data} = await this.sb.from('v_session_queue').select('*');
+    this.queueRows = data || [];
   },
 
   async openSession(s){
@@ -1567,6 +1604,7 @@ function app(){ return {
     const {data:rs} = await this.sb.from('v_session_resolution').select('*')
       .eq('session_id', this.review.session.id).eq('person_id', this.pm.personId);
     this.pm.resolutions = (rs || []).filter(r => r.is_resolved);
+    await this.loadSessionQueue();
   },
 
   // One column per rating PASS, oldest first. Two passes by the same coach stay
