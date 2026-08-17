@@ -541,8 +541,7 @@ values (
           <select x-model="seasonId" @change="onSeasonChange()" style="width:auto"
                   :disabled="!seasons.length">
             <template x-for="s in seasons" :key="s.id">
-              <option :value="s.id"
-                      x-text="s.name + (s.is_current ? ' · current' : '')"></option>
+              <option :value="s.id" x-text="seasonOptionLabel(s)"></option>
             </template>
           </select>
           <button class="btn" @click="modal='seasons'">Seasons…</button>
@@ -598,8 +597,24 @@ values (
           <p x-show="err" x-text="err" class="err"></p>
         </div>
 
+        <!-- A filter that silently hides work is worse than no filter. If the
+             chosen season is empty and another one is not, say so and offer the
+             way there. -->
         <template x-if="!sessions.length">
-          <div class="empty" x-text="'No sessions in '+seasonName(seasonId)+' yet.'"></div>
+          <div class="empty">
+            <div x-text="'No sessions in '+seasonName(seasonId)+' yet.'"></div>
+            <template x-if="elsewhereSeasons().length">
+              <div style="margin-top:8px">
+                <span x-text="allSessions.length + (allSessions.length===1
+                      ? ' session sits in another season:' : ' sessions sit in other seasons:')"></span>
+                <template x-for="s in elsewhereSeasons()" :key="s.id">
+                  <button class="btn sm" style="margin-left:6px"
+                          @click="seasonId=s.id; onSeasonChange()"
+                          x-text="seasonOptionLabel(s)"></button>
+                </template>
+              </div>
+            </template>
+          </div>
         </template>
 
         <template x-for="s in visibleSessions()" :key="s.id">
@@ -1771,6 +1786,16 @@ function app(){ return {
   },
 
   // ── seasons ─────────────────────────────────────────────────────────────
+  seasonOptionLabel(s){
+    const n = this.allSessions.filter(x => x.season_id === s.id).length;
+    return s.name
+         + (n ? ' · ' + n + (n===1 ? ' trial' : ' trials') : ' · empty')
+         + (s.is_current ? ' · current' : '');
+  },
+  elsewhereSeasons(){
+    return this.seasons.filter(s =>
+      s.id !== this.seasonId && this.allSessions.some(x => x.season_id === s.id));
+  },
   seasonName(id){ return this.seasons.find(s => s.id === id)?.name || '(no season)'; },
   seasonYear(id){ return this.seasons.find(s => s.id === id)?.year || null; },
   onSeasonChange(){
