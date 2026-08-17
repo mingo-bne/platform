@@ -521,9 +521,25 @@ values (
           <h2>Rating sessions</h2>
           <div class="sub">A multi-day trial is one session. Days are added inside it.</div>
         </div>
-        <button class="btn" @click="newSession.open=!newSession.open"
-                x-text="newSession.open?'Cancel':'New session'"></button>
+        <!-- The season is a SCOPE, not a section, so it sits on the stage rather
+             than in the header beside Players and Rubrics. Everything below is
+             read through it. -->
+        <div class="inline" style="margin:0">
+          <select x-model="seasonId" @change="onSeasonChange()" style="width:auto"
+                  :disabled="!seasons.length">
+            <template x-for="s in seasons" :key="s.id">
+              <option :value="s.id"
+                      x-text="s.name + (s.is_current ? ' · current' : '')"></option>
+            </template>
+          </select>
+          <button class="btn" @click="modal='seasons'">Seasons…</button>
+          <button class="btn" @click="newSession.open=!newSession.open"
+                  :disabled="!seasons.length"
+                  x-text="newSession.open?'Cancel':'New session'"></button>
+        </div>
       </div>
+      <p class="warnbar" x-show="!seasons.length">There is no season yet, and a trial has to belong
+        to one. Open <b>Seasons…</b> and create the season you are running.</p>
       <div class="statrow">
         <div><b x-text="sessions.length"></b>sessions</div>
         <div><b x-text="sessions.filter(s=>s.status==='open').length"></b>open</div>
@@ -563,13 +579,15 @@ values (
               </template>
             </select></div>
           <p class="note" style="margin-bottom:8px">Every day you add must fall on or between
-            these two dates.</p>
+            these two dates. This trial lands in <b x-text="seasonName(seasonId)"></b>.</p>
           <button class="btn pri" @click="createSession()"
             :disabled="!newSession.name||!newSession.opens||!newSession.closes||busy">Create session</button>
           <p x-show="err" x-text="err" class="err"></p>
         </div>
 
-        <template x-if="!sessions.length"><div class="empty">No sessions yet.</div></template>
+        <template x-if="!sessions.length">
+          <div class="empty" x-text="'No sessions in '+seasonName(seasonId)+' yet.'"></div>
+        </template>
 
         <template x-for="s in visibleSessions()" :key="s.id">
           <div class="srow">
@@ -1109,7 +1127,8 @@ values (
                       </span>
                     </div>
                     <div class="field" style="margin:8px 0 0">
-                      <label class="fl">Why — this is the explanation you will give a parent</label>
+                      <label class="fl">Why — optional, and only for you. The head coach's
+                        authority does not rest on writing it down</label>
                       <input type="text" x-model="rz.rationale"
                              placeholder="e.g. watched the second half">
                     </div>
@@ -1280,6 +1299,74 @@ values (
             <button class="btn" @click="pm.adding=false">Cancel</button>
           </div>
           <p x-show="pe.err" x-text="pe.err" class="err"></p>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ─────────── SEASONS (modal) ───────────
+       A season carries the YEAR age is reckoned against. That year is stated by
+       the club, not parsed out of the name and not an age-group band — U12 /
+       U14 banding is an association's own convention and differs between them.
+       A season holding anything is kept, never deleted. ── -->
+  <template x-if="modal==='seasons'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box">
+        <div class="mhead"><h3>Seasons</h3>
+          <span class="c" x-text="seasons.length+(seasons.length===1?' season':' seasons')"></span>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <p class="note" style="margin-top:0">Every trial belongs to a season, and the season's
+            <b>year</b> is what age eligibility is reckoned against. It is a number the club states —
+            named bands like U12 are an association's own convention and are not assumed here.</p>
+
+          <div class="srow" style="background:#fbfaf8">
+            <div class="row2">
+              <div class="field"><label class="fl">Season name</label>
+                <input type="text" x-model="newSeason.name" placeholder="e.g. Winter 2027"></div>
+              <div class="field"><label class="fl">Year age is reckoned against</label>
+                <input type="number" x-model.number="newSeason.year" min="1900" max="2200"></div>
+            </div>
+            <div class="row2">
+              <div class="field"><label class="fl">Starts (optional)</label>
+                <input type="date" x-model="newSeason.starts"></div>
+              <div class="field"><label class="fl">Ends (optional)</label>
+                <input type="date" x-model="newSeason.ends" :min="newSeason.starts"></div>
+            </div>
+            <label class="fl"><input type="checkbox" x-model="newSeason.current"
+                   style="width:auto;margin-right:6px">Make this the current season</label>
+            <div class="inline">
+              <button class="btn pri" @click="createSeason()"
+                      :disabled="!newSeason.name.trim() || !newSeason.year || busy">Add season</button>
+            </div>
+            <p x-show="seasonErr" x-text="seasonErr" class="err"></p>
+          </div>
+
+          <table class="jt" x-show="seasonRows.length" style="margin-top:10px">
+            <thead><tr><th>Season</th><th style="width:60px">Year</th>
+              <th style="width:70px">Trials</th><th style="width:80px">Confirmed</th>
+              <th style="width:70px">Players</th><th style="width:150px"></th></tr></thead>
+            <tbody>
+              <template x-for="r in seasonRows" :key="r.id">
+                <tr>
+                  <td><b x-text="r.name"></b>
+                      <span class="c ok" x-show="r.is_current">current</span></td>
+                  <td x-text="r.year"></td>
+                  <td x-text="r.sessions"></td>
+                  <td x-text="r.confirmed_sessions"></td>
+                  <td x-text="r.players"></td>
+                  <td>
+                    <button class="btn sm" x-show="!r.is_current"
+                            @click="makeCurrent(r)">Make current</button>
+                    <button class="btn sm" @click="deleteSeason(r)"
+                            :disabled="r.sessions+r.teams+r.players+r.offers>0">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <p class="note">A season holding a trial, a team, a player record or an offer is
+            <b>kept</b>. Deleting it would take the year's evaluations with it.</p>
         </div>
       </div>
     </div>
@@ -1517,6 +1604,7 @@ function app(){ return {
   email:'', msg:'', err:'', busy:false,
   userId:'', userEmail:'',
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
+  allSessions:[],
   pf:{q:'',show:'active',gender:'',age:null,year:new Date().getFullYear()},
   pe:{id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
       verification:'unverified',vsource:'',vnote:'',dob_verified:false,
@@ -1534,6 +1622,8 @@ function app(){ return {
          scores:{},note:'',err:'',msg:''},
   queue:[], rejected:[], syncing:false, online:true,
   newSession:{open:false,name:'',opens:'',closes:'',rubric_id:''},
+  seasons:[], seasonRows:[], seasonId:'', seasonErr:'',
+  newSeason:{name:'',year:new Date().getFullYear(),starts:'',ends:'',current:false},
   newBlock:{date:'',start:'18:00',end:'20:00',venue:''},
   newAuth:{membership_id:''},
 
@@ -1610,8 +1700,64 @@ function app(){ return {
       const core = this.rubrics.find(r=>r.level==='core');
       this.newSession.rubric_id = (core||this.rubrics[0])?.id || '';
     }
-    this.sessions = await q('rating_session','*','opens_at');
+    // The season is the scope everything below reads through. A club with no
+    // season cannot create a trial at all — the database refuses it — so the
+    // stage says so rather than failing on the button.
+    this.seasons    = await q('season','*','year');
+    this.seasonRows = await q('v_season_summary','*','year');
+    if(!this.seasons.find(s => s.id === this.seasonId)){
+      this.seasonId = (this.seasons.find(s => s.is_current) || this.seasons[0] || {}).id || '';
+    }
+    const all = await q('rating_session','*','opens_at');
+    this.allSessions = all;
+    this.sessions = this.seasonId ? all.filter(s => s.season_id === this.seasonId) : all;
+    // The player directory reckons age against the season's own year.
+    const cur = this.seasons.find(s => s.id === this.seasonId);
+    if(cur && cur.year) this.pf.year = cur.year;
     await this.loadSessionQueue();
+  },
+
+  // ── seasons ─────────────────────────────────────────────────────────────
+  seasonName(id){ return this.seasons.find(s => s.id === id)?.name || '(no season)'; },
+  seasonYear(id){ return this.seasons.find(s => s.id === id)?.year || null; },
+  onSeasonChange(){
+    this.sel = null; this.onlyWaiting = false;
+    this.sessions = this.allSessions.filter(s => s.season_id === this.seasonId);
+    const y = this.seasonYear(this.seasonId);
+    if(y) this.pf.year = y;
+  },
+  async createSeason(){
+    this.seasonErr=''; this.busy=true;
+    const {error} = await this.sb.from('season').insert({
+      org_id:this.org.id,
+      name:this.newSeason.name.trim(),
+      year:Number(this.newSeason.year),
+      starts_on:this.newSeason.starts || null,
+      ends_on:this.newSeason.ends || null,
+      is_current:!!this.newSeason.current
+    });
+    this.busy=false;
+    if(error){
+      this.seasonErr = /season_name_uq/.test(error.message)
+        ? 'There is already a season with that name in this club.' : error.message;
+      return;
+    }
+    this.newSeason={name:'',year:new Date().getFullYear(),starts:'',ends:'',current:false};
+    await this.load();
+  },
+  async makeCurrent(r){
+    this.seasonErr='';
+    // The trigger stands the previous one down, so this is one write, not two.
+    const {error} = await this.sb.from('season').update({is_current:true}).eq('id', r.id);
+    if(error){ this.seasonErr=error.message; return; }
+    this.seasonId = r.id;
+    await this.load();
+  },
+  async deleteSeason(r){
+    this.seasonErr='';
+    const {error} = await this.sb.from('season').delete().eq('id', r.id);
+    if(error){ this.seasonErr = error.message; return; }
+    await this.load();
   },
 
   nameOf(mid){ const m=this.members.find(x=>x.id===mid); return m? m.display_name : mid; },
@@ -1628,11 +1774,13 @@ function app(){ return {
       this.err='The last day cannot be before the first day.'; return;
     }
     if(!this.newSession.rubric_id){ this.err='Choose a rubric.'; return; }
+    if(!this.seasonId){ this.err='Create a season first — a trial has to belong to one.'; return; }
     this.busy=true;
     // Dates are picked as calendar dates. Send them as UTC day boundaries so the
     // database sees exactly the days chosen, with no timezone drift either way.
     const {error} = await this.sb.from('rating_session').insert({
-      org_id:this.org.id, rubric_id:this.newSession.rubric_id, name:this.newSession.name,
+      org_id:this.org.id, season_id:this.seasonId,
+      rubric_id:this.newSession.rubric_id, name:this.newSession.name,
       opens_at:this.newSession.opens+'T00:00:00Z',
       closes_at:this.newSession.closes+'T23:59:59Z',
       status:'draft'
