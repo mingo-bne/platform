@@ -1941,7 +1941,7 @@ function app(){ return {
   async openReview(s){
     this.modal='review';
     this.review={session:s,rows:[],threshold:2,err:'',scores:{}};
-    this.modal='';
+    this.pm.personId=''; this.pm.editing=false; this.pm.returnTo='';
     const {data:prof} = await this.sb.from('org_profile')
       .select('divergence_threshold_measure').eq('org_id',this.org.id).maybeSingle();
     if(prof) this.review.threshold = Number(prof.divergence_threshold_measure);
