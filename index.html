@@ -753,29 +753,192 @@ values (
 
   </div></div>
 
-  <!-- ─────────── PLAYERS (modal) ─────────── -->
+  <!-- ─────────── PLAYERS (modal) ───────────
+       Three doors, one record: staff entry here, EOI and import later. They
+       differ in how much TRUST attaches to the data, never in what they
+       produce — so this screen writes the same row an import will.
+
+       Verification is RECONCILIATION, not interrogation. The parent supplied
+       this data; asking them to confirm it tests transcription, not truth. A
+       club matches the association's registration, which the parent already
+       attested to and paid against, and only contacts a family where the two
+       disagree. Hence three sources, and an override that must say why. ── -->
   <template x-if="modal==='players'">
     <div class="modal" @click.self="modal=''">
       <div class="box">
         <div class="mhead"><h3>Players</h3>
-          <span class="c" x-text="people.length+' in this organisation'"></span>
+          <span class="c" x-text="peopleShown().length+' of '+people.length"></span>
+          <span class="c wn" x-show="unverifiedCount()"
+                x-text="unverifiedCount()+' unverified'"></span>
           <button class="x" @click="modal=''" title="Close">×</button></div>
+
         <div class="mbody">
-          <p x-show="peopleErr" x-text="peopleErr" class="err" style="margin-top:0"></p>
-          <template x-if="!people.length"><div class="empty">No players yet.</div></template>
-          <table class="jt" x-show="people.length">
-            <thead><tr><th>Name</th><th style="width:70px">Gender</th>
-              <th style="width:120px">Date of birth</th><th style="width:70px"></th>
-              <th style="width:74px"></th></tr></thead>
+          <p class="note" style="margin-top:0">A record is <b>unverified</b> until somebody stands
+            behind it. Rating never waits on this — trial night is not a form check — but
+            <b>an offer of a place does</b>, and the database enforces that.</p>
+
+          <div class="inline">
+            <input type="search" x-model="pf.q" placeholder="Search a name"
+                   style="flex:1;min-width:160px">
+            <select x-model="pf.show" style="width:auto">
+              <option value="active">Active</option>
+              <option value="unverified">Unverified only</option>
+              <option value="inactive">Inactive</option>
+              <option value="all">Everyone</option>
+            </select>
+            <button class="btn pri" @click="startAdd()" x-show="!pe.open">Add a player</button>
+          </div>
+
+          <!-- ── add / edit. Every act on a player happens in here, so the table
+                 above stays a ledger you scan rather than a wall of buttons. ── -->
+          <template x-if="pe.open">
+            <div class="panel" style="margin-top:10px;padding:12px 14px">
+              <div class="cath" x-text="pe.id ? 'Edit player' : 'New player'"></div>
+
+              <div class="row2">
+                <div class="field"><label class="fl">Given name</label>
+                  <input type="text" x-model="pe.given" @blur="checkDupes()"></div>
+                <div class="field"><label class="fl">Family name</label>
+                  <input type="text" x-model="pe.family" @blur="checkDupes()"></div>
+              </div>
+              <div class="row2">
+                <div class="field"><label class="fl">Date of birth</label>
+                  <input type="date" x-model="pe.dob" @blur="checkDupes()"></div>
+                <div class="field"><label class="fl">Gender</label>
+                  <select x-model="pe.gender">
+                    <option value="">—</option><option value="F">F</option>
+                    <option value="M">M</option><option value="X">X</option>
+                  </select></div>
+              </div>
+
+              <!-- The duplicate check runs BEFORE a second record can exist. Same
+                   rule the import will use — match_person(), not a second
+                   implementation that quietly disagrees with the first. -->
+              <template x-if="pe.dupes.length">
+                <div class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);
+                            margin:0 0 10px">
+                  <b x-text="pe.dupes.length===1 ? 'This player may already be here'
+                                                 : 'These players may already be here'"></b>
+                  <template x-for="d in pe.dupes" :key="d.person_id">
+                    <div style="margin-top:4px">
+                      <b x-text="d.given_name+' '+d.family_name"></b>
+                      <span x-text="' — '+d.reason+' ('+d.confidence+')'"></span>
+                      <button class="btn sm" style="margin-left:6px"
+                              @click="startEdit(people.find(p=>p.id===d.person_id))">
+                        Open that record instead</button>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <div class="cath">Verification</div>
+              <p class="note" style="margin:0 0 6px">
+                <span x-show="pe.verification==='verified'">Standing behind this record:
+                  <b x-text="vsourceLabel(pe.vsource)"></b>.</span>
+                <span x-show="pe.verification!=='verified'">Nobody has checked this record yet.</span>
+              </p>
+              <div class="inline" style="margin-top:0">
+                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='association' ? 'pri':''"
+                        @click="setVerification('association')">Matched the registration</button>
+                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='attested' ? 'pri':''"
+                        @click="setVerification('attested')">Parent attested</button>
+                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='admin' ? 'pri':''"
+                        @click="setVerification('admin')">My own authority</button>
+                <button class="btn" :class="pe.verification!=='verified' ? 'pri':''"
+                        @click="setVerification('')">Not verified</button>
+              </div>
+
+              <!-- The override has to say what was actually checked. That is the
+                   whole difference between an override and a bypass. -->
+              <div class="field" x-show="pe.verification==='verified' && pe.vsource==='admin'"
+                   style="margin-top:8px">
+                <label class="fl">What did you check? — this is the reason on the record</label>
+                <input type="text" x-model="pe.vnote"
+                       placeholder="e.g. birth certificate sighted, Connect record not live yet">
+              </div>
+
+              <div class="field" x-show="pe.verification==='verified'" style="margin-top:8px">
+                <label class="fl">
+                  <input type="checkbox" x-model="pe.dob_verified" :disabled="!pe.dob"
+                         style="width:auto;margin-right:6px">
+                  Date of birth checked against that source</label>
+                <p class="note" style="margin:2px 0 0">Kept separate because the date of birth
+                  drives age eligibility, which the formation engine treats as a hard rule — a wrong
+                  one places a child confidently in the wrong group. Editing the date clears this.</p>
+              </div>
+
+              <div class="row2" style="margin-top:8px">
+                <div class="field"><label class="fl">Association reference (optional)</label>
+                  <input type="text" x-model="pe.ref" placeholder="e.g. BC-2027-00412"></div>
+                <div class="field"><label class="fl">Status</label>
+                  <select x-model="pe.status">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive — off the lists, ratings kept</option>
+                  </select></div>
+              </div>
+
+              <p class="note" x-show="!pe.id" style="margin-top:0">Anything created here is flagged
+                <b>DEMO</b>. This version holds fabricated data only.</p>
+
+              <div class="inline" style="margin-top:10px">
+                <button class="btn pri" @click="savePerson()"
+                        :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
+                        x-text="pe.busy ? 'Saving…' : (pe.id ? 'Save changes' : 'Add player')"></button>
+                <button class="btn" @click="pe.open=false">Cancel</button>
+                <button class="btn" x-show="pe.id && !pe.delConfirm" style="margin-left:auto"
+                        @click="pe.delConfirm=true">Delete…</button>
+                <template x-if="pe.delConfirm">
+                  <span class="inline" style="margin:0 0 0 auto">
+                    <span class="c wn">Delete permanently?</span>
+                    <button class="btn" @click="deletePerson()">Yes, delete</button>
+                    <button class="btn" @click="pe.delConfirm=false">No</button>
+                  </span>
+                </template>
+              </div>
+              <p class="note" x-show="pe.delConfirm" style="margin-top:4px">A player who has been
+                rated cannot be deleted — the ratings would go with them. Mark them
+                <b>inactive</b> instead; they leave the lists and the record survives.</p>
+              <p x-show="pe.err" x-text="pe.err" class="err"></p>
+            </div>
+          </template>
+
+          <p x-show="peopleErr" x-text="peopleErr" class="err"></p>
+          <template x-if="!peopleShown().length">
+            <div class="empty" x-text="people.length ? 'Nobody matches that.' : 'No players yet.'"></div>
+          </template>
+
+          <table class="jt" x-show="peopleShown().length" style="margin-top:10px">
+            <thead><tr><th>Name</th><th style="width:52px">Gender</th>
+              <th style="width:150px">Date of birth</th>
+              <th style="width:150px">Verification</th>
+              <th style="width:62px">Rated</th>
+              <th style="width:132px"></th></tr></thead>
             <tbody>
-              <template x-for="p in people" :key="p.id">
-                <tr><td x-text="p.given_name+' '+p.family_name"></td>
-                    <td x-text="p.gender"></td><td x-text="p.dob"></td>
-                    <td><span x-show="p.is_demo" class="c">DEMO</span></td>
-                    <td><button class="btn sm" @click="deletePerson(p)">Delete</button></td></tr>
+              <template x-for="p in peopleShown()" :key="p.id">
+                <tr>
+                  <td><b x-text="p.given_name+' '+p.family_name"></b>
+                      <span x-show="p.status==='inactive'" class="c">inactive</span>
+                      <span x-show="p.is_demo" class="c">DEMO</span></td>
+                  <td x-text="p.gender || '—'"></td>
+                  <td><span x-text="p.dob || '—'"></span>
+                      <span class="c" x-show="p.dob" x-text="ageOf(p.dob)+'y'"></span>
+                      <span class="c ok" x-show="p.dob_verified" title="date of birth checked">DOB ✓</span></td>
+                  <td><span class="c" :class="p.verification==='verified' ? 'ok' : 'wn'"
+                            x-text="p.verification==='verified'
+                                    ? vsourceShort(p.verified_source) : 'unverified'"></span></td>
+                  <td x-text="ratedCount(p.id) || '—'"></td>
+                  <td>
+                    <button class="btn sm" @click="startEdit(p)">Edit</button>
+                    <button class="btn sm" @click="openPlayerProfile(p)"
+                            :disabled="!ratedCount(p.id)">History</button>
+                  </td>
+                </tr>
               </template>
             </tbody>
           </table>
+          <p class="note">Verification source: <b>reg.</b> matched to the association's
+            registration · <b>parent</b> attested at registration · <b>admin</b> a club admin's own
+            authority, with the reason on the record.</p>
         </div>
       </div>
     </div>
@@ -830,9 +993,9 @@ values (
           <template x-if="rate.authorised">
           <div class="split">
             <div>
-              <div class="cath">Players <b x-text="people.length"></b></div>
+              <div class="cath">Players <b x-text="activePeople().length"></b></div>
               <div class="plist">
-                <template x-for="p in people" :key="p.id">
+                <template x-for="p in activePeople()" :key="p.id">
                   <div class="pitem" :class="rate.person?.id===p.id?'on':''" @click="pickPlayer(p)">
                     <span x-text="p.given_name+' '+p.family_name"></span>
                     <span class="st" x-text="rate.done[p.id] ? '✓ rated' : ''"></span>
@@ -961,7 +1124,8 @@ values (
       <div class="box">
         <div class="mhead">
           <h3 x-text="pm.name"></h3>
-          <span class="c grp" x-text="pm.sessionName"></span>
+          <span class="c grp" x-show="pm.sessionName" x-text="pm.sessionName"></span>
+          <span class="c" x-show="pm.mode==='profile'">permanent record</span>
           <span class="c" x-show="pm.mean" x-text="'rating '+pm.mean"></span>
           <span class="c" :class="pm.coverage==='complete'?'ok':(pm.coverage==='partial'?'wn':'')"
                 x-show="pm.coverage" x-text="pm.coverage"></span>
@@ -969,8 +1133,12 @@ values (
         </div>
         <div class="mbody">
           <p x-show="pm.err" x-text="pm.err" class="err" style="margin-top:0"></p>
-          <template x-if="!pm.detail.length && !pm.err">
+          <template x-if="!pm.detail.length && !pm.err && pm.mode!=='profile'">
             <div class="empty">Nothing recorded for this player in this session yet.</div>
+          </template>
+          <template x-if="pm.mode==='profile' && !pm.history.length && !pm.err">
+            <div class="empty">No confirmed session yet, so there is nothing on the
+              permanent record. Ratings appear here once a session is signed off.</div>
           </template>
 
           <template x-if="pm.detail.length">
@@ -1220,11 +1388,15 @@ function app(){ return {
   email:'', msg:'', err:'', busy:false,
   userId:'', userEmail:'',
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
+  pf:{q:'',show:'active'},
+  pe:{open:false,id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
+      verification:'unverified',vsource:'',vnote:'',dob_verified:false,
+      dupes:[],delConfirm:false,err:'',busy:false},
   sel:null, blocks:[], auths:[], blockErr:'', modal:'', delConfirm:'', delErr:'', peopleErr:'', statusErr:'',
   authErr:'',
   rate:{session:null,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''},
   review:{session:null,rows:[],threshold:2,err:'',scores:{}},
-  pm:{open:false,personId:'',name:'',sessionName:'',mean:'',coverage:'',
+  pm:{open:false,personId:'',mode:'session',name:'',sessionName:'',mean:'',coverage:'',
       detail:[],history:[],resolutions:[],err:''},
   rz:{measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false},
   stage:'admin', queueRows:[], onlyWaiting:false,
@@ -1300,7 +1472,9 @@ function app(){ return {
     this.org      = this.orgs[0] || null;
     this.members  = await q('membership');
     this.me       = this.members.find(m=>m.user_id===this.userId) || null;
-    this.people   = await q('person','*','family_name');
+    // the directory view, not the bare table: it carries the verification
+    // evidence and how many confirmed sessions each player already has
+    this.people   = await q('v_person_directory','*','family_name');
     this.rubrics  = (await q('rubric','*','level')).filter(r=>r.org_id===null);
     this.measures = await q('rubric_measure','*','sort_order');
     if(!this.newSession.rubric_id){
@@ -1480,8 +1654,9 @@ function app(){ return {
     if(e2){ this.rate.err=e2.message; return; }
     this.rate.done[this.rate.person.id]=true;
     this.rate.msg='Saved '+this.rate.person.given_name+'.';
-    const i=this.people.findIndex(p=>p.id===this.rate.person.id);
-    const next=this.people.slice(i+1).find(p=>!this.rate.done[p.id]);
+    const ap=this.activePeople();
+    const i=ap.findIndex(p=>p.id===this.rate.person.id);
+    const next=ap.slice(i+1).find(p=>!this.rate.done[p.id]);
     if(next){ this.pickPlayer(next); this.rate.msg='Saved. Next: '+next.given_name+'.'; }
     else { this.rate.person=null; this.rate.msg='All players rated.'; }
   },
@@ -1742,7 +1917,7 @@ function app(){ return {
     const row = this.review.rows.find(r => r.person_id === personId) || {};
     const sc  = this.review.scores?.[personId];
     this.pm = {
-      open:true, personId,
+      open:true, personId, mode:'session',
       name: [row.given_name, row.family_name].filter(Boolean).join(' '),
       sessionName: this.review.session?.name || '',
       mean: sc ? Number(sc.mean_score).toFixed(2) : '',
@@ -2043,14 +2218,134 @@ function app(){ return {
     await this.load();
   },
 
-  async deletePerson(p){
+  // ── the player record ───────────────────────────────────────────────────
+  // Three doors write this same row: staff entry here, EOI and import later.
+  // They differ in the TRUST attached, not in what they produce, so the shape
+  // stays one shape and `source` says which door it came through.
+  activePeople(){ return this.people.filter(p => p.status !== 'inactive'); },
+  peopleShown(){
+    const q = this.pf.q.trim().toLowerCase();
+    return this.people.filter(p => {
+      if(this.pf.show==='active'     && p.status==='inactive') return false;
+      if(this.pf.show==='inactive'   && p.status!=='inactive') return false;
+      if(this.pf.show==='unverified' && p.verification==='verified') return false;
+      if(!q) return true;
+      return (p.given_name+' '+p.family_name).toLowerCase().includes(q);
+    });
+  },
+  unverifiedCount(){ return this.people.filter(p => p.verification!=='verified').length; },
+  ratedCount(id){ return this.people.find(p=>p.id===id)?.sessions_rated || 0; },
+  ageOf(dob){
+    if(!dob) return '';
+    const d=new Date(dob+'T00:00:00Z'), n=new Date();
+    let a=n.getUTCFullYear()-d.getUTCFullYear();
+    const m=n.getUTCMonth()-d.getUTCMonth();
+    if(m<0 || (m===0 && n.getUTCDate()<d.getUTCDate())) a--;
+    return a;
+  },
+  vsourceLabel(s){
+    return s==='association' ? 'matched to the association’s registration'
+         : s==='attested'    ? 'attested by the parent at registration'
+         : s==='admin'       ? 'a club admin’s own authority' : '';
+  },
+  vsourceShort(s){
+    return s==='association' ? 'reg.' : s==='attested' ? 'parent'
+         : s==='admin' ? 'admin' : 'verified';
+  },
+
+  blankPerson(){
+    return {open:true,id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
+            verification:'unverified',vsource:'',vnote:'',dob_verified:false,
+            dupes:[],delConfirm:false,err:'',busy:false};
+  },
+  startAdd(){ this.pe = this.blankPerson(); this.peopleErr=''; },
+  startEdit(p){
+    if(!p) return;
     this.peopleErr='';
-    const {error} = await this.sb.from('person').delete().eq('id', p.id);
+    this.pe = {open:true, id:p.id,
+      given:p.given_name||'', family:p.family_name||'', dob:p.dob||'',
+      gender:p.gender||'', ref:p.external_ref||'', status:p.status||'active',
+      verification:p.verification||'unverified', vsource:p.verified_source||'',
+      vnote:p.verified_note||'', dob_verified:!!p.dob_verified,
+      dupes:[], delConfirm:false, err:'', busy:false};
+  },
+  setVerification(src){
+    if(!src){ this.pe.verification='unverified'; this.pe.vsource='';
+              this.pe.vnote=''; this.pe.dob_verified=false; return; }
+    this.pe.verification='verified'; this.pe.vsource=src;
+    if(src!=='admin') this.pe.vnote='';
+  },
+
+  // Verification's FIRST job is "is this person already here", not "are these
+  // fields right". Same rule the import will use — match_person() lives in the
+  // database precisely so there is only ever one answer.
+  async checkDupes(){
+    this.pe.dupes=[];
+    const g=this.pe.given.trim(), f=this.pe.family.trim();
+    if(!g || !f || !this.org) return;
+    const {data,error} = await this.sb.rpc('match_person',{
+      p_org:this.org.id, p_given:g, p_family:f, p_dob:this.pe.dob||null});
+    if(error) return;
+    this.pe.dupes = (data||[]).filter(d => d.person_id !== this.pe.id);
+  },
+
+  async savePerson(){
+    this.pe.err=''; this.pe.busy=true;
+    const verified = this.pe.verification==='verified';
+    const row = {
+      given_name: this.pe.given.trim(),
+      family_name: this.pe.family.trim(),
+      dob: this.pe.dob || null,
+      gender: this.pe.gender || null,
+      external_ref: this.pe.ref.trim() || null,
+      status: this.pe.status,
+      verification: verified ? 'verified' : 'unverified',
+      verified_source: verified ? (this.pe.vsource || null) : null,
+      verified_note:   verified ? (this.pe.vnote.trim() || null) : null,
+      verified_by:     verified ? this.me?.id : null,
+      dob_verified:    verified ? !!this.pe.dob_verified : false
+    };
+    let error;
+    if(this.pe.id){
+      ({error} = await this.sb.from('person').update(row).eq('id', this.pe.id));
+    }else{
+      // HARD RULE: this version holds fabricated data only, so every record
+      // created here is flagged. Do not make this conditional.
+      ({error} = await this.sb.from('person')
+                    .insert({...row, org_id:this.org.id, source:'staff', is_demo:true}));
+    }
+    this.pe.busy=false;
+    if(error){ this.pe.err = error.message; return; }
+    this.pe.open=false;
+    await this.load();
+  },
+
+  async deletePerson(){
+    this.pe.err='';
+    const {error} = await this.sb.from('person').delete().eq('id', this.pe.id);
     if(error){
-      this.peopleErr = this.friendlyDeleteError(error,'That player could not be deleted.');
+      this.pe.err = this.friendlyDeleteError(error,'That player could not be deleted.');
+      this.pe.delConfirm=false;
       return;
     }
+    this.pe.open=false;
     await this.load();
+  },
+
+  // The card, reached from the directory rather than from inside a session.
+  // Profile mode: no session detail and no resolving — the permanent record
+  // only. Looking a player up should not require remembering which trial they
+  // happened to be rated in.
+  async openPlayerProfile(p){
+    this.pm = {open:true, personId:p.id, mode:'profile',
+      name:[p.given_name,p.family_name].filter(Boolean).join(' '),
+      sessionName:'', mean:'', coverage:'',
+      detail:[], history:[], resolutions:[], err:''};
+    this.rz = {measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false};
+    const {data:h, error} = await this.sb.from('v_player_history')
+      .select('*').eq('person_id', p.id).order('session_date');
+    if(error){ this.pm.err = error.message; return; }
+    this.pm.history = h || [];
   },
 
   async addAuth(){
