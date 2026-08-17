@@ -951,8 +951,7 @@ values (
             <div class="r"><span class="k">Date of birth</span>
               <span class="v" x-show="!pm.editing" :class="pe.dob?'':'none'"
                     x-text="pe.dob ? pe.dob+'  ('+ageOf(pe.dob)+' years)' : 'not recorded'"></span>
-              <input type="date" x-show="pm.editing" x-model="pe.dob" @blur="checkDupes()">
-              <span class="c ok" x-show="pe.dob_verified">checked</span></div>
+              <input type="date" x-show="pm.editing" x-model="pe.dob" @blur="checkDupes()"></div>
             <div class="r"><span class="k">Gender</span>
               <span class="v" x-show="!pm.editing" :class="pe.gender?'':'none'"
                     x-text="pe.gender || 'not recorded'"></span>
@@ -1001,8 +1000,6 @@ values (
               <b x-text="vsourceLabel(pe.vsource)"></b><span x-show="pmRow()?.verified_by_name">,
               by <b x-text="pmRow()?.verified_by_name"></b></span><span
               x-show="pmRow()?.verified_at"> on <b x-text="fmt(pmRow()?.verified_at)"></b></span>.
-              <span x-show="pe.dob_verified">The date of birth was checked against that source.</span>
-              <span x-show="!pe.dob_verified">The date of birth has <b>not</b> been checked.</span>
               <span x-show="pe.vnote"><br>Reason given: <i x-text="pe.vnote"></i></span></span>
             <span x-show="pe.verification!=='verified'">Nobody has checked this record yet, so this
               player <b>cannot be offered a place</b>. Rating is unaffected.</span>
@@ -1027,10 +1024,6 @@ values (
               </div>
 
               <div class="inline" style="margin-top:0" x-show="pe.verification==='verified'">
-                <button class="btn" @click="quickDob(!pe.dob_verified)"
-                        :disabled="qv.busy || !pe.dob"
-                        x-text="pe.dob_verified ? 'Uncheck the date of birth'
-                                                : 'Date of birth checked too'"></button>
                 <button class="btn" @click="quickUnverify()" :disabled="qv.busy">Unverify</button>
                 <span class="c" x-show="!pe.dob">no date of birth on record</span>
               </div>
@@ -1074,15 +1067,9 @@ values (
                 <input type="text" x-model="pe.vnote"
                        placeholder="e.g. birth certificate sighted, Connect record not live yet">
               </div>
-              <div class="field" x-show="pe.verification==='verified'" style="margin-top:8px">
-                <label class="fl">
-                  <input type="checkbox" x-model="pe.dob_verified" :disabled="!pe.dob"
-                         style="width:auto;margin-right:6px">
-                  Date of birth checked against that source</label>
-                <p class="note" style="margin:2px 0 0">Kept separate because the date of birth
-                  drives age eligibility, which the formation engine treats as a hard rule — a wrong
-                  one places a child confidently in the wrong group. Editing the date clears this.</p>
-              </div>
+              <p class="note" x-show="pe.verification==='verified'" style="margin-top:8px">
+                Changing the date of birth un-verifies this record — the registration it was matched
+                against is keyed on that date, so somebody has to look again.</p>
               <p class="note" x-show="!pm.personId">Anything created here is flagged <b>DEMO</b>.
                 This version holds fabricated data only.</p>
 
@@ -1673,7 +1660,7 @@ function app(){ return {
   pf:{q:'',show:'active',gender:'',age:null,year:new Date().getFullYear()},
   qv:{open:false,note:'',busy:false,err:''},
   pe:{id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
-      verification:'unverified',vsource:'',vnote:'',dob_verified:false,
+      verification:'unverified',vsource:'',vnote:'',
       dupes:[],delConfirm:false,err:'',busy:false},
   sel:null, blocks:[], auths:[], blockErr:'', modal:'', delConfirm:'', delErr:'', peopleErr:'', statusErr:'',
   authErr:'',
@@ -2634,7 +2621,7 @@ function app(){ return {
 
   blankPerson(){
     return {id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
-            verification:'unverified',vsource:'',vnote:'',dob_verified:false,
+            verification:'unverified',vsource:'',vnote:'',
             dupes:[],delConfirm:false,err:'',busy:false};
   },
   // The edit buffer is filled from the directory row, so the card can be READ
@@ -2644,7 +2631,7 @@ function app(){ return {
     return {id:p.id, given:p.given_name||'', family:p.family_name||'', dob:p.dob||'',
             gender:p.gender||'', ref:p.external_ref||'', status:p.status||'active',
             verification:p.verification||'unverified', vsource:p.verified_source||'',
-            vnote:p.verified_note||'', dob_verified:!!p.dob_verified,
+            vnote:p.verified_note||'',
             dupes:[], delConfirm:false, err:'', busy:false};
   },
   pmRow(){ return this.people.find(p => p.id === this.pm.personId) || null; },
@@ -2705,15 +2692,6 @@ function app(){ return {
     this.qv = {open:false,note:'',busy:false,err:''};
     await this.refreshCard();
   },
-  async quickDob(v){
-    if(!this.pm.personId) return;
-    this.qv.err=''; this.qv.busy=true;
-    const {error} = await this.sb.from('person')
-      .update({dob_verified:!!v}).eq('id', this.pm.personId);
-    this.qv.busy=false;
-    if(error){ this.qv.err = error.message; return; }
-    await this.refreshCard();
-  },
   async quickUnverify(){
     if(!this.pm.personId) return;
     this.qv.err=''; this.qv.busy=true;
@@ -2731,7 +2709,7 @@ function app(){ return {
 
   setVerification(src){
     if(!src){ this.pe.verification='unverified'; this.pe.vsource='';
-              this.pe.vnote=''; this.pe.dob_verified=false; return; }
+              this.pe.vnote=''; return; }
     this.pe.verification='verified'; this.pe.vsource=src;
     if(src!=='admin') this.pe.vnote='';
   },
@@ -2762,8 +2740,7 @@ function app(){ return {
       verification: verified ? 'verified' : 'unverified',
       verified_source: verified ? (this.pe.vsource || null) : null,
       verified_note:   verified ? (this.pe.vnote.trim() || null) : null,
-      verified_by:     verified ? this.me?.id : null,
-      dob_verified:    verified ? !!this.pe.dob_verified : false
+      verified_by:     verified ? this.me?.id : null
     };
     let error;
     if(this.pe.id){
