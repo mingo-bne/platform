@@ -89,6 +89,22 @@ cursor:pointer;font-size:12.5px;color:var(--ink)}
 .msg{color:var(--ok);font-size:12px;margin:6px 0 0}
 .lnk{background:none;border:0;color:var(--ink3);font-size:11.5px;text-decoration:underline;
 cursor:pointer;padding:0}
+.lnkb{background:none;border:0;color:var(--navy);font:inherit;font-weight:600;cursor:pointer;
+padding:0;text-align:left}
+.lnkb:hover{text-decoration:underline}
+/* ── the detail block of the player card. Read by default; the SAME rows
+      become editable in place, so looking at a player and correcting one are
+      not two different screens. ── */
+.dl{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.dl .r{display:flex;align-items:center;gap:12px;padding:7px 12px;border-bottom:1px solid var(--line);
+min-height:36px}
+.dl .r:last-child{border-bottom:0}
+.dl .r:nth-child(even){background:#fcfbf9}
+.dl .r .k{width:118px;flex:none;font-size:11.5px;color:var(--ink2)}
+.dl .r .v{font-size:13px;flex:1;min-width:0}
+.dl .r .v.none{color:var(--ink3)}
+.dl .r input,.dl .r select{flex:1;min-width:0}
+.vsrc{display:flex;gap:5px;flex-wrap:wrap}
 
 .srow{border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:7px;background:#fff}
 .srow:hover{border-color:var(--line2)}
@@ -230,7 +246,7 @@ word-break:break-all}
 </head>
 <body>
 <div x-data="app()" x-init="boot()" x-cloak
-     @keydown.escape.window="pm.open ? (pm.open=false) : (modal='')">
+     @keydown.escape.window="pm.editing ? cancelEdit() : (pm.open ? (pm.open=false) : (modal=''))">
 
 <!-- ────────────────────────── SETUP ────────────────────────── -->
 <template x-if="screen==='setup'">
@@ -786,121 +802,8 @@ values (
               <option value="inactive">Inactive</option>
               <option value="all">Everyone</option>
             </select>
-            <button class="btn pri" @click="startAdd()" x-show="!pe.open">Add a player</button>
+            <button class="btn pri" @click="startAdd()">Add a player</button>
           </div>
-
-          <!-- ── add / edit. Every act on a player happens in here, so the table
-                 above stays a ledger you scan rather than a wall of buttons. ── -->
-          <template x-if="pe.open">
-            <div class="panel" style="margin-top:10px;padding:12px 14px">
-              <div class="cath" x-text="pe.id ? 'Edit player' : 'New player'"></div>
-
-              <div class="row2">
-                <div class="field"><label class="fl">Given name</label>
-                  <input type="text" x-model="pe.given" @blur="checkDupes()"></div>
-                <div class="field"><label class="fl">Family name</label>
-                  <input type="text" x-model="pe.family" @blur="checkDupes()"></div>
-              </div>
-              <div class="row2">
-                <div class="field"><label class="fl">Date of birth</label>
-                  <input type="date" x-model="pe.dob" @blur="checkDupes()"></div>
-                <div class="field"><label class="fl">Gender</label>
-                  <select x-model="pe.gender">
-                    <option value="">—</option><option value="F">F</option>
-                    <option value="M">M</option><option value="X">X</option>
-                  </select></div>
-              </div>
-
-              <!-- The duplicate check runs BEFORE a second record can exist. Same
-                   rule the import will use — match_person(), not a second
-                   implementation that quietly disagrees with the first. -->
-              <template x-if="pe.dupes.length">
-                <div class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);
-                            margin:0 0 10px">
-                  <b x-text="pe.dupes.length===1 ? 'This player may already be here'
-                                                 : 'These players may already be here'"></b>
-                  <template x-for="d in pe.dupes" :key="d.person_id">
-                    <div style="margin-top:4px">
-                      <b x-text="d.given_name+' '+d.family_name"></b>
-                      <span x-text="' — '+d.reason+' ('+d.confidence+')'"></span>
-                      <button class="btn sm" style="margin-left:6px"
-                              @click="startEdit(people.find(p=>p.id===d.person_id))">
-                        Open that record instead</button>
-                    </div>
-                  </template>
-                </div>
-              </template>
-
-              <div class="cath">Verification</div>
-              <p class="note" style="margin:0 0 6px">
-                <span x-show="pe.verification==='verified'">Standing behind this record:
-                  <b x-text="vsourceLabel(pe.vsource)"></b>.</span>
-                <span x-show="pe.verification!=='verified'">Nobody has checked this record yet.</span>
-              </p>
-              <div class="inline" style="margin-top:0">
-                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='association' ? 'pri':''"
-                        @click="setVerification('association')">Matched the registration</button>
-                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='attested' ? 'pri':''"
-                        @click="setVerification('attested')">Parent attested</button>
-                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='admin' ? 'pri':''"
-                        @click="setVerification('admin')">My own authority</button>
-                <button class="btn" :class="pe.verification!=='verified' ? 'pri':''"
-                        @click="setVerification('')">Not verified</button>
-              </div>
-
-              <!-- The override has to say what was actually checked. That is the
-                   whole difference between an override and a bypass. -->
-              <div class="field" x-show="pe.verification==='verified' && pe.vsource==='admin'"
-                   style="margin-top:8px">
-                <label class="fl">What did you check? — this is the reason on the record</label>
-                <input type="text" x-model="pe.vnote"
-                       placeholder="e.g. birth certificate sighted, Connect record not live yet">
-              </div>
-
-              <div class="field" x-show="pe.verification==='verified'" style="margin-top:8px">
-                <label class="fl">
-                  <input type="checkbox" x-model="pe.dob_verified" :disabled="!pe.dob"
-                         style="width:auto;margin-right:6px">
-                  Date of birth checked against that source</label>
-                <p class="note" style="margin:2px 0 0">Kept separate because the date of birth
-                  drives age eligibility, which the formation engine treats as a hard rule — a wrong
-                  one places a child confidently in the wrong group. Editing the date clears this.</p>
-              </div>
-
-              <div class="row2" style="margin-top:8px">
-                <div class="field"><label class="fl">Association reference (optional)</label>
-                  <input type="text" x-model="pe.ref" placeholder="e.g. BC-2027-00412"></div>
-                <div class="field"><label class="fl">Status</label>
-                  <select x-model="pe.status">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive — off the lists, ratings kept</option>
-                  </select></div>
-              </div>
-
-              <p class="note" x-show="!pe.id" style="margin-top:0">Anything created here is flagged
-                <b>DEMO</b>. This version holds fabricated data only.</p>
-
-              <div class="inline" style="margin-top:10px">
-                <button class="btn pri" @click="savePerson()"
-                        :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
-                        x-text="pe.busy ? 'Saving…' : (pe.id ? 'Save changes' : 'Add player')"></button>
-                <button class="btn" @click="pe.open=false">Cancel</button>
-                <button class="btn" x-show="pe.id && !pe.delConfirm" style="margin-left:auto"
-                        @click="pe.delConfirm=true">Delete…</button>
-                <template x-if="pe.delConfirm">
-                  <span class="inline" style="margin:0 0 0 auto">
-                    <span class="c wn">Delete permanently?</span>
-                    <button class="btn" @click="deletePerson()">Yes, delete</button>
-                    <button class="btn" @click="pe.delConfirm=false">No</button>
-                  </span>
-                </template>
-              </div>
-              <p class="note" x-show="pe.delConfirm" style="margin-top:4px">A player who has been
-                rated cannot be deleted — the ratings would go with them. Mark them
-                <b>inactive</b> instead; they leave the lists and the record survives.</p>
-              <p x-show="pe.err" x-text="pe.err" class="err"></p>
-            </div>
-          </template>
 
           <p x-show="peopleErr" x-text="peopleErr" class="err"></p>
           <template x-if="!peopleShown().length">
@@ -912,11 +815,12 @@ values (
               <th style="width:150px">Date of birth</th>
               <th style="width:150px">Verification</th>
               <th style="width:62px">Rated</th>
-              <th style="width:132px"></th></tr></thead>
+              <th style="width:74px"></th></tr></thead>
             <tbody>
               <template x-for="p in peopleShown()" :key="p.id">
                 <tr>
-                  <td><b x-text="p.given_name+' '+p.family_name"></b>
+                  <td><button class="lnkb" @click="openPlayerCard(p)"
+                              x-text="p.given_name+' '+p.family_name"></button>
                       <span x-show="p.status==='inactive'" class="c">inactive</span>
                       <span x-show="p.is_demo" class="c">DEMO</span></td>
                   <td x-text="p.gender || '—'"></td>
@@ -927,11 +831,7 @@ values (
                             x-text="p.verification==='verified'
                                     ? vsourceShort(p.verified_source) : 'unverified'"></span></td>
                   <td x-text="ratedCount(p.id) || '—'"></td>
-                  <td>
-                    <button class="btn sm" @click="startEdit(p)">Edit</button>
-                    <button class="btn sm" @click="openPlayerProfile(p)"
-                            :disabled="!ratedCount(p.id)">History</button>
-                  </td>
+                  <td><button class="btn sm" @click="openPlayerCard(p)">Open</button></td>
                 </tr>
               </template>
             </tbody>
@@ -1120,26 +1020,158 @@ values (
   <!-- Layered above Review, because it is summoned FROM Review and Review is still
        the thing you are doing. Escape or the × returns you to it, in place. -->
   <template x-if="pm.open">
-    <div class="modal" data-modal="player" style="z-index:90" @click.self="pm.open=false">
+    <div class="modal" data-modal="player" style="z-index:90"
+         @click.self="pm.editing ? null : (pm.open=false)">
       <div class="box">
         <div class="mhead">
-          <h3 x-text="pm.name"></h3>
+          <h3 x-text="pm.name || 'New player'"></h3>
+          <span class="c" x-show="pe.dob && !pm.editing" x-text="ageOf(pe.dob)+'y'"></span>
+          <span class="c" x-show="pe.status==='inactive'">inactive</span>
+          <span class="c" :class="pe.verification==='verified' ? 'ok':'wn'" x-show="pm.personId"
+                x-text="pe.verification==='verified'
+                        ? vsourceShort(pe.vsource) : 'unverified'"></span>
           <span class="c grp" x-show="pm.sessionName" x-text="pm.sessionName"></span>
-          <span class="c" x-show="pm.mode==='profile'">permanent record</span>
           <span class="c" x-show="pm.mean" x-text="'rating '+pm.mean"></span>
           <span class="c" :class="pm.coverage==='complete'?'ok':(pm.coverage==='partial'?'wn':'')"
                 x-show="pm.coverage" x-text="pm.coverage"></span>
-          <button class="x" @click="pm.open=false" title="Close">×</button>
+          <!-- Read by default. Editing is a mode this card enters, not a second
+               screen you navigate to. -->
+          <button class="btn sm" x-show="!pm.editing && canEditPlayer()"
+                  @click="pm.editing=true">Edit</button>
+          <button class="btn sm pri" x-show="pm.editing" @click="savePerson()"
+                  :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
+                  x-text="pe.busy ? 'Saving…' : 'Done'"></button>
+          <button class="btn sm" x-show="pm.editing" @click="cancelEdit()">Cancel</button>
+          <button class="x" x-show="!pm.editing" @click="pm.open=false" title="Close">×</button>
         </div>
         <div class="mbody">
           <p x-show="pm.err" x-text="pm.err" class="err" style="margin-top:0"></p>
-          <template x-if="!pm.detail.length && !pm.err && pm.mode!=='profile'">
+
+          <!-- ── details ─────────────────────────────────────────────────── -->
+          <div class="cath">Details</div>
+          <div class="dl">
+            <div class="r"><span class="k">Given name</span>
+              <span class="v" x-show="!pm.editing" x-text="pe.given"></span>
+              <input type="text" x-show="pm.editing" x-model="pe.given" @blur="checkDupes()"></div>
+            <div class="r"><span class="k">Family name</span>
+              <span class="v" x-show="!pm.editing" x-text="pe.family"></span>
+              <input type="text" x-show="pm.editing" x-model="pe.family" @blur="checkDupes()"></div>
+            <div class="r"><span class="k">Date of birth</span>
+              <span class="v" x-show="!pm.editing" :class="pe.dob?'':'none'"
+                    x-text="pe.dob ? pe.dob+'  ('+ageOf(pe.dob)+' years)' : 'not recorded'"></span>
+              <input type="date" x-show="pm.editing" x-model="pe.dob" @blur="checkDupes()">
+              <span class="c ok" x-show="pe.dob_verified">checked</span></div>
+            <div class="r"><span class="k">Gender</span>
+              <span class="v" x-show="!pm.editing" :class="pe.gender?'':'none'"
+                    x-text="pe.gender || 'not recorded'"></span>
+              <select x-show="pm.editing" x-model="pe.gender">
+                <option value="">—</option><option value="F">F</option>
+                <option value="M">M</option><option value="X">X</option></select></div>
+            <div class="r"><span class="k">Association ref</span>
+              <span class="v" x-show="!pm.editing" :class="pe.ref?'':'none'"
+                    x-text="pe.ref || 'none held'"></span>
+              <input type="text" x-show="pm.editing" x-model="pe.ref"
+                     placeholder="e.g. BC-2027-00412"></div>
+            <div class="r" x-show="pm.editing || pe.status==='inactive'">
+              <span class="k">Status</span>
+              <span class="v" x-show="!pm.editing" x-text="pe.status"></span>
+              <select x-show="pm.editing" x-model="pe.status">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive — off the lists, ratings kept</option></select></div>
+            <div class="r" x-show="!pm.editing && pm.personId"><span class="k">Came in as</span>
+              <span class="v" x-text="sourceLabel(pmRow()?.source)"></span></div>
+          </div>
+
+          <!-- The duplicate check runs BEFORE a second record can exist. Same
+               rule import will use — match_person(), not a second implementation
+               that quietly disagrees with the first. -->
+          <template x-if="pm.editing && pe.dupes.length">
+            <div class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);
+                        margin:10px 0 0">
+              <b x-text="pe.dupes.length===1 ? 'This player may already be here'
+                                             : 'These players may already be here'"></b>
+              <template x-for="d in pe.dupes" :key="d.person_id">
+                <div style="margin-top:4px">
+                  <b x-text="d.given_name+' '+d.family_name"></b>
+                  <span x-text="' — '+d.reason+' ('+d.confidence+')'"></span>
+                  <button class="btn sm" style="margin-left:6px"
+                          @click="openPlayerCard(people.find(p=>p.id===d.person_id))">
+                    Open that record instead</button>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <!-- ── verification ────────────────────────────────────────────── -->
+          <div class="cath">Verification</div>
+          <p class="note" style="margin:0 0 6px" x-show="!pm.editing">
+            <span x-show="pe.verification==='verified'">Checked
+              <b x-text="vsourceLabel(pe.vsource)"></b><span x-show="pmRow()?.verified_by_name">,
+              by <b x-text="pmRow()?.verified_by_name"></b></span><span
+              x-show="pmRow()?.verified_at"> on <b x-text="fmt(pmRow()?.verified_at)"></b></span>.
+              <span x-show="pe.dob_verified">The date of birth was checked against that source.</span>
+              <span x-show="!pe.dob_verified">The date of birth has <b>not</b> been checked.</span>
+              <span x-show="pe.vnote"><br>Reason given: <i x-text="pe.vnote"></i></span></span>
+            <span x-show="pe.verification!=='verified'">Nobody has checked this record yet, so this
+              player <b>cannot be offered a place</b>. Rating is unaffected.</span>
+          </p>
+
+          <template x-if="pm.editing">
+            <div>
+              <p class="note" style="margin:0 0 6px">A club is downstream of the association, whose
+                registration the parent already attested to — so match that, and only go back to a
+                family where the two disagree.</p>
+              <div class="vsrc">
+                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='association' ? 'pri':''"
+                        @click="setVerification('association')">Matched the registration</button>
+                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='attested' ? 'pri':''"
+                        @click="setVerification('attested')">Parent attested</button>
+                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='admin' ? 'pri':''"
+                        @click="setVerification('admin')">My own authority</button>
+                <button class="btn" :class="pe.verification!=='verified' ? 'pri':''"
+                        @click="setVerification('')">Not verified</button>
+              </div>
+              <!-- The override has to say what was actually checked. That is the
+                   whole difference between an override and a bypass. -->
+              <div class="field" x-show="pe.verification==='verified' && pe.vsource==='admin'"
+                   style="margin-top:8px">
+                <label class="fl">What did you check? — this is the reason on the record</label>
+                <input type="text" x-model="pe.vnote"
+                       placeholder="e.g. birth certificate sighted, Connect record not live yet">
+              </div>
+              <div class="field" x-show="pe.verification==='verified'" style="margin-top:8px">
+                <label class="fl">
+                  <input type="checkbox" x-model="pe.dob_verified" :disabled="!pe.dob"
+                         style="width:auto;margin-right:6px">
+                  Date of birth checked against that source</label>
+                <p class="note" style="margin:2px 0 0">Kept separate because the date of birth
+                  drives age eligibility, which the formation engine treats as a hard rule — a wrong
+                  one places a child confidently in the wrong group. Editing the date clears this.</p>
+              </div>
+              <p class="note" x-show="!pm.personId">Anything created here is flagged <b>DEMO</b>.
+                This version holds fabricated data only.</p>
+
+              <div class="inline" style="margin-top:10px" x-show="pm.personId">
+                <button class="btn" x-show="!pe.delConfirm" @click="pe.delConfirm=true">Delete…</button>
+                <template x-if="pe.delConfirm">
+                  <span class="inline" style="margin:0">
+                    <span class="c wn">Delete permanently?</span>
+                    <button class="btn" @click="deletePerson()">Yes, delete</button>
+                    <button class="btn" @click="pe.delConfirm=false">No</button>
+                  </span>
+                </template>
+              </div>
+              <p class="note" x-show="pe.delConfirm">A player who has been rated cannot be deleted —
+                the ratings would go with them. Mark them <b>inactive</b> instead; they leave the
+                lists and the record survives.</p>
+              <p x-show="pe.err" x-text="pe.err" class="err"></p>
+            </div>
+          </template>
+
+          <template x-if="!pm.editing && !pm.detail.length && !pm.err && pm.mode!=='profile'">
             <div class="empty">Nothing recorded for this player in this session yet.</div>
           </template>
-          <template x-if="pm.mode==='profile' && !pm.history.length && !pm.err">
-            <div class="empty">No confirmed session yet, so there is nothing on the
-              permanent record. Ratings appear here once a session is signed off.</div>
-          </template>
+
 
           <template x-if="pm.detail.length">
             <div>
@@ -1389,14 +1421,14 @@ function app(){ return {
   userId:'', userEmail:'',
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
   pf:{q:'',show:'active'},
-  pe:{open:false,id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
+  pe:{id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
       verification:'unverified',vsource:'',vnote:'',dob_verified:false,
       dupes:[],delConfirm:false,err:'',busy:false},
   sel:null, blocks:[], auths:[], blockErr:'', modal:'', delConfirm:'', delErr:'', peopleErr:'', statusErr:'',
   authErr:'',
   rate:{session:null,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''},
   review:{session:null,rows:[],threshold:2,err:'',scores:{}},
-  pm:{open:false,personId:'',mode:'session',name:'',sessionName:'',mean:'',coverage:'',
+  pm:{open:false,personId:'',mode:'session',editing:false,name:'',sessionName:'',mean:'',coverage:'',
       detail:[],history:[],resolutions:[],err:''},
   rz:{measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false},
   stage:'admin', queueRows:[], onlyWaiting:false,
@@ -1916,8 +1948,10 @@ function app(){ return {
   async openPlayer(personId){
     const row = this.review.rows.find(r => r.person_id === personId) || {};
     const sc  = this.review.scores?.[personId];
+    const dir = this.people.find(p => p.id === personId);
+    this.pe = dir ? this.bufferFrom(dir) : this.blankPerson();
     this.pm = {
-      open:true, personId, mode:'session',
+      open:true, personId, mode:'session', editing:false,
       name: [row.given_name, row.family_name].filter(Boolean).join(' '),
       sessionName: this.review.session?.name || '',
       mean: sc ? Number(sc.mean_score).toFixed(2) : '',
@@ -2254,21 +2288,60 @@ function app(){ return {
   },
 
   blankPerson(){
-    return {open:true,id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
+    return {id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
             verification:'unverified',vsource:'',vnote:'',dob_verified:false,
             dupes:[],delConfirm:false,err:'',busy:false};
   },
-  startAdd(){ this.pe = this.blankPerson(); this.peopleErr=''; },
-  startEdit(p){
+  // The edit buffer is filled from the directory row, so the card can be READ
+  // before anybody decides to change anything. Apple's Contacts shape: one card
+  // per person, edit is a mode it enters, not a second screen.
+  bufferFrom(p){
+    return {id:p.id, given:p.given_name||'', family:p.family_name||'', dob:p.dob||'',
+            gender:p.gender||'', ref:p.external_ref||'', status:p.status||'active',
+            verification:p.verification||'unverified', vsource:p.verified_source||'',
+            vnote:p.verified_note||'', dob_verified:!!p.dob_verified,
+            dupes:[], delConfirm:false, err:'', busy:false};
+  },
+  pmRow(){ return this.people.find(p => p.id === this.pm.personId) || null; },
+  canEditPlayer(){ return ['head_coach','club_admin'].includes(this.me?.role); },
+  sourceLabel(s){
+    return s==='eoi'    ? 'an expression of interest'
+         : s==='import' ? 'an import'
+         : s==='seed'   ? 'the demo seed' : 'staff entry';
+  },
+  cancelEdit(){
+    if(!this.pm.personId){ this.pm.open=false; return; }   // a new player, abandoned
+    this.pe = this.bufferFrom(this.pmRow() || {});
+    this.pm.editing = false;
+  },
+
+  // ── the player card ─────────────────────────────────────────────────────
+  // One surface per player, reached from the directory OR from a review row.
+  // From the directory it shows details, verification and the permanent record;
+  // from a review it also shows what each rater said in that session.
+  startAdd(){
+    this.peopleErr='';
+    this.pe = this.blankPerson();
+    this.pm = {open:true, personId:null, mode:'profile', editing:true,
+               name:'', sessionName:'', mean:'', coverage:'',
+               detail:[], history:[], resolutions:[], err:''};
+  },
+  async openPlayerCard(p){
     if(!p) return;
     this.peopleErr='';
-    this.pe = {open:true, id:p.id,
-      given:p.given_name||'', family:p.family_name||'', dob:p.dob||'',
-      gender:p.gender||'', ref:p.external_ref||'', status:p.status||'active',
-      verification:p.verification||'unverified', vsource:p.verified_source||'',
-      vnote:p.verified_note||'', dob_verified:!!p.dob_verified,
-      dupes:[], delConfirm:false, err:'', busy:false};
+    this.pe = this.bufferFrom(p);
+    this.pm = {open:true, personId:p.id, mode:'profile', editing:false,
+      name:[p.given_name,p.family_name].filter(Boolean).join(' '),
+      sessionName:'', mean:'', coverage:'',
+      detail:[], history:[], resolutions:[], err:''};
+    this.rz = {measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false};
+    if(!this.ratedCount(p.id)) return;
+    const {data:h, error} = await this.sb.from('v_player_history')
+      .select('*').eq('person_id', p.id).order('session_date');
+    if(error){ this.pm.err = error.message; return; }
+    this.pm.history = h || [];
   },
+
   setVerification(src){
     if(!src){ this.pe.verification='unverified'; this.pe.vsource='';
               this.pe.vnote=''; this.pe.dob_verified=false; return; }
@@ -2277,8 +2350,8 @@ function app(){ return {
   },
 
   // Verification's FIRST job is "is this person already here", not "are these
-  // fields right". Same rule the import will use — match_person() lives in the
-  // database precisely so there is only ever one answer.
+  // fields right". match_person() lives in the database precisely so staff
+  // entry and, later, import can never disagree about who is a duplicate.
   async checkDupes(){
     this.pe.dupes=[];
     const g=this.pe.given.trim(), f=this.pe.family.trim();
@@ -2316,8 +2389,16 @@ function app(){ return {
     }
     this.pe.busy=false;
     if(error){ this.pe.err = error.message; return; }
-    this.pe.open=false;
     await this.load();
+    // stay on the record that was just written, in read mode
+    const saved = this.pe.id
+      ? this.pmRow()
+      : this.people.find(p => p.given_name===row.given_name
+                           && p.family_name===row.family_name && p.dob===row.dob);
+    if(saved){ this.pe = this.bufferFrom(saved);
+               this.pm.personId = saved.id;
+               this.pm.name = saved.given_name+' '+saved.family_name; }
+    this.pm.editing = false;
   },
 
   async deletePerson(){
@@ -2328,24 +2409,8 @@ function app(){ return {
       this.pe.delConfirm=false;
       return;
     }
-    this.pe.open=false;
+    this.pm.open=false;
     await this.load();
-  },
-
-  // The card, reached from the directory rather than from inside a session.
-  // Profile mode: no session detail and no resolving — the permanent record
-  // only. Looking a player up should not require remembering which trial they
-  // happened to be rated in.
-  async openPlayerProfile(p){
-    this.pm = {open:true, personId:p.id, mode:'profile',
-      name:[p.given_name,p.family_name].filter(Boolean).join(' '),
-      sessionName:'', mean:'', coverage:'',
-      detail:[], history:[], resolutions:[], err:''};
-    this.rz = {measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false};
-    const {data:h, error} = await this.sb.from('v_player_history')
-      .select('*').eq('person_id', p.id).order('session_date');
-    if(error){ this.pm.err = error.message; return; }
-    this.pm.history = h || [];
   },
 
   async addAuth(){
