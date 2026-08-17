@@ -171,10 +171,23 @@ display:flex;align-items:center;justify-content:center;font-weight:600;font-size
 .rz .opt.on .v{background:var(--ok)}
 .pcr.wide .meter{background:#f0dfc2}
 .pcr.wide .sp{color:var(--warn);font-weight:600}
-.shape{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
-.shape .leg{font-size:11.5px;color:var(--ink2);min-width:150px}
+.shape{display:grid;grid-template-columns:auto minmax(230px,1fr);gap:18px;align-items:start}
+@media (max-width:760px){.shape{grid-template-columns:1fr}}
+.shape .leg{font-size:11.5px;color:var(--ink2);margin-top:6px}
 .shape .leg div{display:flex;align-items:center;gap:7px;margin-bottom:4px}
 .shape .leg i{width:16px;height:0;border-top-width:2px;border-top-style:solid;display:block;flex:none}
+/* The values beside the shape. A table, because it is read down a column and
+   compared row to row — Ming, 13 Aug 2026. Lighter than `.jt` on purpose: this
+   sits beside a chart, it is not a second ledger. Every plotted value is here
+   in figures, so nothing on the chart depends on telling two colours apart. */
+.vtab{width:100%;border-collapse:collapse;font-size:12.5px}
+.vtab th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.7px;
+color:var(--ink3);font-weight:700;padding:0 0 5px;border-bottom:1px solid var(--line2)}
+.vtab td{padding:5px 0;border-bottom:1px solid var(--line)}
+.vtab tr:last-child td{border-bottom:0}
+.vtab th.r,.vtab td.r{text-align:right;padding-left:10px;white-space:nowrap}
+.vtab td.v{font-weight:600;font-variant-numeric:tabular-nums}
+.vtab td.d{font-variant-numeric:tabular-nums}
 /* formation */
 .tcol{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
 .tcol .h{padding:8px 11px;background:#fbfaf8;border-bottom:1px solid var(--line);
@@ -995,6 +1008,49 @@ values (
               player <b>cannot be offered a place</b>. Rating is unaffected.</span>
           </p>
 
+          <!-- ── verifying, without going into edit ──────────────────────────
+               Ming, 13 Aug 2026: "to go into edit and confirm is too much
+               burden". Verification is the act a club repeats dozens of times
+               in a sitting, so it is one click from the card. Editing a record
+               is rare; verifying one is not. The `admin` path still asks for a
+               reason, because that is the whole difference between an override
+               and a bypass — but it asks inline, not in a different mode. ── -->
+          <template x-if="!pm.editing && canEditPlayer()">
+            <div>
+              <div class="inline" style="margin-top:0" x-show="pe.verification!=='verified'">
+                <button class="btn pri" @click="quickVerify('association')"
+                        :disabled="qv.busy">Matched the registration</button>
+                <button class="btn" @click="quickVerify('attested')"
+                        :disabled="qv.busy">Parent attested</button>
+                <button class="btn" @click="qv.open=!qv.open"
+                        x-text="qv.open ? 'Cancel' : 'My own authority…'"></button>
+              </div>
+
+              <div class="inline" style="margin-top:0" x-show="pe.verification==='verified'">
+                <button class="btn" @click="quickDob(!pe.dob_verified)"
+                        :disabled="qv.busy || !pe.dob"
+                        x-text="pe.dob_verified ? 'Uncheck the date of birth'
+                                                : 'Date of birth checked too'"></button>
+                <button class="btn" @click="quickUnverify()" :disabled="qv.busy">Unverify</button>
+                <span class="c" x-show="!pe.dob">no date of birth on record</span>
+              </div>
+
+              <div x-show="qv.open" style="margin-top:8px">
+                <div class="field" style="margin-bottom:6px">
+                  <label class="fl">What did you check? — this goes on the record</label>
+                  <input type="text" x-model="qv.note" @keydown.enter="quickVerify('admin', qv.note)"
+                         placeholder="e.g. birth certificate sighted, Connect record not live yet">
+                </div>
+                <button class="btn pri" @click="quickVerify('admin', qv.note)"
+                        :disabled="!qv.note.trim() || qv.busy">Verify on my authority</button>
+              </div>
+              <p x-show="qv.err" x-text="qv.err" class="err"></p>
+              <p class="note" x-show="pe.verification!=='verified' && !qv.open" style="margin-top:6px">
+                <span x-text="unverifiedCount()"></span> still to check.
+              </p>
+            </div>
+          </template>
+
           <template x-if="pm.editing">
             <div>
               <p class="note" style="margin:0 0 6px">A club is downstream of the association, whose
@@ -1162,27 +1218,36 @@ values (
                      ? 'latest against the one before'
                      : 'one confirmed session so far'"></b></div>
               <div class="shape">
-                <div x-html="playerRadar()"></div>
-                <div class="leg">
-                  <div><i :style="'border-color:var(--navy)'"></i>
-                    <span x-text="pmHistory()[pmHistory().length-1]?.session_name"></span></div>
-                  <div x-show="pmHistory().length > 1">
-                    <i style="border-color:var(--ink3);border-top-style:dashed"></i>
-                    <span x-text="pmHistory()[pmHistory().length-2]?.session_name"></span></div>
-                  <div class="vals">
-                    <template x-for="r in pmShapeRows()" :key="r.measure_id">
-                      <div class="vrow">
-                        <span class="l" x-text="r.label"></span>
-                        <span class="n" x-text="r.now.toFixed(2)"></span>
-                        <span class="dlt" x-show="pmHistory().length>1"
-                              :class="r.delta > 0 ? 'up' : (r.delta < 0 ? 'dn' : 'flat')"
-                              x-text="r.delta == null ? '—'
-                                    : (r.delta > 0 ? '▲ +' : (r.delta < 0 ? '▼ ' : '– '))
-                                      + (r.delta === 0 ? '0.00' : r.delta.toFixed(2))"></span>
-                      </div>
-                    </template>
+                <div>
+                  <div x-html="playerRadar()"></div>
+                  <div class="leg">
+                    <div><i :style="'border-color:var(--navy)'"></i>
+                      <span x-text="pmHistory()[pmHistory().length-1]?.session_name"></span></div>
+                    <div x-show="pmHistory().length > 1">
+                      <i style="border-color:var(--ink3);border-top-style:dashed"></i>
+                      <span x-text="pmHistory()[pmHistory().length-2]?.session_name"></span></div>
                   </div>
                 </div>
+                <table class="vtab">
+                  <thead><tr>
+                    <th>Measure</th>
+                    <th class="r">Rating</th>
+                    <th class="r" x-show="pmHistory().length>1">Change</th>
+                  </tr></thead>
+                  <tbody>
+                    <template x-for="r in pmShapeRows()" :key="r.measure_id">
+                      <tr>
+                        <td x-text="r.label"></td>
+                        <td class="r v" x-text="r.now.toFixed(2)"></td>
+                        <td class="r d dlt" x-show="pmHistory().length>1"
+                            :class="r.delta > 0 ? 'up' : (r.delta < 0 ? 'dn' : 'flat')"
+                            x-text="r.delta == null ? '—'
+                                  : (r.delta > 0 ? '▲ +' : (r.delta < 0 ? '▼ ' : '– '))
+                                    + (r.delta === 0 ? '0.00' : r.delta.toFixed(2))"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
               </div>
             </div>
           </template>
@@ -1606,6 +1671,7 @@ function app(){ return {
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
   allSessions:[],
   pf:{q:'',show:'active',gender:'',age:null,year:new Date().getFullYear()},
+  qv:{open:false,note:'',busy:false,err:''},
   pe:{id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
       verification:'unverified',vsource:'',vnote:'',dob_verified:false,
       dupes:[],delConfirm:false,err:'',busy:false},
@@ -2621,6 +2687,46 @@ function app(){ return {
       .select('*').eq('person_id', p.id).order('session_date');
     if(error){ this.pm.err = error.message; return; }
     this.pm.history = h || [];
+  },
+
+  // ── verifying in one click ──────────────────────────────────────────────
+  // Writes straight away. Verification is repeated dozens of times in a sitting
+  // and must not cost an edit-change-save round trip; editing a record is the
+  // rare act, not this one.
+  async quickVerify(src, note){
+    if(!this.pm.personId || this.pm.editing) return;
+    this.qv.err=''; this.qv.busy=true;
+    const {error} = await this.sb.from('person').update({
+      verification:'verified', verified_source:src, verified_by:this.me?.id,
+      verified_note: src==='admin' ? (note||'').trim() : null
+    }).eq('id', this.pm.personId);
+    this.qv.busy=false;
+    if(error){ this.qv.err = error.message; return; }
+    this.qv = {open:false,note:'',busy:false,err:''};
+    await this.refreshCard();
+  },
+  async quickDob(v){
+    if(!this.pm.personId) return;
+    this.qv.err=''; this.qv.busy=true;
+    const {error} = await this.sb.from('person')
+      .update({dob_verified:!!v}).eq('id', this.pm.personId);
+    this.qv.busy=false;
+    if(error){ this.qv.err = error.message; return; }
+    await this.refreshCard();
+  },
+  async quickUnverify(){
+    if(!this.pm.personId) return;
+    this.qv.err=''; this.qv.busy=true;
+    const {error} = await this.sb.from('person')
+      .update({verification:'unverified'}).eq('id', this.pm.personId);
+    this.qv.busy=false;
+    if(error){ this.qv.err = error.message; return; }
+    await this.refreshCard();
+  },
+  async refreshCard(){
+    await this.load();
+    const p = this.pmRow();
+    if(p) this.pe = this.bufferFrom(p);
   },
 
   setVerification(src){
