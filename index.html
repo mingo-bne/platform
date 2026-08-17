@@ -231,6 +231,31 @@ align-items:flex-start;justify-content:center;padding:44px 18px;overflow:auto}
 .modal .box{background:var(--card);border-radius:13px;width:100%;max-width:880px;
 overflow:hidden;box-shadow:var(--sh)}
 .modal .box.sm{max-width:560px}
+.modal .box.lg{max-width:1140px}
+/* ── the directory: list left, one player right. Ming, 13 Aug 2026 — scroll the
+      list and the detail follows, rather than opening and closing a dialog per
+      player. ── */
+.psplit{display:grid;grid-template-columns:264px 1fr;gap:14px;align-items:start}
+.plist2{border:1px solid var(--line);border-radius:9px;overflow:auto;max-height:60vh;background:#fff}
+.prow{display:flex;align-items:center;gap:7px;padding:6px 9px;border-bottom:1px solid var(--line);
+cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;
+font:inherit}
+.prow:last-child{border-bottom:0}
+.prow:hover{background:#fbfaf8}
+.prow.on{background:var(--navy2)}
+.prow .bd{flex:1;min-width:0}
+.prow .n2{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;
+text-overflow:ellipsis;display:block}
+.prow .m2{font-size:10.5px;color:var(--ink3);margin-top:1px;display:block;
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .u{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
+.pdet{min-width:0}
+.fchips{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.fc{font-size:11px;padding:3px 8px;border-radius:9px;border:1px solid var(--line2);background:#fff;
+color:var(--ink2);cursor:pointer;font:inherit;font-size:11px}
+.fc:hover{border-color:var(--navy)}
+.fc.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+.fc b{font-weight:700}
 .mhead{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;
 gap:10px;background:#fbfaf8}
 .mhead h3{margin:0;font-size:16px;font-weight:600;flex:1}
@@ -246,7 +271,8 @@ word-break:break-all}
 </head>
 <body>
 <div x-data="app()" x-init="boot()" x-cloak
-     @keydown.escape.window="pm.editing ? cancelEdit() : (pm.open ? (pm.open=false) : (modal=''))">
+     @keydown.escape.window="pm.editing ? cancelEdit()
+                     : (pm.adding ? (pm.adding=false) : (modal=''))">
 
 <!-- ────────────────────────── SETUP ────────────────────────── -->
 <template x-if="screen==='setup'">
@@ -780,271 +806,106 @@ values (
        attested to and paid against, and only contacts a family where the two
        disagree. Hence three sources, and an override that must say why. ── -->
   <template x-if="modal==='players'">
-    <div class="modal" @click.self="modal=''">
-      <div class="box">
+    <div class="modal" @click.self="pm.editing ? null : (modal='')">
+      <div class="box lg">
         <div class="mhead"><h3>Players</h3>
           <span class="c" x-text="peopleShown().length+' of '+people.length"></span>
           <span class="c wn" x-show="unverifiedCount()"
                 x-text="unverifiedCount()+' unverified'"></span>
-          <button class="x" @click="modal=''" title="Close">×</button></div>
+          <button class="btn sm pri" @click="startAdd()"
+                  x-show="!pm.editing && pm.returnTo!=='review'">Add a player</button>
+          <button class="x" @click="modal=''" x-show="!pm.editing" title="Close">×</button></div>
 
         <div class="mbody">
-          <p class="note" style="margin-top:0">A record is <b>unverified</b> until somebody stands
-            behind it. Rating never waits on this — trial night is not a form check — but
-            <b>an offer of a place does</b>, and the database enforces that.</p>
+          <p x-show="peopleErr" x-text="peopleErr" class="err" style="margin-top:0"></p>
 
-          <div class="inline">
+          <!-- ── filters. Age is arithmetic — age at 31 December of the year you
+                 pick — NOT a named band. U12 / U14 are an association's own
+                 convention and belong with the season, not hard-coded here. ── -->
+          <p class="note" x-show="pm.returnTo==='review'" style="margin-top:0">
+            Showing the players in <b x-text="pm.sessionName"></b>. Pick any of them on the left —
+            you do not have to go back to the ledger between players.</p>
+          <div class="inline" style="margin-top:0" x-show="pm.returnTo!=='review'">
             <input type="search" x-model="pf.q" placeholder="Search a name"
-                   style="flex:1;min-width:160px">
+                   style="flex:1;min-width:150px">
             <select x-model="pf.show" style="width:auto">
               <option value="active">Active</option>
               <option value="unverified">Unverified only</option>
               <option value="inactive">Inactive</option>
               <option value="all">Everyone</option>
             </select>
-            <button class="btn pri" @click="startAdd()">Add a player</button>
+            <select x-model="pf.gender" style="width:auto">
+              <option value="">Any gender</option>
+              <option value="F">F</option><option value="M">M</option><option value="X">X</option>
+            </select>
+            <select x-model.number="pf.year" style="width:auto">
+              <template x-for="y in ageYears()" :key="y">
+                <option :value="y" x-text="'age at 31 Dec '+y"></option>
+              </template>
+            </select>
+          </div>
+          <div class="fchips" x-show="pm.returnTo!=='review'">
+            <button class="fc" :class="pf.age===null?'on':''" @click="pf.age=null">All ages</button>
+            <template x-for="g in ageGroups()" :key="g.age">
+              <button class="fc" :class="pf.age===g.age?'on':''" @click="pf.age=g.age">
+                <b x-text="g.age"></b><span x-text="' · '+g.n"></span></button>
+            </template>
+            <span class="c" x-show="!ageGroups().length">no dates of birth recorded</span>
           </div>
 
-          <p x-show="peopleErr" x-text="peopleErr" class="err"></p>
-          <template x-if="!peopleShown().length">
-            <div class="empty" x-text="people.length ? 'Nobody matches that.' : 'No players yet.'"></div>
-          </template>
-
-          <table class="jt" x-show="peopleShown().length" style="margin-top:10px">
-            <thead><tr><th>Name</th><th style="width:52px">Gender</th>
-              <th style="width:150px">Date of birth</th>
-              <th style="width:150px">Verification</th>
-              <th style="width:62px">Rated</th>
-              <th style="width:74px"></th></tr></thead>
-            <tbody>
-              <template x-for="p in peopleShown()" :key="p.id">
-                <tr>
-                  <td><button class="lnkb" @click="openPlayerCard(p)"
-                              x-text="p.given_name+' '+p.family_name"></button>
-                      <span x-show="p.status==='inactive'" class="c">inactive</span>
-                      <span x-show="p.is_demo" class="c">DEMO</span></td>
-                  <td x-text="p.gender || '—'"></td>
-                  <td><span x-text="p.dob || '—'"></span>
-                      <span class="c" x-show="p.dob" x-text="ageOf(p.dob)+'y'"></span>
-                      <span class="c ok" x-show="p.dob_verified" title="date of birth checked">DOB ✓</span></td>
-                  <td><span class="c" :class="p.verification==='verified' ? 'ok' : 'wn'"
-                            x-text="p.verification==='verified'
-                                    ? vsourceShort(p.verified_source) : 'unverified'"></span></td>
-                  <td x-text="ratedCount(p.id) || '—'"></td>
-                  <td><button class="btn sm" @click="openPlayerCard(p)">Open</button></td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-          <p class="note">Verification source: <b>reg.</b> matched to the association's
-            registration · <b>parent</b> attested at registration · <b>admin</b> a club admin's own
-            authority, with the reason on the record.</p>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- ─────────── RUBRICS (modal) ─────────── -->
-  <template x-if="modal==='rubrics'">
-    <div class="modal" @click.self="modal=''">
-      <div class="box">
-        <div class="mhead"><h3>Rubrics</h3>
-          <span class="c">locked · scale 1–5</span>
-          <button class="x" @click="modal=''" title="Close">×</button></div>
-        <div class="mbody">
-          <p class="note" style="margin-top:0">Identical for every club in the sport. Every club
-            completes <b>Core</b>. <b>Extended</b> is for clubs that can do more, and its measures
-            roll up into Core so both depths stay comparable.</p>
-          <template x-for="r in rubrics" :key="r.id">
-            <div class="rgrp">
-              <div class="cath"><span x-text="r.name"></span>
-                <b x-text="measuresOf(r.id).length+' measures'"></b></div>
-              <div class="chips">
-                <template x-for="m in measuresOf(r.id)" :key="m.id">
-                  <span class="c" :class="r.level==='core' ? 'grp' : (m.rolls_up_to ? 'acc' : '')"
-                        :title="m.rolls_up_to ? 'rolls up to '+labelOf(m.rolls_up_to)
-                                : (r.level==='extended' ? 'extended signal only' : '')"
-                        x-text="m.label"></span>
+          <div class="psplit" style="margin-top:10px">
+            <div>
+              <div class="plist2">
+                <template x-for="p in peopleShown()" :key="p.id">
+                  <button class="prow" :class="pm.personId===p.id?'on':''"
+                          @click="selectPlayer(p)">
+                    <span class="u" x-show="p.verification!=='verified'"
+                          title="not verified"></span>
+                    <span class="bd">
+                      <span class="n2" x-text="p.given_name+' '+p.family_name"></span>
+                      <span class="m2">
+                        <span x-text="p.dob ? ageAt(p.dob, pf.year)+' in '+pf.year : 'no DOB'"></span>
+                        <span x-show="p.gender" x-text="' · '+p.gender"></span>
+                        <span x-show="p.status==='inactive'"> · inactive</span>
+                        <span x-show="ratedCount(p.id)" x-text="' · '+ratedCount(p.id)+' rated'"></span>
+                      </span>
+                    </span>
+                  </button>
+                </template>
+                <template x-if="!peopleShown().length">
+                  <div class="empty" style="padding:18px 10px"
+                       x-text="people.length ? 'Nobody matches that.' : 'No players yet.'"></div>
                 </template>
               </div>
+              <p class="note">A dot marks a record nobody has stood behind yet. Rating never waits
+                on it; <b>an offer of a place does</b>.</p>
             </div>
-          </template>
-        </div>
-      </div>
-    </div>
-  </template>
 
-
-  <!-- ─────────── RATE (modal) ─────────── -->
-  <template x-if="modal==='rate'">
-    <div class="modal" @click.self="modal=''">
-      <div class="box">
-        <div class="mhead"><h3>Rate players</h3>
-          <span class="c" x-text="rate.session?.name"></span>
-          <span class="c grp" x-text="rubricName(rate.session?.rubric_id)"></span>
-          <button class="x" @click="modal=''" title="Close">×</button></div>
-        <div class="mbody">
-          <template x-if="!rate.authorised">
-            <p class="warnbar" style="border-radius:8px;border:1px solid var(--warnline)">
-              You are not authorised to rate in this session. Authorisation is explicit and per
-              session — add yourself under <b>Authorised raters</b> first.</p>
-          </template>
-
-          <template x-if="rate.authorised">
-          <div class="split">
-            <div>
-              <div class="cath">Players <b x-text="activePeople().length"></b></div>
-              <div class="plist">
-                <template x-for="p in activePeople()" :key="p.id">
-                  <div class="pitem" :class="rate.person?.id===p.id?'on':''" @click="pickPlayer(p)">
-                    <span x-text="p.given_name+' '+p.family_name"></span>
-                    <span class="st" x-text="rate.done[p.id] ? '✓ rated' : ''"></span>
+            <div class="pdet" data-modal="player">
+              <template x-if="!pm.personId">
+                <div class="empty">Pick a player on the left.</div>
+              </template>
+              <template x-if="pm.personId">
+                <div>
+                  <div class="inline" style="margin:0 0 8px">
+                    <b style="font-size:15px" x-text="pm.name"></b>
+                    <span class="c" x-show="pe.dob" x-text="ageAt(pe.dob, pf.year)+' in '+pf.year"></span>
+                    <span class="c" x-show="pe.status==='inactive'">inactive</span>
+                    <span class="c" :class="pe.verification==='verified' ? 'ok':'wn'"
+                          x-text="pe.verification==='verified'
+                                  ? vsourceShort(pe.vsource) : 'unverified'"></span>
+                    <span class="c grp" x-show="pm.sessionName" x-text="pm.sessionName"></span>
+                    <span style="margin-left:auto"></span>
+                    <button class="btn sm" x-show="pm.returnTo==='review' && !pm.editing"
+                            @click="modal='review'">&larr; Review</button>
+                    <button class="btn sm" x-show="!pm.editing && canEditPlayer()"
+                            @click="pm.editing=true">Edit</button>
+                    <button class="btn sm pri" x-show="pm.editing" @click="savePerson()"
+                            :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
+                            x-text="pe.busy ? 'Saving…' : 'Done'"></button>
+                    <button class="btn sm" x-show="pm.editing" @click="cancelEdit()">Cancel</button>
                   </div>
-                </template>
-              </div>
-            </div>
 
-            <div>
-              <template x-if="!rate.person">
-                <div class="empty">Choose a player to start.</div>
-              </template>
-              <template x-if="rate.person">
-              <div>
-                <div class="cath">
-                  <span x-text="rate.person.given_name+' '+rate.person.family_name"></span>
-                  <b x-text="Object.keys(rate.scores).length+' of '+rateMeasures().length+' scored'"></b>
-                </div>
-                <template x-for="m in rateMeasures()" :key="m.id">
-                  <div class="mrow">
-                    <span class="lb" x-text="m.label"></span>
-                    <div class="scale">
-                      <template x-for="v in scaleOf(m)" :key="v">
-                        <button class="sv" :class="rate.scores[m.id]===v?'on':''"
-                                @click="rate.scores[m.id]=v" x-text="v"></button>
-                      </template>
-                    </div>
-                  </div>
-                </template>
-                <div class="field" style="margin-top:10px">
-                  <label class="fl">Note (optional)</label>
-                  <input type="text" x-model="rate.note" placeholder="anything worth recording">
-                </div>
-                <div class="inline" style="margin-top:0">
-                  <button class="btn pri" @click="saveRating()"
-                          :disabled="!Object.keys(rate.scores).length||busy">Save rating</button>
-                  <button class="btn" @click="rate.scores={};rate.note=''">Clear</button>
-                </div>
-                <p class="note">Saved ratings cannot be edited. A correction is recorded as a
-                  resolution by the head coach, never by changing the original.</p>
-                <p x-show="rate.err" x-text="rate.err" class="err"></p>
-                <p x-show="rate.msg" x-text="rate.msg" class="msg"></p>
-              </div>
-              </template>
-            </div>
-          </div>
-          </template>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- ─────────── REVIEW & CONFIRM (modal) ─────────── -->
-  <template x-if="modal==='review'">
-    <div class="modal" @click.self="modal=''">
-      <div class="box">
-        <div class="mhead"><h3>Review &amp; confirm</h3>
-          <span class="c" x-text="review.session?.name"></span>
-          <span class="c" :class="review.session?.status==='confirmed'?'ok':'grp'"
-                x-text="review.session?.status"></span>
-          <button class="x" @click="modal=''" title="Close">×</button></div>
-        <div class="mbody">
-          <div class="statrow" style="border:1px solid var(--line);border-radius:8px;margin-bottom:12px">
-            <div><b x-text="review.rows.filter(r=>r.coverage==='complete').length"></b>complete</div>
-            <div><b x-text="review.rows.filter(r=>r.coverage==='partial').length"></b>partial</div>
-            <div><b x-text="review.rows.filter(r=>r.coverage==='not rated').length"></b>not rated</div>
-            <div><b x-text="flagged().length"></b>to look at</div>
-            <div><b x-text="sessionMean()"></b>session mean</div>
-          </div>
-
-          <div class="cath">Coverage and disagreement
-            <b x-text="'threshold '+review.threshold"></b></div>
-          <p class="note" style="margin-top:0">Rows are highlighted where two raters differ by more
-            than the threshold. Confirming with gaps is allowed and recorded.</p>
-          <div class="scroll" style="max-height:320px">
-            <table class="jt">
-              <thead><tr><th>Player</th><th style="width:66px">Rating</th>
-                <th style="width:90px">Coverage</th>
-                <th style="width:70px">Scored</th><th style="width:70px">Raters</th>
-                <th style="width:74px">Spread</th><th style="width:64px"></th></tr></thead>
-              <tbody>
-                <template x-for="r in review.rows" :key="r.person_id">
-                  <tr :class="r.worst_spread > review.threshold ? 'flag' : ''">
-                    <td x-text="r.given_name+' '+r.family_name"></td>
-                    <td><b x-text="meanOf(r.person_id)"></b></td>
-                    <td><span class="c" :class="r.coverage==='complete'?'ok':
-                          (r.coverage==='partial'?'wn':'')" x-text="r.coverage"></span></td>
-                    <td x-text="r.measures_scored+'/'+r.measure_count"></td>
-                    <td x-text="r.assessment_count"></td>
-                    <td x-text="r.worst_spread || ''"></td>
-                    <td><button class="btn sm" x-show="r.measures_scored"
-                          @click="openPlayer(r.person_id)">Detail</button></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="cath">Confirm</div>
-          <template x-if="review.session?.status==='confirmed'">
-            <p class="okbar" style="border-radius:8px;border:1px solid var(--okline)">
-              Confirmed. The formation engine can now use this session — and it cannot be reopened.</p>
-          </template>
-          <template x-if="review.session?.status!=='confirmed'">
-            <div>
-              <p class="note" style="margin-top:0">Confirming closes the session as a whole and is
-                recorded against your name. Only a head coach or club admin can do it.</p>
-              <button class="btn pri" @click="confirmSession()"
-                :disabled="busy || !['head_coach','club_admin'].includes(me?.role)">
-                Confirm this session</button>
-              <p x-show="!['head_coach','club_admin'].includes(me?.role)" class="note">
-                Your role is <b x-text="me?.role"></b>, so you cannot confirm.</p>
-              <p x-show="review.err" x-text="review.err" class="err"></p>
-            </div>
-          </template>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- ─────────── PLAYER (modal) ─────────── -->
-  <!-- Layered above Review, because it is summoned FROM Review and Review is still
-       the thing you are doing. Escape or the × returns you to it, in place. -->
-  <template x-if="pm.open">
-    <div class="modal" data-modal="player" style="z-index:90"
-         @click.self="pm.editing ? null : (pm.open=false)">
-      <div class="box">
-        <div class="mhead">
-          <h3 x-text="pm.name || 'New player'"></h3>
-          <span class="c" x-show="pe.dob && !pm.editing" x-text="ageOf(pe.dob)+'y'"></span>
-          <span class="c" x-show="pe.status==='inactive'">inactive</span>
-          <span class="c" :class="pe.verification==='verified' ? 'ok':'wn'" x-show="pm.personId"
-                x-text="pe.verification==='verified'
-                        ? vsourceShort(pe.vsource) : 'unverified'"></span>
-          <span class="c grp" x-show="pm.sessionName" x-text="pm.sessionName"></span>
-          <span class="c" x-show="pm.mean" x-text="'rating '+pm.mean"></span>
-          <span class="c" :class="pm.coverage==='complete'?'ok':(pm.coverage==='partial'?'wn':'')"
-                x-show="pm.coverage" x-text="pm.coverage"></span>
-          <!-- Read by default. Editing is a mode this card enters, not a second
-               screen you navigate to. -->
-          <button class="btn sm" x-show="!pm.editing && canEditPlayer()"
-                  @click="pm.editing=true">Edit</button>
-          <button class="btn sm pri" x-show="pm.editing" @click="savePerson()"
-                  :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
-                  x-text="pe.busy ? 'Saving…' : 'Done'"></button>
-          <button class="btn sm" x-show="pm.editing" @click="cancelEdit()">Cancel</button>
-          <button class="x" x-show="!pm.editing" @click="pm.open=false" title="Close">×</button>
-        </div>
-        <div class="mbody">
           <p x-show="pm.err" x-text="pm.err" class="err" style="margin-top:0"></p>
 
           <!-- ── details ─────────────────────────────────────────────────── -->
@@ -1095,7 +956,7 @@ values (
                   <b x-text="d.given_name+' '+d.family_name"></b>
                   <span x-text="' — '+d.reason+' ('+d.confidence+')'"></span>
                   <button class="btn sm" style="margin-left:6px"
-                          @click="openPlayerCard(people.find(p=>p.id===d.person_id))">
+                          @click="selectPlayer(people.find(p=>p.id===d.person_id))">
                     Open that record instead</button>
                 </div>
               </template>
@@ -1359,10 +1220,246 @@ values (
                 trend chart will read from this same record.</p>
             </div>
           </template>
+                </div>
+              </template>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </template>
+
+  <!-- ─────────── ADD A PLAYER (modal) ───────────
+       A focused dialog rather than a mode of the directory: you are not
+       browsing while you type a new child in. It lands UNVERIFIED like every
+       other door, and the duplicate check runs before the row can exist. ── -->
+  <template x-if="pm.adding">
+    <div class="modal" style="z-index:90" @click.self="pm.adding=false">
+      <div class="box sm">
+        <div class="mhead"><h3>Add a player</h3>
+          <button class="x" @click="pm.adding=false" title="Close">×</button></div>
+        <div class="mbody">
+          <div class="row2">
+            <div class="field"><label class="fl">Given name</label>
+              <input type="text" x-model="pe.given" @blur="checkDupes()"></div>
+            <div class="field"><label class="fl">Family name</label>
+              <input type="text" x-model="pe.family" @blur="checkDupes()"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label class="fl">Date of birth</label>
+              <input type="date" x-model="pe.dob" @blur="checkDupes()"></div>
+            <div class="field"><label class="fl">Gender</label>
+              <select x-model="pe.gender">
+                <option value="">—</option><option value="F">F</option>
+                <option value="M">M</option><option value="X">X</option></select></div>
+          </div>
+
+          <template x-if="pe.dupes.length">
+            <div class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);margin:0 0 10px">
+              <b x-text="pe.dupes.length===1 ? 'This player may already be here'
+                                             : 'These players may already be here'"></b>
+              <template x-for="d in pe.dupes" :key="d.person_id">
+                <div style="margin-top:4px">
+                  <b x-text="d.given_name+' '+d.family_name"></b>
+                  <span x-text="' — '+d.reason+' ('+d.confidence+')'"></span>
+                  <button class="btn sm" style="margin-left:6px"
+                          @click="pm.adding=false; selectPlayer(people.find(p=>p.id===d.person_id))">
+                    Open that record instead</button>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <p class="note" style="margin-top:0">Lands <b>unverified</b> — verify it on the record once
+            you have matched the registration. Flagged <b>DEMO</b>: this version holds fabricated
+            data only.</p>
+          <div class="inline">
+            <button class="btn pri" @click="savePerson()"
+                    :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
+                    x-text="pe.busy ? 'Saving…' : 'Add player'"></button>
+            <button class="btn" @click="pm.adding=false">Cancel</button>
+          </div>
+          <p x-show="pe.err" x-text="pe.err" class="err"></p>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ─────────── RUBRICS (modal) ─────────── -->
+  <template x-if="modal==='rubrics'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box">
+        <div class="mhead"><h3>Rubrics</h3>
+          <span class="c">locked · scale 1–5</span>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <p class="note" style="margin-top:0">Identical for every club in the sport. Every club
+            completes <b>Core</b>. <b>Extended</b> is for clubs that can do more, and its measures
+            roll up into Core so both depths stay comparable.</p>
+          <template x-for="r in rubrics" :key="r.id">
+            <div class="rgrp">
+              <div class="cath"><span x-text="r.name"></span>
+                <b x-text="measuresOf(r.id).length+' measures'"></b></div>
+              <div class="chips">
+                <template x-for="m in measuresOf(r.id)" :key="m.id">
+                  <span class="c" :class="r.level==='core' ? 'grp' : (m.rolls_up_to ? 'acc' : '')"
+                        :title="m.rolls_up_to ? 'rolls up to '+labelOf(m.rolls_up_to)
+                                : (r.level==='extended' ? 'extended signal only' : '')"
+                        x-text="m.label"></span>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+
+
+  <!-- ─────────── RATE (modal) ─────────── -->
+  <template x-if="modal==='rate'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box">
+        <div class="mhead"><h3>Rate players</h3>
+          <span class="c" x-text="rate.session?.name"></span>
+          <span class="c grp" x-text="rubricName(rate.session?.rubric_id)"></span>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <template x-if="!rate.authorised">
+            <p class="warnbar" style="border-radius:8px;border:1px solid var(--warnline)">
+              You are not authorised to rate in this session. Authorisation is explicit and per
+              session — add yourself under <b>Authorised raters</b> first.</p>
+          </template>
+
+          <template x-if="rate.authorised">
+          <div class="split">
+            <div>
+              <div class="cath">Players <b x-text="activePeople().length"></b></div>
+              <div class="plist">
+                <template x-for="p in activePeople()" :key="p.id">
+                  <div class="pitem" :class="rate.person?.id===p.id?'on':''" @click="pickPlayer(p)">
+                    <span x-text="p.given_name+' '+p.family_name"></span>
+                    <span class="st" x-text="rate.done[p.id] ? '✓ rated' : ''"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <div>
+              <template x-if="!rate.person">
+                <div class="empty">Choose a player to start.</div>
+              </template>
+              <template x-if="rate.person">
+              <div>
+                <div class="cath">
+                  <span x-text="rate.person.given_name+' '+rate.person.family_name"></span>
+                  <b x-text="Object.keys(rate.scores).length+' of '+rateMeasures().length+' scored'"></b>
+                </div>
+                <template x-for="m in rateMeasures()" :key="m.id">
+                  <div class="mrow">
+                    <span class="lb" x-text="m.label"></span>
+                    <div class="scale">
+                      <template x-for="v in scaleOf(m)" :key="v">
+                        <button class="sv" :class="rate.scores[m.id]===v?'on':''"
+                                @click="rate.scores[m.id]=v" x-text="v"></button>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+                <div class="field" style="margin-top:10px">
+                  <label class="fl">Note (optional)</label>
+                  <input type="text" x-model="rate.note" placeholder="anything worth recording">
+                </div>
+                <div class="inline" style="margin-top:0">
+                  <button class="btn pri" @click="saveRating()"
+                          :disabled="!Object.keys(rate.scores).length||busy">Save rating</button>
+                  <button class="btn" @click="rate.scores={};rate.note=''">Clear</button>
+                </div>
+                <p class="note">Saved ratings cannot be edited. A correction is recorded as a
+                  resolution by the head coach, never by changing the original.</p>
+                <p x-show="rate.err" x-text="rate.err" class="err"></p>
+                <p x-show="rate.msg" x-text="rate.msg" class="msg"></p>
+              </div>
+              </template>
+            </div>
+          </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ─────────── REVIEW & CONFIRM (modal) ─────────── -->
+  <template x-if="modal==='review'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box">
+        <div class="mhead"><h3>Review &amp; confirm</h3>
+          <span class="c" x-text="review.session?.name"></span>
+          <span class="c" :class="review.session?.status==='confirmed'?'ok':'grp'"
+                x-text="review.session?.status"></span>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <div class="statrow" style="border:1px solid var(--line);border-radius:8px;margin-bottom:12px">
+            <div><b x-text="review.rows.filter(r=>r.coverage==='complete').length"></b>complete</div>
+            <div><b x-text="review.rows.filter(r=>r.coverage==='partial').length"></b>partial</div>
+            <div><b x-text="review.rows.filter(r=>r.coverage==='not rated').length"></b>not rated</div>
+            <div><b x-text="flagged().length"></b>to look at</div>
+            <div><b x-text="sessionMean()"></b>session mean</div>
+          </div>
+
+          <div class="cath">Coverage and disagreement
+            <b x-text="'threshold '+review.threshold"></b></div>
+          <p class="note" style="margin-top:0">Rows are highlighted where two raters differ by more
+            than the threshold. Confirming with gaps is allowed and recorded.</p>
+          <div class="scroll" style="max-height:320px">
+            <table class="jt">
+              <thead><tr><th>Player</th><th style="width:66px">Rating</th>
+                <th style="width:90px">Coverage</th>
+                <th style="width:70px">Scored</th><th style="width:70px">Raters</th>
+                <th style="width:74px">Spread</th><th style="width:64px"></th></tr></thead>
+              <tbody>
+                <template x-for="r in review.rows" :key="r.person_id">
+                  <tr :class="r.worst_spread > review.threshold ? 'flag' : ''">
+                    <td x-text="r.given_name+' '+r.family_name"></td>
+                    <td><b x-text="meanOf(r.person_id)"></b></td>
+                    <td><span class="c" :class="r.coverage==='complete'?'ok':
+                          (r.coverage==='partial'?'wn':'')" x-text="r.coverage"></span></td>
+                    <td x-text="r.measures_scored+'/'+r.measure_count"></td>
+                    <td x-text="r.assessment_count"></td>
+                    <td x-text="r.worst_spread || ''"></td>
+                    <td><button class="btn sm" x-show="r.measures_scored"
+                          @click="openPlayer(r.person_id)">Detail</button></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cath">Confirm</div>
+          <template x-if="review.session?.status==='confirmed'">
+            <p class="okbar" style="border-radius:8px;border:1px solid var(--okline)">
+              Confirmed. The formation engine can now use this session — and it cannot be reopened.</p>
+          </template>
+          <template x-if="review.session?.status!=='confirmed'">
+            <div>
+              <p class="note" style="margin-top:0">Confirming closes the session as a whole and is
+                recorded against your name. Only a head coach or club admin can do it.</p>
+              <button class="btn pri" @click="confirmSession()"
+                :disabled="busy || !['head_coach','club_admin'].includes(me?.role)">
+                Confirm this session</button>
+              <p x-show="!['head_coach','club_admin'].includes(me?.role)" class="note">
+                Your role is <b x-text="me?.role"></b>, so you cannot confirm.</p>
+              <p x-show="review.err" x-text="review.err" class="err"></p>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ─────────── PLAYER (modal) ─────────── -->
+  <!-- Layered above Review, because it is summoned FROM Review and Review is still
+       the thing you are doing. Escape or the × returns you to it, in place. -->
 
   <!-- ─────────── MORE (modal) ─────────── -->
   <template x-if="modal==='more'">
@@ -1420,7 +1517,7 @@ function app(){ return {
   email:'', msg:'', err:'', busy:false,
   userId:'', userEmail:'',
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
-  pf:{q:'',show:'active'},
+  pf:{q:'',show:'active',gender:'',age:null,year:new Date().getFullYear()},
   pe:{id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
       verification:'unverified',vsource:'',vnote:'',dob_verified:false,
       dupes:[],delConfirm:false,err:'',busy:false},
@@ -1428,7 +1525,7 @@ function app(){ return {
   authErr:'',
   rate:{session:null,authorised:false,person:null,scores:{},note:'',done:{},err:'',msg:''},
   review:{session:null,rows:[],threshold:2,err:'',scores:{}},
-  pm:{open:false,personId:'',mode:'session',editing:false,name:'',sessionName:'',mean:'',coverage:'',
+  pm:{personId:'',mode:'profile',editing:false,adding:false,returnTo:'',name:'',sessionName:'',mean:'',coverage:'',
       detail:[],history:[],resolutions:[],err:''},
   rz:{measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false},
   stage:'admin', queueRows:[], onlyWaiting:false,
@@ -1696,7 +1793,7 @@ function app(){ return {
   async openReview(s){
     this.modal='review';
     this.review={session:s,rows:[],threshold:2,err:'',scores:{}};
-    this.pm.open=false;
+    this.modal='';
     const {data:prof} = await this.sb.from('org_profile')
       .select('divergence_threshold_measure').eq('org_id',this.org.id).maybeSingle();
     if(prof) this.review.threshold = Number(prof.divergence_threshold_measure);
@@ -1950,8 +2047,9 @@ function app(){ return {
     const sc  = this.review.scores?.[personId];
     const dir = this.people.find(p => p.id === personId);
     this.pe = dir ? this.bufferFrom(dir) : this.blankPerson();
+    this.modal = 'players';
     this.pm = {
-      open:true, personId, mode:'session', editing:false,
+      personId, mode:'session', editing:false, adding:false, returnTo:'review',
       name: [row.given_name, row.family_name].filter(Boolean).join(' '),
       sessionName: this.review.session?.name || '',
       mean: sc ? Number(sc.mean_score).toFixed(2) : '',
@@ -2259,13 +2357,46 @@ function app(){ return {
   activePeople(){ return this.people.filter(p => p.status !== 'inactive'); },
   peopleShown(){
     const q = this.pf.q.trim().toLowerCase();
+    // Opened from a review, the list is scoped to that session — Ming's old
+    // complaint was scrolling up and down to get between players.
+    const scope = (this.pm.returnTo==='review' && this.review?.rows?.length)
+      ? new Set(this.review.rows.map(r => r.person_id)) : null;
     return this.people.filter(p => {
+      if(scope) return scope.has(p.id) &&
+        (!q || (p.given_name+' '+p.family_name).toLowerCase().includes(q));
       if(this.pf.show==='active'     && p.status==='inactive') return false;
       if(this.pf.show==='inactive'   && p.status!=='inactive') return false;
       if(this.pf.show==='unverified' && p.verification==='verified') return false;
+      if(this.pf.gender && p.gender !== this.pf.gender) return false;
+      if(this.pf.age !== null && this.ageAt(p.dob, this.pf.year) !== this.pf.age) return false;
       if(!q) return true;
       return (p.given_name+' '+p.family_name).toLowerCase().includes(q);
     });
+  },
+  // AGE, NOT AGE GROUP. This is arithmetic — age at 31 December of a chosen
+  // year — and nothing more. "U12" / "U14" is an ASSOCIATION'S OWN banding
+  // convention, it varies between them, and it is only meaningful against a
+  // season year. Hard-coding a band here would invent a rule this platform has
+  // no business inventing; it belongs with the season and org_profile.
+  ageAt(dob, year){
+    if(!dob) return null;
+    return Number(year) - Number(String(dob).slice(0,4));
+  },
+  ageYears(){
+    const y = new Date().getFullYear();
+    return [y-1, y, y+1, y+2];
+  },
+  ageGroups(){
+    const seen = {};
+    this.people.forEach(p => {
+      if(this.pf.show==='active'   && p.status==='inactive') return;
+      if(this.pf.show==='inactive' && p.status!=='inactive') return;
+      if(this.pf.gender && p.gender !== this.pf.gender) return;
+      const a = this.ageAt(p.dob, this.pf.year);
+      if(a === null) return;
+      seen[a] = (seen[a]||0) + 1;
+    });
+    return Object.keys(seen).map(Number).sort((a,b)=>a-b).map(a => ({age:a, n:seen[a]}));
   },
   unverifiedCount(){ return this.people.filter(p => p.verification!=='verified').length; },
   ratedCount(id){ return this.people.find(p=>p.id===id)?.sessions_rated || 0; },
@@ -2310,7 +2441,7 @@ function app(){ return {
          : s==='seed'   ? 'the demo seed' : 'staff entry';
   },
   cancelEdit(){
-    if(!this.pm.personId){ this.pm.open=false; return; }   // a new player, abandoned
+    if(!this.pm.personId){ this.pm.adding=false; return; }  // a new player, abandoned
     this.pe = this.bufferFrom(this.pmRow() || {});
     this.pm.editing = false;
   },
@@ -2322,18 +2453,20 @@ function app(){ return {
   startAdd(){
     this.peopleErr='';
     this.pe = this.blankPerson();
-    this.pm = {open:true, personId:null, mode:'profile', editing:true,
-               name:'', sessionName:'', mean:'', coverage:'',
-               detail:[], history:[], resolutions:[], err:''};
+    this.pm.adding = true;
   },
-  async openPlayerCard(p){
+  // Selecting on the left swaps the pane on the right. No dialog per player —
+  // Ming, 13 Aug 2026: scroll the list and the detail follows.
+  async selectPlayer(p){
     if(!p) return;
+    if(this.pm.editing) this.cancelEdit();
+    if(this.pm.returnTo==='review' && this.review?.session){ await this.openPlayer(p.id); return; }
     this.peopleErr='';
     this.pe = this.bufferFrom(p);
-    this.pm = {open:true, personId:p.id, mode:'profile', editing:false,
+    Object.assign(this.pm, {personId:p.id, mode:'profile', editing:false, adding:false,
       name:[p.given_name,p.family_name].filter(Boolean).join(' '),
       sessionName:'', mean:'', coverage:'',
-      detail:[], history:[], resolutions:[], err:''};
+      detail:[], history:[], resolutions:[], err:''});
     this.rz = {measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false};
     if(!this.ratedCount(p.id)) return;
     const {data:h, error} = await this.sb.from('v_player_history')
@@ -2395,10 +2528,8 @@ function app(){ return {
       ? this.pmRow()
       : this.people.find(p => p.given_name===row.given_name
                            && p.family_name===row.family_name && p.dob===row.dob);
-    if(saved){ this.pe = this.bufferFrom(saved);
-               this.pm.personId = saved.id;
-               this.pm.name = saved.given_name+' '+saved.family_name; }
-    this.pm.editing = false;
+    if(saved){ await this.selectPlayer(saved); }
+    this.pm.editing = false; this.pm.adding = false;
   },
 
   async deletePerson(){
@@ -2409,7 +2540,7 @@ function app(){ return {
       this.pe.delConfirm=false;
       return;
     }
-    this.pm.open=false;
+    this.pm.personId=''; this.pm.editing=false;
     await this.load();
   },
 
