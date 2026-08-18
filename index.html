@@ -269,6 +269,45 @@ color:var(--ink2);cursor:pointer;font:inherit;font-size:11px}
 .fc:hover{border-color:var(--navy)}
 .fc.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
 .fc b{font-weight:700}
+/* ── the Teams stage. List of teams left, one roster right, the pool beneath
+      the list — the TMS shape: you scroll a pool and place into the team in
+      front of you, across age groups. ── */
+.tsplit{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start}
+@media (max-width:900px){.tsplit{grid-template-columns:1fr}}
+.tgrp{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+color:var(--ink3);padding:9px 2px 4px}
+.titem{display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid var(--line);
+border-radius:8px;background:#fff;cursor:pointer;width:100%;text-align:left;font:inherit;
+margin-bottom:5px}
+.titem:hover{border-color:var(--navy)}
+.titem.on{background:var(--navy2);border-color:var(--navy)}
+.titem .tn{flex:1;min-width:0;font-size:12.5px;font-weight:600;white-space:nowrap;
+overflow:hidden;text-overflow:ellipsis}
+.rost{border:1px solid var(--line);border-radius:10px;background:#fff;min-height:120px}
+.rost.over{border-color:var(--navy);background:var(--navy2)}
+.rrow{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--line);
+font-size:12.5px}
+.rrow:last-child{border-bottom:0}
+.rrow:nth-child(even){background:#fcfbf9}
+.rrow .rn{flex:1;min-width:0;font-weight:600}
+.rrow .rv{width:42px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.rrow select{font:inherit;font-size:11px;padding:2px 4px;width:auto}
+.star{background:none;border:0;cursor:pointer;font-size:14px;line-height:1;padding:0 2px;
+color:var(--line2)}
+.star.on{color:#d19a2a}
+.pool{border:1px solid var(--line);border-radius:9px;background:#fff;max-height:46vh;overflow:auto}
+.pitem2{display:flex;align-items:center;gap:7px;padding:6px 9px;border-bottom:1px solid var(--line);
+font-size:12px;cursor:grab}
+.pitem2:last-child{border-bottom:0}
+.pitem2:hover{background:#fbfaf8}
+.pitem2 .pn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pitem2 .pv{font-weight:600;font-variant-numeric:tabular-nums}
+.elig{font-size:9.5px;font-weight:700;letter-spacing:.4px;padding:1px 4px;border-radius:4px;
+white-space:nowrap}
+.elig.on2{background:var(--okbg);color:var(--ok);border:1px solid var(--okline)}
+.elig.up{background:var(--accbg);color:var(--acc);border:1px solid var(--accline)}
+.elig.dn{background:var(--warnbg);color:var(--warn);border:1px solid var(--warnline)}
+.elig.no{background:var(--badbg);color:var(--bad);border:1px solid var(--badline)}
 .mhead{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;
 gap:10px;background:#fbfaf8}
 .mhead h3{margin:0;font-size:16px;font-weight:600;flex:1}
@@ -350,8 +389,13 @@ word-break:break-all}
         <button class="hb" :class="stage==='court'?'pri':''"
                 @click="stage==='court' ? (stage='admin') : openCourt()"
                 x-text="stage==='court' ? 'Club' : 'Courtside'"></button>
-        <button class="hb" x-show="stage==='admin'" @click="modal='players'">Players…</button>
+        <button class="hb" x-show="stage!=='court'" :class="stage==='teams'?'pri':''"
+                @click="stage==='teams' ? (stage='admin') : openTeams()"
+                x-text="stage==='teams' ? 'Sessions' : 'Teams'"></button>
+        <button class="hb" x-show="stage!=='court'" @click="modal='players'">Players…</button>
         <button class="hb" x-show="stage==='admin'" @click="modal='rubrics'">Rubrics…</button>
+        <button class="hb" x-show="stage==='teams'"
+                @click="openClubCfg(); modal='clubcfg'">Club settings…</button>
       </span>
     </template>
     <button class="hb" @click="modal='more'">More…</button>
@@ -500,6 +544,208 @@ word-break:break-all}
           </div>
         </template>
       </div>
+    </template>
+
+    <!-- ══════════════════════ TEAMS ══════════════════════
+         Ming, 13 Aug 2026: team formation happens here, across age groups, in
+         a surface of its own — not as an output of one trial. The TMS shape:
+         teams down the left, one roster in front of you, and the club's whole
+         pool beneath the list. A player is placed from the pool, and the pool
+         can show every age group at once, which is how a player plays up.
+
+         The team NAME is club-level and outlives the season; what you are
+         editing is that team's roster FOR THE SELECTED SEASON. -->
+    <template x-if="stage==='teams'">
+    <div class="panel">
+      <div class="rhead" style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1">
+          <h2>Teams</h2>
+          <div class="sub">A team name carries across seasons. The roster belongs to the season
+            you are in.</div>
+        </div>
+        <div class="inline" style="margin:0">
+          <select x-model="seasonId" @change="onSeasonChange(); loadTeams()" style="width:auto">
+            <template x-for="s in seasons" :key="s.id">
+              <option :value="s.id" x-text="seasonOptionLabel(s)"></option>
+            </template>
+          </select>
+          <button class="btn" @click="tm.adding=true" :disabled="!seasonId">New team</button>
+        </div>
+      </div>
+
+      <div class="statrow">
+        <div><b x-text="teamSeasons.length"></b>teams</div>
+        <div><b x-text="ageGroupsInSeason().length"></b>age groups</div>
+        <div><b x-text="placedCount()"></b>placed</div>
+        <div><b x-text="poolAll().length - placedPeople().size"></b>unplaced</div>
+        <div><b x-text="rosterAvg(tm.selected) || '—'"></b>this team</div>
+      </div>
+      <p x-show="tm.err" class="warnbar" style="display:flex;gap:10px;align-items:center">
+        <span style="flex:1" x-text="tm.err"></span>
+        <button class="lnk" style="color:var(--warn)" @click="tm.err=''">dismiss</button></p>
+
+      <div class="pbody">
+        <!-- new team -->
+        <div x-show="tm.adding" class="srow" style="background:#fbfaf8">
+          <div class="row2">
+            <div class="field"><label class="fl">Team name — reused every season</label>
+              <input type="text" x-model="tm.name" placeholder="e.g. Gold"
+                     list="teamNames"></div>
+            <div class="field"><label class="fl">Age group this season</label>
+              <select x-model="tm.grp">
+                <option value="">—</option>
+                <template x-for="g in allAgeGroups()" :key="g">
+                  <option :value="g" x-text="g"></option></template>
+              </select></div>
+          </div>
+          <datalist id="teamNames">
+            <template x-for="t in teams" :key="t.id"><option :value="t.name"></option></template>
+          </datalist>
+          <div class="field"><label class="fl">Division (optional)</label>
+            <input type="text" x-model="tm.div" placeholder="e.g. Div 1"></div>
+          <p class="note" style="margin-bottom:8px">Reusing an existing name puts that team into
+            this season — it does not create a second team.</p>
+          <div class="inline">
+            <button class="btn pri" @click="createTeam()"
+                    :disabled="!tm.name.trim() || tm.busy">Add team</button>
+            <button class="btn" @click="tm.adding=false">Cancel</button>
+          </div>
+        </div>
+
+        <template x-if="!teamSeasons.length && !tm.adding">
+          <div class="empty" x-text="'No teams in '+seasonName(seasonId)+' yet. Add one to start.'"></div>
+        </template>
+
+        <div class="tsplit" x-show="teamSeasons.length">
+          <!-- ── teams, grouped by age group ── -->
+          <div>
+            <template x-for="g in ageGroupsInSeason()" :key="g||'none'">
+              <div>
+                <div class="tgrp" x-text="g || 'No age group'"></div>
+                <template x-for="ts in teamSeasonsIn(g)" :key="ts.id">
+                  <button class="titem" :class="tm.selected===ts.id?'on':''"
+                          @click="selectTeam(ts.id)">
+                    <span class="tn" x-text="ts.team_name"></span>
+                    <span class="c" x-show="ts.division" x-text="ts.division"></span>
+                    <span class="c" x-text="rosterOf(ts.id).length"></span>
+                    <span class="c grp" x-text="rosterAvg(ts.id) || '–'"></span>
+                  </button>
+                </template>
+              </div>
+            </template>
+
+            <!-- ── the pool ── -->
+            <div class="cath" style="margin-top:12px">Player pool</div>
+            <div class="inline" style="margin-top:0">
+              <input type="search" x-model="tm.q" placeholder="Search" style="flex:1;min-width:90px">
+              <select x-model="tm.scope" style="width:auto">
+                <option value="grp">This age group</option>
+                <option value="all">All age groups</option>
+              </select>
+            </div>
+            <label class="fl" style="margin:6px 0 4px">
+              <input type="checkbox" x-model="tm.hidePlaced" style="width:auto;margin-right:6px">
+              Hide anyone already placed in this age group</label>
+            <div class="pool">
+              <template x-for="p in poolShown()" :key="p.person_id">
+                <div class="pitem2" draggable="true"
+                     @dragstart="tm.drag=p.person_id"
+                     @dblclick="place(p.person_id)">
+                  <span class="pn" x-text="p.given_name+' '+p.family_name"></span>
+                  <span class="c" x-text="p.age!=null ? p.age : '?'"></span>
+                  <span class="pv" x-text="p.rating ?? '–'"></span>
+                  <span class="elig" :class="eligOf(p).k" x-text="eligOf(p).s"></span>
+                  <button class="btn sm" @click="place(p.person_id)"
+                          :disabled="!tm.selected || eligOf(p).k==='no'">+</button>
+                </div>
+              </template>
+              <template x-if="!poolShown().length">
+                <div class="empty" style="padding:16px 10px">Nobody left in this filter.</div>
+              </template>
+            </div>
+            <p class="note">Drag a name onto the roster, or use <b>+</b>. A player can be in one
+              team per age group and in as many age groups as you place them.</p>
+          </div>
+
+          <!-- ── the roster ── -->
+          <div>
+            <template x-if="!tm.selected">
+              <div class="empty">Pick a team on the left.</div>
+            </template>
+            <template x-if="tm.selected">
+              <div>
+                <div class="inline" style="margin:0 0 8px">
+                  <b style="font-size:15px" x-text="selTeam()?.team_name"></b>
+                  <span class="c grp" x-text="selTeam()?.age_group || 'no age group'"></span>
+                  <span class="c" x-show="selTeam()?.division" x-text="selTeam()?.division"></span>
+                  <span class="c" x-text="rosterOf(tm.selected).length + ' players'"></span>
+                  <span class="c" x-text="'avg ' + (rosterAvg(tm.selected) || '–')"></span>
+                  <span style="margin-left:auto"></span>
+                  <button class="btn sm" @click="removeTeamSeason()"
+                          :disabled="rosterOf(tm.selected).length>0">Remove from season</button>
+                </div>
+
+                <div class="rost" :class="tm.over?'over':''"
+                     @dragover.prevent="tm.over=true" @dragleave="tm.over=false"
+                     @drop.prevent="tm.over=false; if(tm.drag) place(tm.drag); tm.drag=null">
+                  <template x-for="r in rosterOf(tm.selected)" :key="r.id">
+                    <div class="rrow">
+                      <button class="star" :class="r.is_star?'on':''"
+                              @click="setStar(r, !r.is_star)"
+                              :title="r.is_star?'Starred':'Mark as a key player'">★</button>
+                      <span class="rn" x-text="r.given_name+' '+r.family_name"></span>
+                      <span class="c" x-text="r.age!=null ? r.age : '?'"></span>
+                      <span class="elig" :class="eligRow(r).k" x-text="eligRow(r).s"></span>
+                      <select x-show="zones().length"
+                              @change="setZone(r, $event.target.value)">
+                        <option value="" :selected="!r.zone">zone —</option>
+                        <template x-for="z in zones()" :key="z">
+                          <option :value="z" :selected="r.zone===z" x-text="z"></option></template>
+                      </select>
+                      <select x-show="positions().length"
+                              @change="setPosition(r, $event.target.value)">
+                        <option value="" :selected="!r.position">pos —</option>
+                        <template x-for="ps in positions()" :key="ps">
+                          <option :value="ps" :selected="r.position===ps" x-text="ps"></option></template>
+                      </select>
+                      <span class="rv" x-text="r.rating ?? '–'"></span>
+                      <button class="btn sm" @click="unplace(r)">Remove</button>
+                    </div>
+                  </template>
+                  <template x-if="!rosterOf(tm.selected).length">
+                    <div class="empty" style="padding:22px 10px">
+                      Empty. Drag a name from the pool, or press <b>+</b> beside one.</div>
+                  </template>
+                </div>
+
+                <!-- balance across the age group, so a swap shows its cost -->
+                <template x-if="teamSeasonsIn(selTeam()?.age_group).length > 1">
+                  <div>
+                    <div class="cath" style="margin-top:12px">Balance across
+                      <b x-text="selTeam()?.age_group"></b></div>
+                    <table class="vtab">
+                      <thead><tr><th>Team</th><th class="r">Players</th>
+                        <th class="r">Average</th></tr></thead>
+                      <tbody>
+                        <template x-for="ts in teamSeasonsIn(selTeam()?.age_group)" :key="ts.id">
+                          <tr>
+                            <td x-text="ts.team_name"></td>
+                            <td class="r v" x-text="rosterOf(ts.id).length"></td>
+                            <td class="r v" x-text="rosterAvg(ts.id) || '–'"></td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                    <p class="note">Every placement moves these numbers. A backfill by hand is
+                      meant to be visible, not silent.</p>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
     </template>
 
     <template x-if="stage==='admin'">
@@ -1371,6 +1617,61 @@ values (
     </div>
   </template>
 
+  <!-- ─────────── CLUB SETTINGS (modal) ───────────
+       The age rule and the club's own words for things. Ported from the TMS,
+       where brackets and the cutoff are settings rather than constants —
+       associations band differently and reckon age at different dates. ── -->
+  <template x-if="modal==='clubcfg'">
+    <div class="modal" @click.self="modal=''">
+      <div class="box">
+        <div class="mhead"><h3>Club settings</h3>
+          <button class="x" @click="modal=''" title="Close">×</button></div>
+        <div class="mbody">
+          <p class="note" style="margin-top:0">These are this club's own conventions, not rules of
+            the sport. They decide which age group a player falls in and what a coach can mark on a
+            roster.</p>
+
+          <div class="cath">Age</div>
+          <div class="row2">
+            <div class="field"><label class="fl">Age is reckoned at</label>
+              <div class="inline" style="margin-top:0">
+                <input type="number" x-model.number="cfg2.cutd" min="1" max="31" style="width:70px">
+                <select x-model.number="cfg2.cutm" style="width:auto">
+                  <template x-for="(mn,i) in ['January','February','March','April','May','June',
+                        'July','August','September','October','November','December']" :key="mn">
+                    <option :value="i+1" x-text="mn"></option></template>
+                </select>
+              </div></div>
+            <div class="field"><label class="fl">Age groups — the “under” numbers</label>
+              <input type="text" x-model="cfg2.brackets" placeholder="8*, 10, 12, 14, 16, 18, 20">
+            </div>
+          </div>
+          <p class="note" style="margin-top:0">Put <b>*</b> after a number that is a mixed group —
+            <span class="mono">8*, 10, 12…</span> gives U8 Mixed, then U10 Boys / U10 Girls and so
+            on. A player is in the first group whose number is above their age.</p>
+
+          <div class="cath">On a roster</div>
+          <div class="row2">
+            <div class="field"><label class="fl">Roster zones</label>
+              <input type="text" x-model="cfg2.zones" placeholder="Size, Skill"></div>
+            <div class="field"><label class="fl">Positions — leave empty if you do not use them</label>
+              <input type="text" x-model="cfg2.positions" placeholder="Guard, Forward, Center, Utility">
+            </div>
+          </div>
+          <p class="note" style="margin-top:0">Positions are for clubs that mark them — a pathway
+            club, typically. An empty list removes the control from every roster.</p>
+
+          <div class="inline" style="margin-top:10px">
+            <button class="btn pri" @click="saveClubCfg()" :disabled="cfg2.busy">Save</button>
+            <button class="btn" @click="modal=''">Cancel</button>
+          </div>
+          <p x-show="cfg2.err" x-text="cfg2.err" class="err"></p>
+          <p x-show="cfg2.msg" x-text="cfg2.msg" class="msg"></p>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <!-- ─────────── SEASONS (modal) ───────────
        A season carries the YEAR age is reckoned against. That year is stated by
        the club, not parsed out of the name and not an age-group band — U12 /
@@ -1673,6 +1974,10 @@ function app(){ return {
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
   allSessions:[],
   pf:{q:'',show:'active',gender:'',age:null,year:new Date().getFullYear()},
+  teams:[], teamSeasons:[], roster:[], pool:[], clubCfg:null,
+  cfg2:{cutd:31,cutm:12,brackets:'',zones:'',positions:'',busy:false,err:'',msg:''},
+  tm:{selected:'',adding:false,name:'',grp:'',div:'',q:'',scope:'grp',hidePlaced:true,
+      drag:null,over:false,busy:false,err:''},
   qv:{open:false,note:'',busy:false,err:''},
   pe:{id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
       verification:'unverified',vsource:'',vnote:'',
@@ -1836,6 +2141,184 @@ function app(){ return {
     const {error} = await this.sb.from('season').delete().eq('id', r.id);
     if(error){ this.seasonErr = error.message; return; }
     await this.load();
+  },
+
+  // ══════════════════════ TEAMS ══════════════════════
+  // The team NAME is club-level; what is edited here is its roster for the
+  // SELECTED SEASON. A player sits in one team per age group and may be placed
+  // in as many age groups as the club wants — that is the fill-in case.
+  async openTeams(){
+    this.stage='teams'; this.tm.err='';
+    await this.loadTeams();
+  },
+  async loadTeams(){
+    if(!this.org) return;
+    const q = async (t, sel='*', filt=null) => {
+      let r = this.sb.from(t).select(sel);
+      if(filt) r = r.eq(filt[0], filt[1]);
+      const {data,error} = await r;
+      if(error){ this.tm.err = t+': '+error.message; return []; }
+      return data||[];
+    };
+    this.teams       = await q('team');
+    this.clubCfg     = (await q('org_profile'))[0] || null;
+    this.teamSeasons = this.seasonId
+      ? (await q('team_season','*',['season_id',this.seasonId])).map(ts => ({
+          ...ts, team_name: (this.teams.find(t=>t.id===ts.team_id)||{}).name || '(unnamed)' }))
+      : [];
+    this.roster = this.seasonId ? await q('v_roster','*',['season_id',this.seasonId]) : [];
+    this.pool   = this.seasonId ? await q('v_player_pool','*',['season_id',this.seasonId]) : [];
+    if(!this.teamSeasons.find(ts=>ts.id===this.tm.selected)){
+      this.tm.selected = (this.teamSeasons[0]||{}).id || '';
+    }
+  },
+
+  // ── club settings ──────────────────────────────────────────────────────
+  openClubCfg(){
+    const c = this.clubCfg || {};
+    this.cfg2 = {
+      cutd: c.age_cutoff?.d ?? 31,
+      cutm: c.age_cutoff?.m ?? 12,
+      brackets: (c.age_brackets || []).map(b => b.u + (b.mixed ? '*' : '')).join(', '),
+      zones: (c.roster_zones || []).join(', '),
+      positions: (c.positions || []).join(', '),
+      busy:false, err:'', msg:''};
+  },
+  async saveClubCfg(){
+    this.cfg2.err=''; this.cfg2.msg=''; this.cfg2.busy=true;
+    const brackets = this.cfg2.brackets.split(',').map(x=>x.trim()).filter(Boolean)
+      .map(x => ({u: parseInt(x,10), mixed: x.includes('*')}))
+      .filter(b => !isNaN(b.u)).sort((a,b)=>a.u-b.u);
+    const list = s => s.split(',').map(x=>x.trim()).filter(Boolean);
+    const {error} = await this.sb.from('org_profile').update({
+      age_cutoff: {d:Number(this.cfg2.cutd), m:Number(this.cfg2.cutm)},
+      age_brackets: brackets,
+      roster_zones: list(this.cfg2.zones),
+      positions: list(this.cfg2.positions)
+    }).eq('org_id', this.org.id);
+    this.cfg2.busy=false;
+    if(error){ this.cfg2.err = error.message; return; }
+    this.cfg2.msg = 'Saved. Age groups are recomputed from this for every player.';
+    await this.loadTeams();
+  },
+
+  zones(){ return this.clubCfg?.roster_zones || []; },
+  positions(){ return this.clubCfg?.positions || []; },
+  selTeam(){ return this.teamSeasons.find(ts=>ts.id===this.tm.selected) || null; },
+  rosterOf(tsId){
+    return this.roster.filter(r=>r.team_season_id===tsId)
+      .sort((a,b)=> (b.rating||0)-(a.rating||0)
+        || (a.family_name+a.given_name).localeCompare(b.family_name+b.given_name));
+  },
+  rosterAvg(tsId){
+    const v = this.rosterOf(tsId).map(r=>Number(r.rating)).filter(n=>!isNaN(n));
+    return v.length ? (v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : '';
+  },
+  ageGroupsInSeason(){
+    return [...new Set(this.teamSeasons.map(ts=>ts.age_group))]
+      .sort((a,b)=> (parseInt(String(a).replace(/\D/g,''))||999)
+                  - (parseInt(String(b).replace(/\D/g,''))||999));
+  },
+  teamSeasonsIn(g){
+    if(g === undefined) return [];
+    return this.teamSeasons.filter(ts=>ts.age_group===g)
+      .sort((a,b)=>a.team_name.localeCompare(b.team_name));
+  },
+  // every age group the club's own banding produces for this season's players
+  allAgeGroups(){
+    return [...new Set(this.pool.map(p=>p.age_group).filter(Boolean))]
+      .sort((a,b)=> (parseInt(String(a).replace(/\D/g,''))||999)
+                  - (parseInt(String(b).replace(/\D/g,''))||999));
+  },
+  poolAll(){ return this.pool.filter(p=>p.status!=='inactive'); },
+  placedPeople(){ return new Set(this.roster.map(r=>r.person_id)); },
+  placedCount(){ return this.roster.length; },
+  placedInGroup(g){
+    return new Set(this.roster
+      .filter(r=>r.age_group===g).map(r=>r.person_id));
+  },
+  poolShown(){
+    const t = this.selTeam(); const q = this.tm.q.trim().toLowerCase();
+    const inGrp = t ? this.placedInGroup(t.age_group) : new Set();
+    return this.poolAll().filter(p => {
+      if(this.tm.scope==='grp' && t && t.age_group && p.age_group !== t.age_group) return false;
+      if(this.tm.hidePlaced && inGrp.has(p.person_id)) return false;
+      if(!q) return true;
+      return (p.given_name+' '+p.family_name).toLowerCase().includes(q);
+    }).sort((a,b)=> (b.rating||0)-(a.rating||0)
+        || (a.family_name+a.given_name).localeCompare(b.family_name+b.given_name));
+  },
+
+  // Ported from the TMS `elig`: on age, plays up, plays down, or refused on
+  // gender. An age gap is a judgement; a gender mismatch is a rule.
+  eligible(playerGroup, gender, teamGroup){
+    if(!teamGroup) return {k:'on2', s:'—'};
+    if(!playerGroup) return {k:'no', s:'no age group'};
+    if((teamGroup.includes('Boys')  && gender==='F') ||
+       (teamGroup.includes('Girls') && gender==='M')) return {k:'no', s:'wrong group'};
+    if(playerGroup === teamGroup) return {k:'on2', s:'on age'};
+    const n = g => parseInt(String(g).replace(/\D/g,''),10) || 0;
+    return n(teamGroup) < n(playerGroup)
+      ? {k:'dn', s:'plays down'} : {k:'up', s:'plays up'};
+  },
+  eligOf(p){ return this.eligible(p.age_group, p.gender, this.selTeam()?.age_group); },
+  eligRow(r){ return this.eligible(r.natural_group, r.gender, r.age_group); },
+
+  async createTeam(){
+    this.tm.err=''; this.tm.busy=true;
+    const name = this.tm.name.trim();
+    let team = this.teams.find(t => t.name.toLowerCase() === name.toLowerCase());
+    if(!team){
+      const {data,error} = await this.sb.from('team')
+        .insert({org_id:this.org.id, name}).select().single();
+      if(error){ this.tm.err=error.message; this.tm.busy=false; return; }
+      team = data;
+    }
+    const {error} = await this.sb.from('team_season').insert({
+      org_id:this.org.id, season_id:this.seasonId, team_id:team.id,
+      age_group:this.tm.grp || null, division:this.tm.div.trim() || null});
+    this.tm.busy=false;
+    if(error){
+      this.tm.err = /team_season_season_id_team_id_key/.test(error.message)
+        ? name+' is already in this season.' : error.message;
+      return;
+    }
+    this.tm={...this.tm, adding:false, name:'', grp:'', div:''};
+    await this.loadTeams();
+  },
+  selectTeam(id){ this.tm.selected=id; this.tm.err=''; },
+
+  async place(personId){
+    if(!this.tm.selected) { this.tm.err='Pick a team first.'; return; }
+    this.tm.err='';
+    const {error} = await this.sb.from('team_member').insert({
+      org_id:this.org.id, team_season_id:this.tm.selected, person_id:personId});
+    if(error){ this.tm.err = error.message; return; }
+    await this.loadTeams();
+  },
+  async unplace(r){
+    this.tm.err='';
+    const {error} = await this.sb.from('team_member').delete().eq('id', r.id);
+    if(error){ this.tm.err = error.message; return; }
+    await this.loadTeams();
+  },
+  async patchMember(r, patch){
+    this.tm.err='';
+    const {error} = await this.sb.from('team_member').update(patch).eq('id', r.id);
+    if(error){ this.tm.err = error.message; return; }
+    await this.loadTeams();
+  },
+  setStar(r,v){ return this.patchMember(r,{is_star:!!v}); },
+  setZone(r,v){ return this.patchMember(r,{zone:v||null}); },
+  setPosition(r,v){ return this.patchMember(r,{position:v||null}); },
+
+  async removeTeamSeason(){
+    if(!this.tm.selected) return;
+    this.tm.err='';
+    const {error} = await this.sb.from('team_season').delete().eq('id', this.tm.selected);
+    if(error){ this.tm.err = error.message; return; }
+    this.tm.selected='';
+    await this.loadTeams();
   },
 
   nameOf(mid){ const m=this.members.find(x=>x.id===mid); return m? m.display_name : mid; },
