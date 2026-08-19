@@ -11,7 +11,8 @@
 :root{--bg:#f6f5f2;--card:#fff;--line:#e3e1db;--line2:#cfccc4;--ink:#1c1b19;--ink2:#5f5e5a;
 --ink3:#8b8981;--navy:#1F3864;--navy2:#e8edf5;--ok:#0f6e56;--okbg:#e1f5ee;--okline:#9fe1cb;
 --warn:#854f0b;--warnbg:#faeeda;--warnline:#fac775;--bad:#a32d2d;--badbg:#fcebeb;--badline:#f7c1c1;
---acc:#534ab7;--accbg:#eeedfe;--accline:#cecbf6;--sh:0 6px 24px rgba(28,27,25,.16);--hh:52px}
+--acc:#534ab7;--accbg:#eeedfe;--accline:#cecbf6;--sh:0 6px 24px rgba(28,27,25,.16);--hh:52px;
+--d1:#1F3864;--d2:#33517f;--d3:#4d6c9b;--d4:#7b96bd;--d5:#a3b7d3;--d6:#c8d3e4}
 html,body{margin:0;height:100%}
 body{font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
 background:var(--bg);color:var(--ink)}
@@ -319,6 +320,62 @@ cursor:pointer;color:var(--ink3);font-size:14px;line-height:1;padding:0}
 .kv dt{color:var(--ink2)}
 .kv dd{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
 word-break:break-all}
+/* ── the Formation stage. One row per age group; open one and you get that
+      group alone. Ming, 19 Aug 2026: a page of every age group's every division
+      was "too overwhelming". See DECISIONS.md ADR-006/007/008/009. ────────── */
+.fgl{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.fgr{display:flex;align-items:center;gap:12px;padding:9px 12px;border:0;
+ border-bottom:1px solid var(--line);background:#fff;cursor:pointer;width:100%;text-align:left;
+ font:inherit}
+.fgr:last-child{border-bottom:0}
+.fgr:hover{background:#fbfaf8}
+.fgr .nm{width:120px;flex:0 0 120px;font-weight:650;font-size:13px}
+.fgr .nm span{display:block;font-weight:400;font-size:11px;color:var(--ink3)}
+.fspark{flex:1;height:30px;display:flex;align-items:flex-end;gap:1px;min-width:120px}
+.fspark i{flex:1;background:var(--line2);border-radius:1px 1px 0 0;min-height:1px}
+.fspark i.b1{background:var(--d1)} .fspark i.b2{background:var(--d2)}
+.fspark i.b3{background:var(--d3)} .fspark i.b4{background:var(--d4)}
+.fspark i.b5{background:var(--d5)} .fspark i.b6{background:var(--d6)}
+.fgr .st{width:200px;flex:0 0 200px;display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap}
+/* levels: the cohort drawn, with the division lines on it */
+.flv{position:relative;height:132px;border:1px solid var(--line);border-radius:9px;
+ background:#fbfaf8;overflow:hidden;margin-top:4px}
+.flv .bars{position:absolute;inset:0 0 20px 0;display:flex;align-items:flex-end;padding:8px 0 0}
+.flv .bars i{flex:1;margin:0 .5px;background:var(--line2);border-radius:1px 1px 0 0;min-height:1px}
+.flv .bars i.b1{background:var(--d1)} .flv .bars i.b2{background:var(--d2)}
+.flv .bars i.b3{background:var(--d3)} .flv .bars i.b4{background:var(--d4)}
+.flv .bars i.b5{background:var(--d5)} .flv .bars i.b6{background:var(--d6)}
+.flv .axis{position:absolute;left:0;right:0;bottom:0;height:20px;border-top:1px solid var(--line);
+ font-size:10px;color:var(--ink3)}
+.flv .axis span{position:absolute;transform:translateX(-50%);top:2px}
+.fcut{position:absolute;top:0;bottom:20px;width:2px;background:var(--ink);cursor:ew-resize;
+ touch-action:none}
+.fcut::before{content:'';position:absolute;left:-9px;right:-9px;top:0;bottom:0}
+.fcut b{position:absolute;top:2px;left:50%;transform:translateX(-50%);background:var(--ink);
+ color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;white-space:nowrap;font-weight:600}
+.fcut.drag{background:var(--acc)} .fcut.drag b{background:var(--acc)}
+.fbt{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px}
+.fbt th{text-align:left;font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+ color:var(--ink3);font-weight:650;padding:5px 6px;border-bottom:1px solid var(--line)}
+.fbt td{padding:6px;border-bottom:1px solid var(--line);vertical-align:middle}
+.fbt tr:last-child td{border-bottom:0}
+.fbt .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.fbt .num{text-align:right;font-variant-numeric:tabular-nums}
+.ftms{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.ftm{display:inline-flex;align-items:center;gap:5px;background:var(--navy2);border:1px solid #b9c7de;
+ color:var(--navy);font-weight:600;font-size:12px;padding:3px 5px 3px 10px;border-radius:20px}
+.ftm button{background:0;border:0;color:var(--navy);cursor:pointer;font-size:14px;line-height:1;
+ padding:0 3px;opacity:.6}
+.ftm button:hover{opacity:1}
+.fopt{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line2);border-radius:9px;
+ padding:9px 12px;background:#fff;cursor:pointer;font-size:12.5px}
+.fopt.on{border-color:var(--navy);background:#f4f7fc}
+.fbasis{display:flex;gap:12px;flex-wrap:wrap}
+.fb{flex:1 1 300px;border:1px solid var(--line2);border-radius:10px;padding:10px 13px;
+ background:#fff;cursor:pointer}
+.fb.on{border-color:var(--navy);background:#f4f7fc}
+.fb b{font-size:13px}
+.fb p{margin:5px 0 0;font-size:11.5px;color:var(--ink2)}
 </style>
 </head>
 <body>
@@ -392,6 +449,9 @@ word-break:break-all}
         <button class="hb" x-show="stage!=='court'" :class="stage==='teams'?'pri':''"
                 @click="stage==='teams' ? (stage='admin') : openTeams()"
                 x-text="stage==='teams' ? 'Sessions' : 'Teams'"></button>
+        <button class="hb" x-show="stage!=='court'" :class="stage==='formation'?'pri':''"
+                @click="stage==='formation' ? (stage='admin') : openFormation()"
+                x-text="stage==='formation' ? 'Sessions' : 'Formation'"></button>
         <button class="hb" x-show="stage!=='court'" @click="modal='players'">Players…</button>
         <button class="hb" x-show="stage==='admin'" @click="modal='rubrics'">Rubrics…</button>
         <button class="hb" x-show="stage==='teams'"
@@ -745,6 +805,66 @@ word-break:break-all}
           </div>
         </div>
       </div>
+    </div>
+    </template>
+
+
+    <!-- ── FORMATION. Ming, 19 Aug 2026: one row per age group, open one and you
+         get that group alone. The club moves LINES on the distribution and a
+         team's target is read off the band they cut — never typed at a cohort
+         that cannot reach it. ADR-006/007/009. ─────────────────────────────── -->
+    <template x-if="stage==='formation'">
+    <div class="panel">
+      <div class="rhead" style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1">
+          <h2>Formation</h2>
+          <div class="sub">One row per age group. Open one to see who is in it and set the
+            divisions you intend to play.</div>
+        </div>
+        <div class="inline" style="margin:0">
+          <select x-model="seasonId" @change="onSeasonChange(); loadFormation()" style="width:auto">
+            <template x-for="s in seasons" :key="s.id">
+              <option :value="s.id" x-text="seasonOptionLabel(s)" :selected="s.id===seasonId"></option>
+            </template>
+          </select>
+        </div>
+      </div>
+
+      <p x-show="fp.err" x-text="fp.err" class="err"></p>
+
+      <template x-if="!seasonId">
+        <div class="empty">Choose a season first — formation belongs to one.</div>
+      </template>
+
+      <template x-if="seasonId && !fGroups().length">
+        <div class="empty">No player in this club has a date of birth and a rating yet, so there
+          is nothing to band. Rate a trial first.</div>
+      </template>
+
+      <template x-if="seasonId && fGroups().length">
+        <div>
+          <div class="cath">Age groups</div>
+          <div class="fgl">
+            <template x-for="g in fGroups()" :key="g">
+              <button class="fgr" @click="fOpen(g)">
+                <span class="nm"><b x-text="g"></b>
+                  <span x-text="fGroupSub(g)"></span></span>
+                <span class="fspark" x-html="fSpark(g)"></span>
+                <span class="st">
+                  <span class="c on" x-text="fTeamsLabel(g)"></span>
+                  <span class="c" x-text="fPlan(g).basis==='points'?'points':'rating'"></span>
+                  <template x-if="fThin(g)">
+                    <span class="c wn" x-text="fThin(g)+' too small'"></span>
+                  </template>
+                </span>
+              </button>
+            </template>
+          </div>
+          <p class="note">The strip is that age group's distribution, shaded by the divisions you
+            have set. There is nothing to set club-wide — no two age groups have the same players
+            in them.</p>
+        </div>
+      </template>
     </div>
     </template>
 
@@ -1621,6 +1741,130 @@ values (
        The age rule and the club's own words for things. Ported from the TMS,
        where brackets and the cutoff are settings rather than constants —
        associations band differently and reckon age at different dates. ── -->
+  <!-- ── one age group, and nothing else ─────────────────────────────────── -->
+  <template x-if="modal==='formation' && fp.group">
+    <div class="modal" @click.self="modal=''">
+      <div class="box lg">
+        <div class="mhead">
+          <h3 x-text="fp.group"></h3>
+          <span class="c" x-text="fPool().length+' players'"></span>
+          <span class="c" x-text="'average '+f2(fMean(fPool().map(p=>fVal(p))))"></span>
+          <span class="c" x-show="fp.saved" x-text="fp.saved"></span>
+          <button class="x" @click="modal=''" title="Close">×</button>
+        </div>
+        <div class="mbody">
+
+          <div class="cath">What the teams are graded on</div>
+          <div class="fbasis">
+            <template x-for="b in ['rating','points']" :key="b">
+              <div class="fb" :class="fp.basis===b?'on':''" @click="fSetBasis(b)">
+                <b x-text="(fp.basis===b?'■ ':'□ ')+(b==='rating'?'Coach rating':'Points per game')"></b>
+                <p x-show="b==='rating'">What the coaches saw at the trial. A team is judged on its
+                  <b>average</b>.</p>
+                <p x-show="b==='points'">What they actually scored last season, per game, brought
+                  forward. A team is judged on the <b>points it projects to score</b>, and it can
+                  only see players who were here last year.</p>
+                <p><b x-text="fVisible(b)"></b> of <span x-text="fPool().length"></span>
+                  players are visible to it.</p>
+              </div>
+            </template>
+          </div>
+
+          <div class="cath">Teams this club is entering</div>
+          <div class="ftms">
+            <template x-for="(t,i) in fp.teams" :key="i">
+              <span class="ftm"><span x-text="fDivLabel(t)"></span>
+                <button @click="fDropTeam(i)" title="remove">×</button></span>
+            </template>
+            <select x-model.number="fp.newdiv" style="width:auto">
+              <template x-for="d in [1,2,3,4,5,6,7,8]" :key="d">
+                <option :value="d" x-text="'Div '+d" :selected="d===fp.newdiv"></option>
+              </template>
+            </select>
+            <button class="btn sm" @click="fAddTeam(fp.newdiv)">Enter a team</button>
+          </div>
+          <p class="note">Enter the divisions the association actually offers you — they do not have
+            to run 1, 2, 3. <b>Two teams entered in the same division share one band</b> and are
+            balanced against each other.</p>
+
+          <div class="cath">What a re-run may move</div>
+          <label class="fopt" :class="fp.lock?'on':''">
+            <input type="checkbox" x-model="fp.lock">
+            <span><b>Lock players already placed and still in age</b>
+              <span class="c" x-text="fLocked().length+' locked'"></span><br>
+              <span class="note" style="margin:0">Both conditions hold: they are in a team, and they
+              are still in this age group. A child who has aged up has no place here to keep.</span>
+            </span></label>
+
+          <div class="ladder" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;
+                                     margin-top:10px">
+            <span class="c">squad cap <input type="number" x-model.number="fp.cap" min="3" max="30"
+              style="width:56px;margin-left:4px"></span>
+            <span class="c">minimum to field <input type="number" x-model.number="fp.min" min="3"
+              max="30" style="width:52px;margin-left:4px"></span>
+            <button class="btn sm" @click="fEvenCounts()">Even numbers</button>
+            <button class="btn sm" @click="fEvenSpan()">Even rating span</button>
+          </div>
+
+          <div class="cath" x-text="'Where the teams fall on '+(fp.basis==='points'?'points per game':'rating')+' — drag a line'"></div>
+          <div class="flv" id="flv">
+            <div class="bars" x-html="fBarsHTML()"></div>
+            <template x-for="(v,i) in fp.cuts" :key="i">
+              <div class="fcut" :data-i="i" :style="'left:'+fPct(v)+'%'"
+                   @pointerdown="fDragStart($event,i)">
+                <b x-text="fDivLabel(fBands()[i]?.div)+' floor '+fFx(v)"></b></div>
+            </template>
+            <div class="axis" x-html="fAxisHTML()"></div>
+          </div>
+
+          <template x-if="fp.basis==='points' && fMissing().length">
+            <p class="note" style="color:var(--warn)">
+              <b x-text="fMissing().length+' of '+fPool().length+' players have no scoring record.'"></b>
+              They were not in the club last season, so this basis cannot see them and they are in
+              no band below.</p>
+          </template>
+
+          <p class="note">A line is the floor of the team above it — for the top team that floor
+            <b>is</b> the entry standard. <b>A team's target is what the players in its band actually
+            average</b>, so it can never be a number this cohort cannot reach.</p>
+
+          <table class="fbt">
+            <tr><th>Entered as</th><th x-text="fp.basis==='points'?'Scoring band':'Rating band'"></th>
+              <th class="num">Players</th><th class="num">Per team</th>
+              <th class="num">Target — the band's own average</th><th></th></tr>
+            <template x-for="(b,i) in fBands()" :key="i">
+              <tr>
+                <td><span class="sw" :style="'background:var(--d'+Math.min(6,i+1)+')'"></span>
+                  <span x-text="fDivLabel(b.div)"></span>
+                  <span class="c" x-show="b.teams>1" x-text="b.teams+' teams'"></span></td>
+                <td x-text="fBandRange(b,i)"></td>
+                <td class="num" x-text="b.n"></td>
+                <td class="num" x-text="b.per"></td>
+                <td class="num"><b x-text="b.n ? (fp.basis==='points'
+                      ? Math.round(b.total)+' pts/game' : f2(b.avg)) : '—'"></b></td>
+                <td>
+                  <span class="c bad" x-show="!b.n">nobody in this band</span>
+                  <span class="c wn" x-show="b.n && b.per>fp.cap"
+                        x-text="b.per+' in a squad capped at '+fp.cap"></span>
+                  <span class="c wn" x-show="b.n && b.per<=fp.cap && b.per<fp.min"
+                        x-text="'cannot field '+fp.min"></span>
+                </td>
+              </tr>
+            </template>
+          </table>
+        </div>
+
+        <div class="mfoot">
+          <button class="btn pri" @click="fSavePlan()" :disabled="fp.busy">Save this plan</button>
+          <button class="btn" @click="modal=''">Close</button>
+          <span class="c" x-show="fp.busy">saving…</span>
+          <span class="note" style="margin:0;margin-left:auto">Building the teams from this plan is
+            the next step and is not wired yet.</span>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <template x-if="modal==='clubcfg'">
     <div class="modal" @click.self="modal=''">
       <div class="box">
@@ -2214,6 +2458,259 @@ function app(){ return {
     const v = this.rosterOf(tsId).map(r=>Number(r.rating)).filter(n=>!isNaN(n));
     return v.length ? (v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : '';
   },
+
+  // ══ FORMATION ══════════════════════════════════════════════════════════════
+  //  The club moves LINES on the cohort's distribution; a team's target is read
+  //  off the band they cut. That is the whole of ADR-007: a number typed at a
+  //  cohort can be unreachable, a number read off it never is.
+  fp:{group:'', basis:'rating', teams:[], cuts:[], cap:10, min:8, lock:true,
+      newdiv:1, err:'', busy:false, saved:'', plans:[], scoring:[], drag:null},
+
+  async openFormation(){
+    this.stage='formation'; this.fp.err='';
+    await this.loadFormation();
+  },
+  async loadFormation(){
+    if(!this.org || !this.seasonId) return;
+    const q = async (t, filt) => {
+      let r = this.sb.from(t).select('*');
+      if(filt) r = r.eq(filt[0], filt[1]);
+      const {data,error} = await r;
+      if(error){ this.fp.err = t+': '+error.message; return []; }
+      return data||[];
+    };
+    this.clubCfg  = (await q('org_profile'))[0] || this.clubCfg;
+    this.teams    = await q('team');
+    this.teamSeasons = (await q('team_season',['season_id',this.seasonId])).map(ts => ({
+      ...ts, team_name:(this.teams.find(t=>t.id===ts.team_id)||{}).name || '(unnamed)' }));
+    this.pool     = await q('v_player_pool',['season_id',this.seasonId]);
+    this.fp.plans = await q('formation_plan',['season_id',this.seasonId]);
+    //  Scoring is LAST season's, so take the most recent record per player from
+    //  any season earlier than this one.
+    const year = (this.seasons.find(s=>s.id===this.seasonId)||{}).year;
+    const rows = await q('v_player_scoring');
+    const best = {};
+    rows.filter(r => year==null || r.year < year)
+        .forEach(r => { const b=best[r.person_id];
+          if(!b || (r.year||0) > (b.year||0)) best[r.person_id]=r; });
+    this.fp.scoring = Object.values(best);
+  },
+
+  // ── the club's own numbers, never constants in here ──────────────────────
+  fCfg(){ const c=this.clubCfg||{};
+    return {growth:+c.age_growth||1.34, step:+c.age_step||0.15, div:+c.age_div||2,
+            compound:c.age_shift_compound!==false, cap:+c.squad_cap_default||10}; },
+
+  fGroups(){
+    return [...new Set(this.pool.filter(p=>p.age_group).map(p=>p.age_group))]
+      .sort((a,b)=> (parseInt(String(a).replace(/\D/g,''))||999)
+                  - (parseInt(String(b).replace(/\D/g,''))||999));
+  },
+  fPoolOf(g){ return this.pool.filter(p=>p.age_group===g); },
+  fPool(){ return this.fPoolOf(this.fp.group); },
+  fMean(a){ const v=a.filter(x=>x!=null); return v.length? v.reduce((x,y)=>x+ +y,0)/v.length : 0; },
+  f2(v){ return (Math.round((v||0)*100)/100).toFixed(2); },
+
+  //  A scoring record is a YEAR OLD. Same age group next season means a year's
+  //  growth; a band up means older opposition. The club decides whether a mover
+  //  gets both — see org_profile.age_shift_compound.
+  fPpg(p){
+    const r = this.fp.scoring.find(s=>s.person_id===p.person_id);
+    if(!r || r.ppg==null) return null;
+    const c=this.fCfg(), br=(this.clubCfg?.age_brackets||[]).map(b=>+b.u).sort((a,b)=>a-b);
+    const uFor = age => br.find(u=>age<u) || (br[br.length-1]||20);
+    const now=uFor(p.age), then=uFor(Math.max(1,p.age-1));
+    const steps=(now-then)/2;
+    const down=Math.pow(1-c.step, c.div*steps);
+    const f = steps>0 ? (c.compound ? c.growth*down : down) : c.growth;
+    return +r.ppg * f;
+  },
+  fVal(p){ return this.fp.basis==='points' ? this.fPpg(p) : (p.rating==null?null:+p.rating); },
+  fRated(){ return this.fPool().filter(p=>this.fVal(p)!=null); },
+  fMissing(){ return this.fPool().filter(p=>this.fVal(p)==null); },
+  fVisible(basis){
+    const keep=this.fp.basis; this.fp.basis=basis;
+    const n=this.fPool().filter(p=>this.fVal(p)!=null).length;
+    this.fp.basis=keep; return n;
+  },
+  fAxis(){
+    if(this.fp.basis!=='points') return {lo:1,hi:5,dp:2,unit:''};
+    const v=this.fPool().map(p=>this.fPpg(p)).filter(x=>x!=null);
+    return {lo:0,hi:Math.max(2,Math.ceil(Math.max(0,...v)+0.5)),dp:1,unit:' ppg'};
+  },
+  fPct(v){ const a=this.fAxis(); return ((v-a.lo)/(a.hi-a.lo))*100; },
+  fFx(v){ const a=this.fAxis();
+    return a.dp===1 ? (Math.round(v*10)/10).toFixed(1)+a.unit : (Math.round(v*100)/100).toFixed(2); },
+  fDivLabel(d){ return d==null ? 'Ungraded' : ((this.clubCfg?.division_label||'Div')+' '+d); },
+
+  // ── the plan for one age group ───────────────────────────────────────────
+  fPlan(g){
+    return this.fp.plans.find(p=>p.age_group===g)
+      || {age_group:g, basis:'rating', cuts:[], cuts_other:[],
+          squad_cap:this.fCfg().cap, min_field:8};
+  },
+  fTeamsOf(g){
+    return this.teamSeasons.filter(ts=>ts.age_group===g)
+      .map(ts=>ts.division_rank).filter(d=>d!=null).sort((a,b)=>a-b);
+  },
+  fTeamsLabel(g){
+    const t=this.fTeamsOf(g);
+    return t.length ? (this.clubCfg?.division_label||'Div')+' '+t.join(' · ') : 'no teams entered';
+  },
+  fGroupSub(g){
+    const ps=this.fPoolOf(g);
+    return ps.length+' players · avg '+this.f2(this.fMean(ps.map(p=>p.rating)));
+  },
+
+  // ── bands ────────────────────────────────────────────────────────────────
+  //  Consecutive teams in the SAME division share one band and are balanced
+  //  against each other; different divisions are separated by a line.
+  fBandsOf(divs, cuts, g){
+    const out=[];
+    divs.forEach(d=>{ const last=out[out.length-1];
+      if(last && last.div===d) last.teams++; else out.push({div:d,teams:1}); });
+    const A=this.fAxis();
+    const ps=this.fPoolOf(g).filter(p=>this.fVal(p)!=null)
+      .sort((a,b)=>this.fVal(b)-this.fVal(a));
+    return out.map((b,i)=>{
+      const inb=ps.filter(p=>{
+        const v=this.fVal(p);
+        let k=cuts.length; for(let j=0;j<cuts.length;j++) if(v>=cuts[j]){k=j;break}
+        return k===i; });
+      const vals=inb.map(p=>this.fVal(p));
+      return {...b, i, n:inb.length, avg:this.fMean(vals),
+        total:vals.reduce((a,x)=>a+x,0),
+        from: i<cuts.length?cuts[i]:A.lo, to: i>0?cuts[i-1]:A.hi,
+        per: b.teams? Math.round(inb.length/b.teams*10)/10 : 0};
+    });
+  },
+  fBands(){ return this.fBandsOf(this.fp.teams, this.fp.cuts, this.fp.group); },
+  fBandRange(b,i){
+    return i===0 ? this.fFx(b.from)+' and above'
+      : (i===this.fp.cuts.length ? 'under '+this.fFx(b.to)
+         : this.fFx(b.from)+' – '+this.fFx(b.to));
+  },
+  fThin(g){
+    const p=this.fPlan(g), divs=this.fTeamsOf(g);
+    if(!divs.length) return 0;
+    return this.fBandsOf(divs, p.cuts||[], g)
+      .filter(b=>b.n && b.per < (p.min_field||8)).length;
+  },
+  fLocked(){
+    //  already in a team FOR THIS SEASON, and still in this age group
+    const ids=new Set(this.teamSeasons.filter(ts=>ts.age_group===this.fp.group).map(ts=>ts.id));
+    return this.roster.filter(r=>ids.has(r.team_season_id));
+  },
+
+  fSpark(g){
+    const ps=this.fPoolOf(g), plan=this.fPlan(g), cuts=plan.cuts||[];
+    const keep=this.fp.basis; this.fp.basis = plan.basis||'rating';
+    const A=this.fAxis(), N=24, h=new Array(N).fill(0);
+    ps.forEach(p=>{ const v=this.fVal(p); if(v==null) return;
+      const i=Math.min(N-1,Math.max(0,Math.floor((v-A.lo)/(A.hi-A.lo)*N))); h[i]++; });
+    const mx=Math.max(1,...h);
+    const out=h.map((v,i)=>{
+      const r=A.lo+(i+0.5)/N*(A.hi-A.lo);
+      let k=cuts.length; for(let j=0;j<cuts.length;j++) if(r>=cuts[j]){k=j;break}
+      return '<i class="b'+Math.min(6,k+1)+'" style="height:'+Math.round(v/mx*100)+'%"></i>';
+    }).join('');
+    this.fp.basis=keep; return out;
+  },
+  fBarsHTML(){
+    const A=this.fAxis(), N=24, h=new Array(N).fill(0);
+    this.fPool().forEach(p=>{ const v=this.fVal(p); if(v==null) return;
+      const i=Math.min(N-1,Math.max(0,Math.floor((v-A.lo)/(A.hi-A.lo)*N))); h[i]++; });
+    const mx=Math.max(1,...h), cuts=this.fp.cuts;
+    return h.map((v,i)=>{
+      const r=A.lo+(i+0.5)/N*(A.hi-A.lo);
+      let k=cuts.length; for(let j=0;j<cuts.length;j++) if(r>=cuts[j]){k=j;break}
+      return '<i class="b'+Math.min(6,k+1)+'" style="height:'+Math.round(v/mx*100)+'%"></i>';
+    }).join('');
+  },
+  fAxisHTML(){
+    const A=this.fAxis(), out=[];
+    for(let i=0;i<=8;i++){
+      const v=+(A.lo+(A.hi-A.lo)*i/8).toFixed(2);
+      out.push('<span style="left:'+this.fPct(v)+'%'
+        +(i===0?';transform:none':'')+(i===8?';transform:translateX(-100%)':'')+'">'
+        +this.fFx(v)+'</span>');
+    }
+    return out.join('');
+  },
+
+  // ── opening one, and the lines ───────────────────────────────────────────
+  fOpen(g){
+    const p=this.fPlan(g);
+    this.fp.group=g; this.fp.basis=p.basis||'rating';
+    this.fp.cap=p.squad_cap||this.fCfg().cap; this.fp.min=p.min_field||8;
+    this.fp.teams=this.fTeamsOf(g).slice();
+    this.fp.saved=''; this.fp.err='';
+    this.fp.cuts=(p.cuts||[]).map(Number);
+    if(this.fp.cuts.length !== this.fBandsOf(this.fp.teams,[],g).length-1) this.fEvenCounts();
+    this.modal='formation';
+  },
+  fAddTeam(d){ this.fp.teams.push(+d); this.fp.teams.sort((a,b)=>a-b); this.fEvenCounts(); },
+  fDropTeam(i){ if(this.fp.teams.length<2) return;
+    this.fp.teams.splice(i,1); this.fEvenCounts(); },
+  fSetBasis(b){ if(this.fp.basis===b) return; this.fp.basis=b; this.fEvenCounts(); },
+  fEvenCounts(){
+    const g=this.fp.group, bs=this.fBandsOf(this.fp.teams,[],g);
+    const ps=this.fRated().sort((a,b)=>this.fVal(b)-this.fVal(a));
+    const tot=bs.reduce((a,b)=>a+b.teams,0);
+    const cuts=[]; let run=0;
+    for(let i=0;i<bs.length-1;i++){
+      run+=bs[i].teams;
+      const k=Math.round(ps.length*run/tot);
+      const hi=ps[k-1]?this.fVal(ps[k-1]):this.fAxis().lo;
+      const lo=ps[k]?this.fVal(ps[k]):this.fAxis().lo;
+      cuts.push(+((hi+lo)/2).toFixed(2));
+    }
+    this.fp.cuts=cuts;
+  },
+  fEvenSpan(){
+    const bs=this.fBandsOf(this.fp.teams,[],this.fp.group);
+    const v=this.fRated().map(p=>this.fVal(p));
+    if(!v.length) return;
+    const hi=Math.max(...v), lo=Math.min(...v), tot=bs.reduce((a,b)=>a+b.teams,0);
+    const cuts=[]; let run=0;
+    for(let i=0;i<bs.length-1;i++){ run+=bs[i].teams;
+      cuts.push(+(hi-(hi-lo)*run/tot).toFixed(2)); }
+    this.fp.cuts=cuts;
+  },
+  //  Dragging repaints the number and the bands; nothing heavier runs until the
+  //  line is let go. Rebuilding the table on every pointer move destroyed the
+  //  very slider under the pointer the first time this was built.
+  fDragStart(ev,i){
+    ev.preventDefault();
+    const box=document.getElementById('flv'); if(!box) return;
+    const A=this.fAxis(), st=A.dp===1?10:20, self=this;
+    const move=e=>{
+      const b=box.getBoundingClientRect();
+      let v=A.lo+Math.max(0,Math.min(1,(e.clientX-b.left)/b.width))*(A.hi-A.lo);
+      const up=i>0?self.fp.cuts[i-1]-0.05:A.hi;
+      const dn=i<self.fp.cuts.length-1?self.fp.cuts[i+1]+0.05:A.lo;
+      v=Math.max(dn,Math.min(up,Math.round(v*st)/st));
+      self.fp.cuts[i]=+v.toFixed(2);
+    };
+    const up=()=>{ window.removeEventListener('pointermove',move);
+                   window.removeEventListener('pointerup',up); };
+    window.addEventListener('pointermove',move);
+    window.addEventListener('pointerup',up);
+  },
+
+  async fSavePlan(){
+    this.fp.busy=true; this.fp.err=''; this.fp.saved='';
+    const row={ org_id:this.org.id, season_id:this.seasonId, age_group:this.fp.group,
+      basis:this.fp.basis, cuts:this.fp.cuts, squad_cap:this.fp.cap, min_field:this.fp.min,
+      updated_by:this.me?.id||null };
+    const {error} = await this.sb.from('formation_plan')
+      .upsert(row, {onConflict:'season_id,age_group'});
+    this.fp.busy=false;
+    if(error){ this.fp.err=error.message; return; }
+    this.fp.saved='saved';
+    await this.loadFormation();
+  },
+
   ageGroupsInSeason(){
     return [...new Set(this.teamSeasons.map(ts=>ts.age_group))]
       .sort((a,b)=> (parseInt(String(a).replace(/\D/g,''))||999)
