@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Coaching Platform</title>
+<title>ClubFlowO</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <style>
 /* ── Design tokens lifted from the TMS (build/src/app.css). Keep in step. ── */
 :root{--bg:#f6f5f2;--card:#fff;--line:#e3e1db;--line2:#cfccc4;--ink:#1c1b19;--ink2:#5f5e5a;
---ink3:#8b8981;--navy:#1F3864;--navy2:#e8edf5;--ok:#0f6e56;--okbg:#e1f5ee;--okline:#9fe1cb;
+--ink3:#8b8981;--navy:#1F3864;--navy2:#e8edf5;--flow:#F37021;--flowo:#00A19D;--ok:#0f6e56;--okbg:#e1f5ee;--okline:#9fe1cb;
 --warn:#854f0b;--warnbg:#faeeda;--warnline:#fac775;--bad:#a32d2d;--badbg:#fcebeb;--badline:#f7c1c1;
 --acc:#534ab7;--accbg:#eeedfe;--accline:#cecbf6;--sh:0 6px 24px rgba(28,27,25,.16);--hh:52px;
 --d1:#1F3864;--d2:#33517f;--d3:#4d6c9b;--d4:#7b96bd;--d5:#a3b7d3;--d6:#c8d3e4}
@@ -77,6 +77,18 @@ font:12.5px inherit;padding:5px 8px;border:1px solid var(--line2);border-radius:
 background:#fff;color:var(--ink);box-sizing:border-box}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--navy2);border-color:var(--navy)}
 textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}
+/* THE ClubFlowO WORDMARK — the CapFlowO family treatment, unchanged.
+   Club (navy on light / white on dark) + Flow (Prosperity Orange #F37021)
+   + O (Growth Teal #00A19D). One word, capital C, F and O. The colour
+   assignments never move between elements, and it is never written as three
+   words. Ming's brand rule, carried across from CapFlowO.
+   The family specifies Inter 800; this file loads no webfont on purpose
+   (no build pipeline, and a font is a network dependency on a sideline with
+   no signal), so it renders in the app's own stack at 800. */
+.wm{font-weight:800;letter-spacing:-.5px}
+.wm .f{color:var(--flow)}
+.wm .o{color:var(--flowo)}
+header .wm{color:#fff}
 label.fl{display:block;font-size:11px;color:var(--ink2);margin:0 0 3px}
 .field{margin-bottom:10px}
 .field input,.field select,.field textarea{width:100%}
@@ -516,7 +528,8 @@ word-break:break-all}
 <!-- ────────────────────────── SETUP ────────────────────────── -->
 <template x-if="screen==='setup'">
 <div>
-  <header><div><h1>Coaching Platform</h1><div class="sub">first-time setup</div></div></header>
+  <header><div><h1 class="wm">Club<span class="f">Flow</span><span class="o">O</span></h1>
+    <div class="sub">first-time setup</div></div></header>
   <div id="shell"><div class="stage narrow">
     <div class="panel">
       <div class="rhead"><h2>Connect to your database</h2>
@@ -539,7 +552,8 @@ word-break:break-all}
 <!-- ────────────────────────── SIGN IN ────────────────────────── -->
 <template x-if="screen==='signin'">
 <div>
-  <header><div><h1>Coaching Platform</h1><div class="sub">sign in</div></div></header>
+  <header><div><h1 class="wm">Club<span class="f">Flow</span><span class="o">O</span></h1>
+    <div class="sub">sign in</div></div></header>
   <div id="shell"><div class="stage narrow">
     <div class="panel">
       <div class="rhead"><h2>Sign in</h2>
@@ -563,7 +577,10 @@ word-break:break-all}
 <div>
   <header>
     <div>
-      <h1 x-text="org?.name || 'Coaching Platform'"></h1>
+      <!-- THE CLUB OWNS THE HEADLINE once you are signed in: this is their
+           tool. The product names itself where it introduces itself — the
+           browser title, the sign-in and setup screens, and More…. -->
+      <h1 x-text="org?.name || 'ClubFlowO'"></h1>
       <div class="sub">
         <span x-text="me?.display_name || userEmail"></span>
         <template x-if="me"><span> · <span x-text="me.role.replace('_',' ')"></span>
@@ -589,6 +606,16 @@ word-break:break-all}
         <button class="hb" x-show="stage==='court'" @click="stage='dash'">Back to the club</button>
         <button class="hb" x-show="stage!=='court'" :class="stage==='dash'?'pri':''"
                 @click="openDash()">Dashboard</button>
+        <!-- SEASON IS A SECTION OF ITS OWN. Ming, 19 Aug 2026: "Move Season as a
+             separate header, not just part of the rating." It was a modal
+             reachable only from Rating, which made the outermost scope of the
+             whole product a sub-item of one screen — and the dashboard had to
+             tell a club to go to "Rating → Seasons…" to put a season back in
+             play, which is a sentence that should never have needed writing.
+             It sits second because a season is the first thing a club sets up
+             and everything below is read through it. -->
+        <button class="hb" x-show="stage!=='court'" :class="stage==='season'?'pri':''"
+                @click="openSeason()">Season</button>
         <button class="hb" x-show="stage!=='court'" :class="stage==='players'?'pri':''"
                 @click="openPlayersStage()">Players</button>
         <button class="hb" x-show="stage!=='court'" :class="stage==='admin'?'pri':''"
@@ -746,6 +773,104 @@ word-break:break-all}
           </div>
         </template>
       </div>
+    </template>
+
+    <!-- ══════════════════════ SEASON ══════════════════════
+         Ming, 19 Aug 2026: "Move Season as a separate header, not just part of
+         the rating." A season is the outermost scope in the product — every
+         trial, team, plan, roster and offer is read through one — and it was
+         a modal hanging off the Rating stage. That put the thing everything
+         else depends on inside one of the things that depends on it.
+
+         The SCOPE selector stays on the working stages, because switching
+         scope is something you do WHILE working (ADR-004). This section is
+         where seasons are made, marked current, archived and put back. -->
+    <template x-if="stage==='season'">
+    <div class="panel">
+      <div class="rhead" style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1">
+          <h2>Season</h2>
+          <div class="sub">A season carries the year age is reckoned against. Everything else in
+            the club is read through the one you are working in.</div>
+        </div>
+      </div>
+
+      <div class="statrow">
+        <div><b x-text="seasonRows.filter(r=>!r.archived_at).length"></b>in play</div>
+        <div><b x-text="seasonRows.filter(r=>r.is_current).length"></b>current</div>
+        <div><b x-text="seasonRows.filter(r=>r.archived_at).length"></b>archived</div>
+        <div><b x-text="seasonRows.reduce((a,r)=>a+(r.players||0),0)"></b>player records</div>
+      </div>
+
+      <div class="pbody">
+
+        <p class="note" style="margin-top:0">Every trial belongs to a season, and the season's
+          <b>year</b> is what age eligibility is reckoned against. It is a number the club states —
+          named bands like U12 are an association's own convention and are not assumed here.</p>
+
+        <div class="srow" style="background:#fbfaf8">
+          <div class="row2">
+            <div class="field"><label class="fl">Season name</label>
+              <input type="text" x-model="newSeason.name" placeholder="e.g. Winter 2027"></div>
+            <div class="field"><label class="fl">Year age is reckoned against</label>
+              <input type="number" x-model.number="newSeason.year" min="1900" max="2200"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label class="fl">Starts (optional)</label>
+              <input type="date" x-model="newSeason.starts"></div>
+            <div class="field"><label class="fl">Ends (optional)</label>
+              <input type="date" x-model="newSeason.ends" :min="newSeason.starts"></div>
+          </div>
+          <label class="fl"><input type="checkbox" x-model="newSeason.current"
+                 style="width:auto;margin-right:6px">Make this the current season</label>
+          <div class="inline">
+            <button class="btn pri" @click="createSeason()"
+                    :disabled="!newSeason.name.trim() || !newSeason.year || busy">Add season</button>
+          </div>
+          <p x-show="seasonErr" x-text="seasonErr" class="err"></p>
+        </div>
+
+        <table class="jt" x-show="seasonRows.length" style="margin-top:10px">
+          <thead><tr><th>Season</th><th style="width:60px">Year</th>
+            <th style="width:70px">Trials</th><th style="width:80px">Confirmed</th>
+            <th style="width:70px">Players</th><th style="width:150px"></th></tr></thead>
+          <tbody>
+            <template x-for="r in seasonRows" :key="r.id">
+              <tr :style="r.archived_at?'opacity:.62':''">
+                <td><b x-text="r.name"></b>
+                    <span class="c ok" x-show="r.is_current">current</span>
+                    <span class="c" x-show="r.archived_at">archived</span></td>
+                <td x-text="r.year"></td>
+                <td x-text="r.sessions"></td>
+                <td x-text="r.confirmed_sessions"></td>
+                <td x-text="r.players"></td>
+                <td>
+                  <button class="btn sm" x-show="!r.is_current && !r.archived_at"
+                          @click="makeCurrent(r)">Make current</button>
+                  <!-- ARCHIVING PROTECTS, it does not only hide: an archived
+                       season refuses every new trial, team, plan and offer.
+                       And it is REVERSIBLE — a one-way door gets worked around
+                       by never archiving anything. -->
+                  <button class="btn sm" x-show="!r.archived_at && !r.is_current"
+                          @click="archiveSeason(r, true)">Archive</button>
+                  <button class="btn sm" x-show="r.archived_at"
+                          @click="archiveSeason(r, false)">Put back in play</button>
+                  <button class="btn sm" x-show="!r.archived_at" @click="deleteSeason(r)"
+                          :disabled="r.sessions+r.teams+r.players+r.offers>0">Delete</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <p class="note">A season holding a trial, a team, a player record or an offer is
+          <b>kept</b>. Deleting it would take the year's evaluations with it — <b>archive</b> it
+          instead. An archived season keeps everything and goes read-only: it leaves the working
+          screens, and nothing new can be written against it until you put it back in play.</p>
+        <p class="note" style="margin-top:4px">The <b>current</b> season cannot be archived, and
+          neither can one with a trial still open — close it first, so nobody is left
+          mid-rating.</p>
+      </div>
+    </div>
     </template>
 
     <!-- ══════════════════════ TEAMS ══════════════════════
@@ -1018,7 +1143,7 @@ word-break:break-all}
       </div>
       <p class="note" x-show="!seasons.length">No season yet. Add one from Rating.</p>
       <p class="note" x-show="seasons.length && !dashLive().length">
-        Every season is archived. Put one back in play from <b>Rating → Seasons…</b>, or add a new
+        Every season is archived. Put one back in play from <b>Season</b>, or add a new
         one.</p>
 
       <template x-if="!seasonId">
@@ -1028,7 +1153,7 @@ word-break:break-all}
       <p class="warnbar" style="margin:10px 0 0;border-radius:8px;border:1px solid var(--warnline)"
          x-show="seasonId && (seasons.find(s=>s.id===seasonId)||{}).archived_at">
         This season is archived and read-only. Nothing new can be written against it — put it back
-        in play from <b>Rating → Seasons…</b> if you need to change it.</p>
+        in play from <b>Season</b> if you need to change it.</p>
 
       <template x-if="seasonId">
         <div>
@@ -1698,14 +1823,13 @@ values (
               <option :value="s.id" x-text="seasonOptionLabel(s)"></option>
             </template>
           </select>
-          <button class="btn" @click="modal='seasons'">Seasons…</button>
           <button class="btn" @click="newSession.open=!newSession.open"
                   :disabled="!seasons.length"
                   x-text="newSession.open?'Cancel':'New session'"></button>
         </div>
       </div>
       <p class="warnbar" x-show="!seasons.length">There is no season yet, and a trial has to belong
-        to one. Open <b>Seasons…</b> and create the season you are running.</p>
+        to one. Open <b>Season</b> and create the one you are running.</p>
       <div class="statrow">
         <div><b x-text="sessions.length"></b>sessions</div>
         <div><b x-text="sessions.filter(s=>s.status==='open').length"></b>open</div>
@@ -2658,89 +2782,6 @@ values (
     </div>
   </template>
 
-  <!-- ─────────── SEASONS (modal) ───────────
-       A season carries the YEAR age is reckoned against. That year is stated by
-       the club, not parsed out of the name and not an age-group band — U12 /
-       U14 banding is an association's own convention and differs between them.
-       A season holding anything is kept, never deleted. ── -->
-  <template x-if="modal==='seasons'">
-    <div class="modal" @click.self="modal=''">
-      <div class="box">
-        <div class="mhead"><h3>Seasons</h3>
-          <span class="c" x-text="seasons.length+(seasons.length===1?' season':' seasons')"></span>
-          <button class="x" @click="modal=''" title="Close">×</button></div>
-        <div class="mbody">
-          <p class="note" style="margin-top:0">Every trial belongs to a season, and the season's
-            <b>year</b> is what age eligibility is reckoned against. It is a number the club states —
-            named bands like U12 are an association's own convention and are not assumed here.</p>
-
-          <div class="srow" style="background:#fbfaf8">
-            <div class="row2">
-              <div class="field"><label class="fl">Season name</label>
-                <input type="text" x-model="newSeason.name" placeholder="e.g. Winter 2027"></div>
-              <div class="field"><label class="fl">Year age is reckoned against</label>
-                <input type="number" x-model.number="newSeason.year" min="1900" max="2200"></div>
-            </div>
-            <div class="row2">
-              <div class="field"><label class="fl">Starts (optional)</label>
-                <input type="date" x-model="newSeason.starts"></div>
-              <div class="field"><label class="fl">Ends (optional)</label>
-                <input type="date" x-model="newSeason.ends" :min="newSeason.starts"></div>
-            </div>
-            <label class="fl"><input type="checkbox" x-model="newSeason.current"
-                   style="width:auto;margin-right:6px">Make this the current season</label>
-            <div class="inline">
-              <button class="btn pri" @click="createSeason()"
-                      :disabled="!newSeason.name.trim() || !newSeason.year || busy">Add season</button>
-            </div>
-            <p x-show="seasonErr" x-text="seasonErr" class="err"></p>
-          </div>
-
-          <table class="jt" x-show="seasonRows.length" style="margin-top:10px">
-            <thead><tr><th>Season</th><th style="width:60px">Year</th>
-              <th style="width:70px">Trials</th><th style="width:80px">Confirmed</th>
-              <th style="width:70px">Players</th><th style="width:150px"></th></tr></thead>
-            <tbody>
-              <template x-for="r in seasonRows" :key="r.id">
-                <tr :style="r.archived_at?'opacity:.62':''">
-                  <td><b x-text="r.name"></b>
-                      <span class="c ok" x-show="r.is_current">current</span>
-                      <span class="c" x-show="r.archived_at">archived</span></td>
-                  <td x-text="r.year"></td>
-                  <td x-text="r.sessions"></td>
-                  <td x-text="r.confirmed_sessions"></td>
-                  <td x-text="r.players"></td>
-                  <td>
-                    <button class="btn sm" x-show="!r.is_current && !r.archived_at"
-                            @click="makeCurrent(r)">Make current</button>
-                    <!-- ARCHIVING PROTECTS, it does not only hide: an archived
-                         season refuses every new trial, team, plan and offer.
-                         And it is REVERSIBLE — a one-way door gets worked around
-                         by never archiving anything. -->
-                    <button class="btn sm" x-show="!r.archived_at && !r.is_current"
-                            @click="archiveSeason(r, true)">Archive</button>
-                    <button class="btn sm" x-show="r.archived_at"
-                            @click="archiveSeason(r, false)">Put back in play</button>
-                    <button class="btn sm" x-show="!r.archived_at" @click="deleteSeason(r)"
-                            :disabled="r.sessions+r.teams+r.players+r.offers>0">Delete</button>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-          <p class="note">A season holding a trial, a team, a player record or an offer is
-            <b>kept</b>. Deleting it would take the year's evaluations with it — <b>archive</b> it
-            instead. An archived season keeps everything and goes read-only: it leaves the working
-            screens, and nothing new can be written against it until you put it back in play.</p>
-          <p class="note" style="margin-top:4px">The <b>current</b> season cannot be archived, and
-            neither can one with a trial still open — close it first, so nobody is left
-            mid-rating.</p>
-          <p x-show="seasonErr" x-text="seasonErr" class="err"></p>
-        </div>
-      </div>
-    </div>
-  </template>
-
   <!-- ─────────── RATE (modal) ─────────── -->
   <template x-if="modal==='rate'">
     <div class="modal" @click.self="modal=''">
@@ -2893,6 +2934,10 @@ values (
         <div class="mhead"><h3>More</h3>
           <button class="x" @click="modal=''" title="Close">×</button></div>
         <div class="mbody">
+          <!-- where the product names itself -->
+          <p class="note" style="margin-top:0">
+            <span class="wm" style="font-size:15px;color:var(--navy)">Club<span class="f">Flow</span><span class="o">O</span></span>
+            <span style="margin-left:6px">v0.1</span></p>
           <div class="cath">This session</div>
           <dl class="kv">
             <dt>Signed in as</dt><dd x-text="userEmail"></dd>
@@ -3160,6 +3205,25 @@ function app(){ return {
   // The team NAME is club-level; what is edited here is its roster for the
   // SELECTED SEASON. A player sits in one team per age group and may be placed
   // in as many age groups as the club wants — that is the fill-in case.
+  //  A LINK INTO A SECTION MUST LOAD THAT SECTION FIRST. `seasonRows` comes from
+  //  `v_season_summary` and is what the whole stage counts off.
+  async openSeason(){
+    this.stage='season'; this.seasonErr='';
+    await this.loadSeasons();
+  },
+  async loadSeasons(){
+    if(!this.org) return;
+    //  Sorted here rather than with .order(), so this loader asks the client for
+    //  nothing more than select() — the same shape every other loader uses.
+    const q = async (t) => {
+      const {data,error} = await this.sb.from(t).select('*');
+      if(error){ this.seasonErr = t+': '+error.message; return []; }
+      return (data||[]).slice().sort((a,b)=>(a.year||0)-(b.year||0)
+        || String(a.name||'').localeCompare(String(b.name||'')));
+    };
+    this.seasons    = await q('season');
+    this.seasonRows = await q('v_season_summary');
+  },
   async openTeams(){
     this.stage='teams'; this.tm.err='';
     await this.loadTeams();
