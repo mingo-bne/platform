@@ -750,7 +750,7 @@ word-break:break-all}
         </div>
         <div class="inline" style="margin:0">
           <select x-model="seasonId" @change="onSeasonChange(); loadTeams()" style="width:auto">
-            <template x-for="s in seasons" :key="s.id">
+            <template x-for="s in seasonsForWork()" :key="s.id">
               <option :value="s.id" x-text="seasonOptionLabel(s)"></option>
             </template>
           </select>
@@ -973,20 +973,30 @@ word-break:break-all}
         </template>
       </div>
       <div class="inline" style="margin:6px 0 0" x-show="dashOlder().length">
-        <label class="fl" style="margin:0">Earlier seasons</label>
+        <label class="fl" style="margin:0"
+               x-text="dashArchived() ? 'Earlier and archived seasons' : 'Earlier seasons'"></label>
         <select style="width:auto"
                 @change="if($event.target.value){seasonId=$event.target.value; onSeasonChange(); openDash()}">
           <option value="">—</option>
           <template x-for="s in dashOlder()" :key="s.id">
-            <option :value="s.id" x-text="seasonOptionLabel(s)" :selected="s.id===seasonId"></option>
+            <option :value="s.id" :selected="s.id===seasonId"
+                    x-text="seasonOptionLabel(s)+(s.archived_at?' · archived':'')"></option>
           </template>
         </select>
       </div>
       <p class="note" x-show="!seasons.length">No season yet. Add one from Rating.</p>
+      <p class="note" x-show="seasons.length && !dashLive().length">
+        Every season is archived. Put one back in play from <b>Rating → Seasons…</b>, or add a new
+        one.</p>
 
       <template x-if="!seasonId">
         <div class="empty">Choose a season — everything here is read through one.</div>
       </template>
+
+      <p class="warnbar" style="margin:10px 0 0;border-radius:8px;border:1px solid var(--warnline)"
+         x-show="seasonId && (seasons.find(s=>s.id===seasonId)||{}).archived_at">
+        This season is archived and read-only. Nothing new can be written against it — put it back
+        in play from <b>Rating → Seasons…</b> if you need to change it.</p>
 
       <template x-if="seasonId">
         <div>
@@ -1070,7 +1080,7 @@ word-break:break-all}
         </div>
         <div class="inline" style="margin:0">
           <select x-model="seasonId" @change="onSeasonChange(); loadFormation()" style="width:auto">
-            <template x-for="s in seasons" :key="s.id">
+            <template x-for="s in seasonsForWork()" :key="s.id">
               <option :value="s.id" x-text="seasonOptionLabel(s)" :selected="s.id===seasonId"></option>
             </template>
           </select>
@@ -1652,7 +1662,7 @@ values (
         <div class="inline" style="margin:0">
           <select x-model="seasonId" @change="onSeasonChange()" style="width:auto"
                   :disabled="!seasons.length">
-            <template x-for="s in seasons" :key="s.id">
+            <template x-for="s in seasonsForWork()" :key="s.id">
               <option :value="s.id" x-text="seasonOptionLabel(s)"></option>
             </template>
           </select>
@@ -2571,17 +2581,26 @@ values (
               <th style="width:70px">Players</th><th style="width:150px"></th></tr></thead>
             <tbody>
               <template x-for="r in seasonRows" :key="r.id">
-                <tr>
+                <tr :style="r.archived_at?'opacity:.62':''">
                   <td><b x-text="r.name"></b>
-                      <span class="c ok" x-show="r.is_current">current</span></td>
+                      <span class="c ok" x-show="r.is_current">current</span>
+                      <span class="c" x-show="r.archived_at">archived</span></td>
                   <td x-text="r.year"></td>
                   <td x-text="r.sessions"></td>
                   <td x-text="r.confirmed_sessions"></td>
                   <td x-text="r.players"></td>
                   <td>
-                    <button class="btn sm" x-show="!r.is_current"
+                    <button class="btn sm" x-show="!r.is_current && !r.archived_at"
                             @click="makeCurrent(r)">Make current</button>
-                    <button class="btn sm" @click="deleteSeason(r)"
+                    <!-- ARCHIVING PROTECTS, it does not only hide: an archived
+                         season refuses every new trial, team, plan and offer.
+                         And it is REVERSIBLE — a one-way door gets worked around
+                         by never archiving anything. -->
+                    <button class="btn sm" x-show="!r.archived_at && !r.is_current"
+                            @click="archiveSeason(r, true)">Archive</button>
+                    <button class="btn sm" x-show="r.archived_at"
+                            @click="archiveSeason(r, false)">Put back in play</button>
+                    <button class="btn sm" x-show="!r.archived_at" @click="deleteSeason(r)"
                             :disabled="r.sessions+r.teams+r.players+r.offers>0">Delete</button>
                   </td>
                 </tr>
@@ -2589,7 +2608,13 @@ values (
             </tbody>
           </table>
           <p class="note">A season holding a trial, a team, a player record or an offer is
-            <b>kept</b>. Deleting it would take the year's evaluations with it.</p>
+            <b>kept</b>. Deleting it would take the year's evaluations with it — <b>archive</b> it
+            instead. An archived season keeps everything and goes read-only: it leaves the working
+            screens, and nothing new can be written against it until you put it back in play.</p>
+          <p class="note" style="margin-top:4px">The <b>current</b> season cannot be archived, and
+            neither can one with a trial still open — close it first, so nobody is left
+            mid-rating.</p>
+          <p x-show="seasonErr" x-text="seasonErr" class="err"></p>
         </div>
       </div>
     </div>
@@ -2932,7 +2957,15 @@ function app(){ return {
     const n = this.allSessions.filter(x => x.season_id === s.id).length;
     return s.name
          + (n ? ' · ' + n + (n===1 ? ' trial' : ' trials') : ' · empty')
-         + (s.is_current ? ' · current' : '');
+         + (s.is_current ? ' · current' : '')
+         + (s.archived_at ? ' · archived' : '');
+  },
+  //  A WORKING SCREEN OFFERS ONLY SEASONS IN PLAY. Nothing can be written to an
+  //  archived one, so listing it as a scope invites a click that ends in a
+  //  refusal. The one already selected stays in the list whatever its state, so
+  //  arriving from the dashboard on an archived season does not silently jump.
+  seasonsForWork(){
+    return (this.seasons||[]).filter(s => !s.archived_at || s.id === this.seasonId);
   },
   elsewhereSeasons(){
     return this.seasons.filter(s =>
@@ -2972,6 +3005,28 @@ function app(){ return {
     if(error){ this.seasonErr=error.message; return; }
     this.seasonId = r.id;
     await this.load();
+  },
+  //  Archiving a season puts it away AND makes it read-only. Reversible on
+  //  purpose: a club that finds a mistake puts it back in play, fixes it, and
+  //  archives it again. The database refuses archiving the current season, or
+  //  one with a trial still open — both messages come back verbatim.
+  async archiveSeason(r, on){
+    this.seasonErr='';
+    if(on && !confirm('Archive ' + r.name + '?\n\nIt keeps everything and goes read-only — no new '
+        + 'trials, teams, plans or offers — and leaves the working screens. You can put it back in '
+        + 'play at any time.')) return;
+    const {error} = await this.sb.from('season').update(
+      on ? {archived_at:new Date().toISOString(), archived_by:this.me?.id||null}
+         : {archived_at:null, archived_by:null}
+    ).eq('id', r.id);
+    if(error){ this.seasonErr = error.message; return; }
+    //  the scope may have just been archived out from under the screens
+    if(on && this.seasonId === r.id){
+      const live = this.seasons.filter(x => x.id !== r.id && !x.archived_at);
+      this.seasonId = (live.find(x => x.is_current) || live[0] || {}).id || '';
+    }
+    await this.load();
+    if(this.stage === 'dash') await this.openDash();
   },
   async deleteSeason(r){
     this.seasonErr='';
@@ -3130,14 +3185,26 @@ function app(){ return {
   //  ACCUMULATES them — so the most recent few are cards and the rest sit
   //  behind one control. Ordered by the year age is reckoned at, newest first,
   //  with the current season pulled to the front of its year.
-  dashSeasonOrder(){
-    return (this.seasons||[]).slice().sort((a,b) =>
+  dashSeasonOrder(list){
+    return (list||[]).slice().sort((a,b) =>
       (b.year||0) - (a.year||0)
       || (b.is_current?1:0) - (a.is_current?1:0)
       || String(a.name).localeCompare(String(b.name)));
   },
-  dashSeasons(){ return this.dashSeasonOrder().slice(0, 4); },
-  dashOlder(){ return this.dashSeasonOrder().slice(4); },
+  //  IN PLAY — which is exactly "current and future" once a club archives what
+  //  is past. Ming, 19 Aug 2026. It needs no date arithmetic, and it must not
+  //  have any: `season.year` is a number the CLUB states, never the wall-clock
+  //  year, so "future" cannot be inferred from a clock without breaking the rule
+  //  that keeps age eligibility honest. The club says what is finished.
+  dashLive(){ return this.dashSeasonOrder((this.seasons||[]).filter(s => !s.archived_at)); },
+  dashSeasons(){ return this.dashLive().slice(0, 4); },
+  //  Seasons ACCUMULATE even unarchived — a club five years in that has never
+  //  tidied up still gets a readable screen.
+  dashOlder(){
+    return this.dashLive().slice(4)
+      .concat(this.dashSeasonOrder((this.seasons||[]).filter(s => s.archived_at)));
+  },
+  dashArchived(){ return (this.seasons||[]).filter(s => s.archived_at).length; },
   //  What is actually in a season, so a card is worth pressing rather than just
   //  a name. Read from v_season_summary, which already counts these.
   dashSeasonSub(s){
