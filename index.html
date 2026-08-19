@@ -361,6 +361,37 @@ word-break:break-all}
 .fbt tr:last-child td{border-bottom:0}
 .fbt .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
 .fbt .num{text-align:right;font-variant-numeric:tabular-nums}
+/* the proposal — one card per team, each read against ITS OWN band's number */
+.fsq{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px;margin-top:10px}
+.fsqc{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:11px 12px}
+.fsqc.over{border-color:#d9a441;background:#fffdf7}
+.fsqh{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:7px}
+.fsqh b{font-size:13.5px;color:var(--navy)}
+.fsqm{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--ink3);
+ padding-bottom:7px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.fsqm b{color:var(--ink);font-variant-numeric:tabular-nums}
+.fsqm .off{color:#b06a00;font-weight:650}
+.fsqm .ref{margin-left:auto;font-style:italic}
+.fsqt{width:100%;border-collapse:collapse;font-size:12px}
+.fsqt td{padding:2.5px 4px;border-bottom:1px solid #f0efec}
+.fsqt tr:last-child td{border-bottom:0}
+.fsqt .num{text-align:right;font-variant-numeric:tabular-nums;width:1%;white-space:nowrap}
+/* the shape: every category written out, never encoded by colour alone */
+.fsqs{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;padding-top:7px;
+ border-top:1px solid var(--line);font-size:10.5px;color:var(--ink3)}
+.fsqs span{display:inline-flex;gap:4px;align-items:baseline}
+.fsqs b{color:var(--ink);font-variant-numeric:tabular-nums}
+.fsqs i{font-style:normal;font-variant-numeric:tabular-nums;opacity:.75}
+.fsqs .off i,.fsqs .off b{color:#b06a00;font-weight:650}
+/* naming the divisions — a panel inside the setup, not a second modal */
+.fnm{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:11px 13px;margin-top:10px}
+.fnmh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:8px}
+.fnmh b{font-size:13px;color:var(--navy)}
+.fnmp{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-bottom:9px;
+ border-bottom:1px solid var(--line)}
+.fnmp .fl{margin:0;font-size:11px}
+.fnm code{background:#f0efec;padding:1px 4px;border-radius:3px;font-size:11px}
+.fnm .fbt{margin-top:4px}
 .ftms{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 .ftm{display:inline-flex;align-items:center;gap:5px;background:var(--navy2);border:1px solid #b9c7de;
  color:var(--navy);font-weight:600;font-size:12px;padding:3px 5px 3px 10px;border-radius:20px}
@@ -1752,7 +1783,7 @@ values (
           <span class="c" x-show="fp.saved" x-text="fp.saved"></span>
           <button class="x" @click="modal=''" title="Close">×</button>
         </div>
-        <div class="mbody">
+        <div class="mbody" x-show="fp.phase==='setup'">
 
           <div class="cath">What the teams are graded on</div>
           <div class="fbasis">
@@ -1778,10 +1809,47 @@ values (
             </template>
             <select x-model.number="fp.newdiv" style="width:auto">
               <template x-for="d in [1,2,3,4,5,6,7,8]" :key="d">
-                <option :value="d" x-text="'Div '+d" :selected="d===fp.newdiv"></option>
+                <option :value="d" x-text="fDivLabel(d)" :selected="d===fp.newdiv"></option>
               </template>
             </select>
             <button class="btn sm" @click="fAddTeam(fp.newdiv)">Enter a team</button>
+            <button class="btn sm" style="margin-left:auto" @click="fNameOpen()">Division names…</button>
+          </div>
+
+          <!-- ── what the association calls each division ────────────────────
+               The RANK orders and bands; this is only what gets printed. Club-
+               wide, because a division is the association's competition — rank 3
+               is the same competition in U12 as in U18. ── -->
+          <div class="fnm" x-show="fp.naming" x-cloak>
+            <div class="fnmh">
+              <b>What your association calls each division</b>
+              <span class="c">applies everywhere, not just <span x-text="fp.group"></span></span>
+            </div>
+            <div class="fnmp">
+              <label class="fl">Everything you have not named</label>
+              <input type="text" x-model="fp.pattern" placeholder="Div {n}" style="width:150px">
+              <span class="note" style="margin:0">
+                <code>{n}</code> is the number. <b x-text="fNameFallback(4)"></b> for division 4.</span>
+            </div>
+            <table class="fbt">
+              <tr><th>Rank</th><th>What you call it</th><th></th></tr>
+              <template x-for="d in fNameRanks()" :key="d">
+                <tr>
+                  <td class="num" x-text="d"></td>
+                  <td><input type="text" :value="fp.names[String(d)]||''"
+                             @input="fNameSet(d,$event.target.value)"
+                             :placeholder="fNameFallback(d)" style="width:210px"></td>
+                  <td><span class="c" x-show="!fp.names[String(d)]">using the pattern</span></td>
+                </tr>
+              </template>
+            </table>
+            <p class="note" style="margin-bottom:6px" x-show="!fNameRanks().length">
+              Enter a team above and its division will appear here to be named.</p>
+            <div class="inline">
+              <button class="btn pri sm" @click="fSaveNames()" :disabled="fp.busy">Save the names</button>
+              <button class="btn sm" @click="fp.naming=false">Cancel</button>
+              <span class="c bad" x-show="fp.namesErr" x-text="fp.namesErr"></span>
+            </div>
           </div>
           <p class="note">Enter the divisions the association actually offers you — they do not have
             to run 1, 2, 3. <b>Two teams entered in the same division share one band</b> and are
@@ -1854,12 +1922,94 @@ values (
           </table>
         </div>
 
+        <!-- ── the proposal ──────────────────────────────────────────────────
+             The engine ran on the server (edge/formation). Every team is shown
+             against the number ITS BAND set, not against the other teams: two
+             sides in the same division are peers, sides in different divisions
+             are not comparable and never should be shown as if they were. ── -->
+        <div class="mbody" x-show="fp.phase==='proposal' && fp.result">
+          <div class="cath">What this plan builds</div>
+          <p class="note" style="margin-top:0">
+            <b x-text="fp.result?.squads.length + ' teams'"></b> ·
+            <span x-text="fp.result?.placed + ' of ' + (fp.result?.placed + (fp.result?.unplaced.length||0)) + ' players placed'"></span>
+            <span x-show="fp.result?.exchanged"
+                  x-text="' · ' + fp.result?.exchanged + ' exchanged across a line for shape'"></span>
+          </p>
+
+          <div class="fsq">
+            <!-- keyed on POSITION, not on anything the engine numbers. A duplicate
+                 key makes Alpine silently reuse one card for two teams — a whole
+                 squad vanishes and the one left shows the other's flags. -->
+            <template x-for="(s,si) in (fp.result?.squads||[])" :key="si">
+              <div class="fsqc" :class="s.over_cap?'over':''">
+                <div class="fsqh">
+                  <b x-text="fSquadName(s)"></b>
+                  <span class="c" x-text="s.players.length+' players'"></span>
+                  <span class="c wn" x-show="s.over_cap"
+                        x-text="'over the cap of '+fp.result.cap"></span>
+                </div>
+                <div class="fsqm">
+                  <span>target <b x-text="fp.result.basis==='points'
+                        ? Math.round(s.target_total)+' pts' : f2(s.target)"></b></span>
+                  <span>actual <b x-text="fp.result.basis==='points'
+                        ? Math.round(s.total)+' pts' : f2(s.average)"></b></span>
+                  <span :class="Math.abs(fDev(s))>0.12?'off':''"
+                        x-text="(fDev(s)>=0?'+':'−')+f2(Math.abs(fDev(s)))+' off'"></span>
+                  <span class="ref" x-text="fRefText(s)"></span>
+                </div>
+                <table class="fsqt">
+                  <template x-for="p in s.players" :key="p.person_id">
+                    <tr>
+                      <td x-text="p.given_name+' '+p.family_name"></td>
+                      <td class="num" x-text="p.age"></td>
+                      <td class="num"><b x-text="fp.result.basis==='points'
+                            ? (p.ppg==null?'—':(Math.round(p.ppg*10)/10).toFixed(1))
+                            : (p.rating==null?'—':f2(p.rating))"></b></td>
+                      <td><span class="c" x-show="p.locked">held</span></td>
+                    </tr>
+                  </template>
+                </table>
+                <div class="fsqs">
+                  <template x-for="c in s.shape" :key="c.i">
+                    <span :class="Math.abs(c.dev)>0.35?'off':''">
+                      <span x-text="c.label"></span>
+                      <b x-text="f2(c.got)"></b>
+                      <i x-text="(c.dev>=0?'+':'−')+f2(Math.abs(c.dev))"></i>
+                    </span>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- NOBODY IS DROPPED SILENTLY. Everyone the engine could not place is
+               named here with the reason, never left out of the count. -->
+          <div x-show="fp.result?.unplaced.length">
+            <div class="cath">Not placed — and why</div>
+            <table class="fbt">
+              <template x-for="u in (fp.result?.unplaced||[])" :key="u.person_id">
+                <tr><td x-text="u.name"></td><td x-text="u.reason"></td></tr>
+              </template>
+            </table>
+          </div>
+
+          <p class="note">Same plan, same teams, every time — the engine is a deterministic
+            solver, not a guess. <b>Build again</b> after moving a line will change the teams;
+            it will not shuffle them for no reason.</p>
+        </div>
+
         <div class="mfoot">
-          <button class="btn pri" @click="fSavePlan()" :disabled="fp.busy">Save this plan</button>
+          <button class="btn pri" x-show="fp.phase==='setup'"
+                  @click="fGenerate()" :disabled="fp.busy || !fp.teams.length">Build the rosters</button>
+          <button class="btn" x-show="fp.phase==='setup'"
+                  @click="fSavePlan()" :disabled="fp.busy">Save without building</button>
+          <button class="btn" x-show="fp.phase==='proposal'" @click="fp.phase='setup'">← Change the plan</button>
+          <button class="btn" x-show="fp.phase==='proposal'" @click="fGenerate()" :disabled="fp.busy">Build again</button>
           <button class="btn" @click="modal=''">Close</button>
-          <span class="c" x-show="fp.busy">saving…</span>
-          <span class="note" style="margin:0;margin-left:auto">Building the teams from this plan is
-            the next step and is not wired yet.</span>
+          <span class="c" x-show="fp.busy">working…</span>
+          <span class="note" style="margin:0;margin-left:auto" x-show="fp.err" x-text="fp.err"></span>
+          <span class="note" style="margin:0;margin-left:auto" x-show="!fp.err && fp.phase==='proposal'">
+            Naming these teams and making the offers is the next step.</span>
         </div>
       </div>
     </div>
@@ -2464,7 +2614,9 @@ function app(){ return {
   //  off the band they cut. That is the whole of ADR-007: a number typed at a
   //  cohort can be unreachable, a number read off it never is.
   fp:{group:'', basis:'rating', teams:[], cuts:[], cap:10, min:8, lock:true,
-      newdiv:1, err:'', busy:false, saved:'', plans:[], scoring:[], drag:null},
+      newdiv:1, err:'', busy:false, saved:'', plans:[], scoring:[], drag:null,
+      phase:'setup', result:null,
+      naming:false, names:{}, pattern:'Div {n}', namesErr:''},
 
   async openFormation(){
     this.stage='formation'; this.fp.err='';
@@ -2541,21 +2693,86 @@ function app(){ return {
   fPct(v){ const a=this.fAxis(); return ((v-a.lo)/(a.hi-a.lo))*100; },
   fFx(v){ const a=this.fAxis();
     return a.dp===1 ? (Math.round(v*10)/10).toFixed(1)+a.unit : (Math.round(v*100)/100).toFixed(2); },
-  fDivLabel(d){ return d==null ? 'Ungraded' : ((this.clubCfg?.division_label||'Div')+' '+d); },
+  // org_profile.division_label is a PATTERN, not a prefix — 'Div {n}', 'Grade {n}',
+  // 'A{n}' — exactly like age_group_label 'U{n}'. Substitute; only fall back to
+  // appending when a club has typed a pattern with no placeholder in it.
+  //  A name the club has typed wins; otherwise the pattern with {n} substituted.
+  //  The RANK still orders and bands — this is only what gets printed.
+  fDivLabel(d){
+    if(d==null) return 'Ungraded';
+    const named=(this.clubCfg?.division_names||{})[String(d)];
+    if(named && String(named).trim()) return String(named).trim();
+    const pat=(this.clubCfg?.division_label||'Div {n}').trim();
+    return pat.includes('{n}') ? pat.replace(/\{n\}/g,d) : (pat+' '+d);
+  },
+
+  // ── what this association calls its divisions ────────────────────────────
+  //  Club-wide, because a division is the association's competition and rank 3
+  //  means the same thing in U12 as in U18. Edited here because here is where a
+  //  club looks at the names.
+  fNameOpen(){
+    this.fp.names = {...(this.clubCfg?.division_names||{})};
+    this.fp.pattern = this.clubCfg?.division_label || 'Div {n}';
+    this.fp.namesErr=''; this.fp.naming=true;
+  },
+  //  Every rank this club has anywhere — the plans, the teams entered, and the
+  //  chips being edited right now — so nothing in use is missing from the list.
+  fNameRanks(){
+    const r=new Set();
+    (this.fp.plans||[]).forEach(p=>(p.teams||[]).forEach(d=>d!=null&&r.add(+d)));
+    (this.teamSeasons||[]).forEach(t=>t.division_rank!=null&&r.add(+t.division_rank));
+    (this.fp.teams||[]).forEach(d=>d!=null&&r.add(+d));
+    return [...r].sort((a,b)=>a-b);
+  },
+  fNameSet(d,v){
+    const n={...this.fp.names};
+    if(String(v||'').trim()) n[String(d)]=String(v).trim(); else delete n[String(d)];
+    this.fp.names=n;
+  },
+  //  What the pattern would give — shown beside an empty field so a club can see
+  //  what it is overriding before it types.
+  fNameFallback(d){
+    const pat=(this.fp.pattern||'Div {n}').trim();
+    return pat.includes('{n}') ? pat.replace(/\{n\}/g,d) : (pat+' '+d);
+  },
+  async fSaveNames(){
+    this.fp.busy=true; this.fp.namesErr='';
+    const {error} = await this.sb.from('org_profile')
+      .update({division_names:this.fp.names, division_label:(this.fp.pattern||'Div {n}').trim()})
+      .eq('org_id', this.org.id);
+    this.fp.busy=false;
+    if(error){ this.fp.namesErr=error.message; return; }
+    this.clubCfg={...this.clubCfg, division_names:this.fp.names,
+                  division_label:(this.fp.pattern||'Div {n}').trim()};
+    this.fp.naming=false;
+  },
 
   // ── the plan for one age group ───────────────────────────────────────────
   fPlan(g){
     return this.fp.plans.find(p=>p.age_group===g)
-      || {age_group:g, basis:'rating', cuts:[], cuts_other:[],
+      || {age_group:g, basis:'rating', teams:[], cuts:[], cuts_other:[],
           squad_cap:this.fCfg().cap, min_field:8};
   },
+  //  The teams the club intends to ENTER, which is the plan's own list — naming
+  //  them happens afterwards (ADR-008), so this cannot be read off the named
+  //  teams. Before a plan exists, the named teams are the best available guess
+  //  and seed it.
   fTeamsOf(g){
+    const p=this.fp.plans.find(x=>x.age_group===g);
+    if(p && p.teams && p.teams.length) return p.teams.slice().sort((a,b)=>a-b);
     return this.teamSeasons.filter(ts=>ts.age_group===g)
       .map(ts=>ts.division_rank).filter(d=>d!=null).sort((a,b)=>a-b);
   },
+  //  The row is narrow, so the word is said once — 'Div 1 · 3 · 4' — but only when
+  //  the club's pattern actually ENDS in the number. 'A{n} Grade' cannot be
+  //  collapsed that way, so every team is labelled in full instead.
   fTeamsLabel(g){
     const t=this.fTeamsOf(g);
-    return t.length ? (this.clubCfg?.division_label||'Div')+' '+t.join(' · ') : 'no teams entered';
+    if(!t.length) return 'no teams entered';
+    const pat=(this.clubCfg?.division_label||'Div {n}').trim();
+    if(pat.endsWith('{n}'))
+      return pat.replace(/\{n\}$/,'').trim()+' '+t.join(' · ');
+    return t.map(d=>this.fDivLabel(d)).join(' · ');
   },
   fGroupSub(g){
     const ps=this.fPoolOf(g);
@@ -2643,8 +2860,9 @@ function app(){ return {
     const p=this.fPlan(g);
     this.fp.group=g; this.fp.basis=p.basis||'rating';
     this.fp.cap=p.squad_cap||this.fCfg().cap; this.fp.min=p.min_field||8;
+    this.fp.lock=p.lock_placed!==false;
     this.fp.teams=this.fTeamsOf(g).slice();
-    this.fp.saved=''; this.fp.err='';
+    this.fp.saved=''; this.fp.err=''; this.fp.phase='setup'; this.fp.result=null;
     this.fp.cuts=(p.cuts||[]).map(Number);
     if(this.fp.cuts.length !== this.fBandsOf(this.fp.teams,[],g).length-1) this.fEvenCounts();
     this.modal='formation';
@@ -2701,7 +2919,8 @@ function app(){ return {
   async fSavePlan(){
     this.fp.busy=true; this.fp.err=''; this.fp.saved='';
     const row={ org_id:this.org.id, season_id:this.seasonId, age_group:this.fp.group,
-      basis:this.fp.basis, cuts:this.fp.cuts, squad_cap:this.fp.cap, min_field:this.fp.min,
+      basis:this.fp.basis, teams:this.fp.teams, cuts:this.fp.cuts,
+      squad_cap:this.fp.cap, min_field:this.fp.min, lock_placed:!!this.fp.lock,
       updated_by:this.me?.id||null };
     const {error} = await this.sb.from('formation_plan')
       .upsert(row, {onConflict:'season_id,age_group'});
@@ -2709,6 +2928,41 @@ function app(){ return {
     if(error){ this.fp.err=error.message; return; }
     this.fp.saved='saved';
     await this.loadFormation();
+    return true;
+  },
+
+  //  THE ENGINE IS NOT IN THIS FILE. It runs as an edge function because this
+  //  file is served from a public repository — see CLAUDE.md. The plan is saved
+  //  first so the engine reads what is on screen rather than what was last
+  //  written, and so a proposal can always be explained by a stored plan.
+  async fGenerate(){
+    this.fp.err=''; this.fp.result=null; this.fp.busy=true;
+    const ok = await this.fSavePlan();
+    if(!ok){ this.fp.busy=false; return; }
+    this.fp.busy=true;
+    const {data,error} = await this.sb.functions.invoke('formation',
+      {body:{season_id:this.seasonId, age_group:this.fp.group}});
+    this.fp.busy=false;
+    if(error){
+      //  The function returns its reason in the body; supabase-js only gives a
+      //  status on the error, so read the body before falling back to it.
+      let msg = error.message;
+      try{ const b = await error.context?.json?.(); if(b?.error) msg=b.error; }catch(e){}
+      this.fp.err = msg; return;
+    }
+    if(data?.error){ this.fp.err=data.error; return; }
+    this.fp.result=data; this.fp.phase='proposal';
+  },
+  fSquadName(s){
+    return this.fDivLabel(s.division_rank) +
+      (this.fp.result.squads.filter(x=>x.division_rank===s.division_rank).length>1
+        ? ' · team '+s.ordinal : '');
+  },
+  fDev(s){ return s.average - s.target; },
+  fRefText(s){
+    const r=s.reference; if(!r) return '';
+    const v = r.label==='coach rating' ? this.f2(r.value) : Math.round(r.value)+' pts/game';
+    return r.label+' '+v + (r.covered===r.of ? '' : ' ('+r.covered+' of '+r.of+' on record)');
   },
 
   ageGroupsInSeason(){
@@ -2771,9 +3025,16 @@ function app(){ return {
       if(error){ this.tm.err=error.message; this.tm.busy=false; return; }
       team = data;
     }
+    //  A division is a RANK and a printable LABEL. What is typed is what gets
+    //  printed; the digits in it are what orders and bands. Without the rank this
+    //  team is invisible to Formation, which reads the rank and nothing else.
+    const divText = this.tm.div.trim();
+    const divRank = divText ? (divText.match(/\d+/)||[null])[0] : null;
     const {error} = await this.sb.from('team_season').insert({
       org_id:this.org.id, season_id:this.seasonId, team_id:team.id,
-      age_group:this.tm.grp || null, division:this.tm.div.trim() || null});
+      age_group:this.tm.grp || null, division:divText || null,
+      division_label:divText || null,
+      division_rank:divRank!==null ? Number(divRank) : null});
     this.tm.busy=false;
     if(error){
       this.tm.err = /team_season_season_id_team_id_key/.test(error.message)
