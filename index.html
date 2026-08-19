@@ -2232,7 +2232,7 @@ values (
 
           <div class="sq">
             <template x-for="(s,si) in (fp.result?.squads||[])" :key="si">
-              <div class="sqc" :class="(s.players.length<fp.min || s.over_cap)?'short':''">
+              <div class="sqc" :class="s.over_cap?'short':''">
                 <div class="sqh">
                   <!-- EVERY standing team is offered on EVERY roster; assigning one
                        twice is flagged, never prevented (ADR-008). -->
@@ -2258,8 +2258,6 @@ values (
                     <span class="c bad" x-show="!s.players.length">nobody in this band</span>
                     <span class="c bad" x-show="s.over_cap"
                           x-text="(s.players.length-fp.result.cap)+' over the cap of '+fp.result.cap"></span>
-                    <span class="c wn" x-show="!s.over_cap && s.players.length && s.players.length<fp.min"
-                          x-text="'under '+fp.min"></span>
                     <span class="c bad" x-show="fAssignedTwice(s)">this team is assigned twice</span>
                     <span class="c acc" x-show="s.from_rating"
                           x-text="s.from_rating+' by rating'"></span>
@@ -2339,7 +2337,11 @@ values (
 
           <div class="cmp">
             <template x-for="col in fBoard()" :key="col.ci">
-              <div class="col" :class="(col.players.length>fp.cap||col.players.length<fp.min)?'warn':''"
+              <!-- Only OVER the cap is flagged. Ming, 19 Aug 2026: "I don't want
+                   under 8 shown for team less than 8 players, player count shown
+                   is already enough." And the border follows the chip — a warn
+                   border with no chip beside it would be colour alone. -->
+              <div class="col" :class="col.players.length>fp.cap?'warn':''"
                    @dragover.prevent @drop.prevent="fDrop($event,col.ci)">
                 <div class="colh">
                   <b x-text="fShortName(col.team)||fDivLabel(col.division_rank)"></b>
@@ -2347,13 +2349,9 @@ values (
                     <span class="c grp" x-text="fDivLabel(col.division_rank)"></span>
                     <span class="c" x-text="col.players.length+' players'"></span>
                     <span class="c" :class="fColOff(col)?'wn':'ok'" x-text="fColVs(col)"></span>
-                    <template x-if="fColRef(col)">
-                      <span class="c"><span x-text="fColRef(col).label"></span>
-                        <b x-text="fColRef(col).text"></b></span>
-                    </template>
+                    <span class="c" x-show="col.ref"><span x-text="col.ref?.label"></span>
+                      <b x-text="col.ref?.text"></b></span>
                     <span class="c bad" x-show="col.players.length>fp.cap">over the cap</span>
-                    <span class="c wn" x-show="col.players.length && col.players.length<fp.min"
-                          x-text="'under '+fp.min"></span>
                     <span class="c acc" x-show="col.moveIn||col.moveOut"
                           x-text="(col.moveIn?'+'+col.moveIn:'')
                                  +((col.moveIn&&col.moveOut)?' ':'')
@@ -3768,6 +3766,12 @@ function app(){ return {
       });
       return {...col, ci, slots:buckets,
         title:buckets.map(z=>z.n+' '+z.t).join(' · '),
+        //  DERIVED HERE, NOT IN THE MARKUP. Called from inside an x-if in the
+        //  column header it was captured in a child scope Alpine had already
+        //  settled, so a hand move changed the average beside it and left the
+        //  projected score on the frozen proposal's number. Same defect as the
+        //  eleven-names-under-a-header-of-ten: one derivation, nothing to drift.
+        ref:this.fColRef(col),
         moveIn:col.players.filter(p=>this.fp.moves[p.person_id]!=null).length,
         moveOut:col.ids.filter(id=>this.fp.moves[id]!=null&&this.fp.moves[id]!==ci).length};
     });
