@@ -468,6 +468,9 @@ word-break:break-all}
 .fopt{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line2);border-radius:9px;
  padding:9px 12px;background:#fff;cursor:pointer;font-size:12.5px}
 .fopt.on{border-color:var(--navy);background:#f4f7fc}
+.fopts{display:flex;flex-direction:column;gap:7px;margin-top:6px}
+.fopt .c{margin-left:6px}
+.fopt span span{display:block}
 .fbasis{display:flex;gap:12px;flex-wrap:wrap}
 .fb{flex:1 1 300px;border:1px solid var(--line2);border-radius:10px;padding:10px 13px;
  background:#fff;cursor:pointer}
@@ -866,18 +869,17 @@ word-break:break-all}
                       <span class="rn" x-text="r.given_name+' '+r.family_name"></span>
                       <span class="c" x-text="r.age!=null ? r.age : '?'"></span>
                       <span class="elig" :class="eligRow(r).k" x-text="eligRow(r).s"></span>
-                      <select x-show="zones().length"
-                              @change="setZone(r, $event.target.value)">
-                        <option value="" :selected="!r.zone">zone —</option>
-                        <template x-for="z in zones()" :key="z">
-                          <option :value="z" :selected="r.zone===z" x-text="z"></option></template>
-                      </select>
-                      <select x-show="positions().length"
-                              @change="setPosition(r, $event.target.value)">
-                        <option value="" :selected="!r.position">pos —</option>
-                        <template x-for="ps in positions()" :key="ps">
-                          <option :value="ps" :selected="r.position===ps" x-text="ps"></option></template>
-                      </select>
+                      <!-- ONE SELECT PER LENS THE CLUB USES, and each writes the
+                           column its axis names. The vocabulary is the sport's;
+                           what a player IS stays keyed to (team, player). -->
+                      <template x-for="l in clubLenses()" :key="l.k">
+                        <select @change="setSlot(r, l.axis, $event.target.value)">
+                          <option value="" :selected="!r[l.axis]" x-text="l.short+' —'"></option>
+                          <template x-for="z in l.slots" :key="z.k">
+                            <option :value="z.k" :selected="r[l.axis]===z.k" x-text="z.t"></option>
+                          </template>
+                        </select>
+                      </template>
                       <span class="rv" x-text="r.rating ?? '–'"></span>
                       <button class="btn sm" @click="unplace(r)">Remove</button>
                     </div>
@@ -2452,16 +2454,32 @@ values (
             <span class="mono">8*, 10, 12…</span> gives U8 Mixed, then U10 Boys / U10 Girls and so
             on. A player is in the first group whose number is above their age.</p>
 
+          <!-- A CLUB CHOOSES WHICH LENSES IT USES; THE SPORT SAYS WHAT THEY ARE.
+               This replaced two free-text lists — "Size, Skill" and "Guard,
+               Forward, Center, Utility" — that asked a club to retype vocabulary
+               the sport already defines. Two places to say what a Guard is, and
+               they drift. Same rule as the rubrics. -->
           <div class="cath">On a roster</div>
-          <div class="row2">
-            <div class="field"><label class="fl">Roster zones</label>
-              <input type="text" x-model="cfg2.zones" placeholder="Size, Skill"></div>
-            <div class="field"><label class="fl">Positions — leave empty if you do not use them</label>
-              <input type="text" x-model="cfg2.positions" placeholder="Guard, Forward, Center, Utility">
-            </div>
+          <p class="note" style="margin-top:0">Tick the ways you want a roster cut. The slots inside
+            each are the sport's, the same for every club — you are choosing which questions your
+            coaches are asked, not inventing the answers.</p>
+          <div class="fopts">
+            <template x-for="l in sportLenses()" :key="l.k">
+              <label class="fopt" :class="cfg2.lenses.includes(l.k)?'on':''">
+                <input type="checkbox" :checked="cfg2.lenses.includes(l.k)"
+                       @change="toggleLens(l.k)">
+                <span><b x-text="l.t"></b>
+                  <span class="c" x-text="{zone:'how the squad is built',
+                        role:'what a player does',
+                        position:'where a player lines up'}[l.axis] || ''"></span>
+                  <span class="note" style="margin:2px 0 0"
+                        x-text="l.slots.map(z=>z.t).join(' · ')"></span></span>
+              </label>
+            </template>
           </div>
-          <p class="note" style="margin-top:0">Positions are for clubs that mark them — a pathway
-            club, typically. An empty list removes the control from every roster.</p>
+          <p class="note" x-show="!sportLenses().length">This sport does not define any yet.</p>
+          <p class="note" x-show="!cfg2.lenses.length && sportLenses().length">
+            None ticked means <b>all of them</b>. Untick everything to keep it that way.</p>
 
           <div class="inline" style="margin-top:10px">
             <button class="btn pri" @click="saveClubCfg()" :disabled="cfg2.busy">Save</button>
@@ -2746,7 +2764,7 @@ function app(){ return {
   allSessions:[],
   pf:{q:'',show:'active',gender:'',age:null,year:new Date().getFullYear()},
   teams:[], teamSeasons:[], roster:[], pool:[], clubCfg:null,
-  cfg2:{cutd:31,cutm:12,brackets:'',zones:'',positions:'',busy:false,err:'',msg:''},
+  cfg2:{cutd:31,cutm:12,brackets:'',lenses:[],busy:false,err:'',msg:''},
   tm:{selected:'',adding:false,name:'',grp:'',div:'',q:'',scope:'grp',hidePlaced:true,
       drag:null,over:false,busy:false,err:''},
   qv:{open:false,note:'',busy:false,err:''},
@@ -2844,6 +2862,15 @@ function app(){ return {
     this.people   = await q('v_person_directory','*','family_name');
     this.rubrics  = (await q('rubric','*','level')).filter(r=>r.org_id===null);
     this.measures = await q('rubric_measure','*','sort_order');
+    //  THE LENSES BELONG TO THE SPORT and are read on every stage — the Teams
+    //  roster, the comparison board and Setup all need them, so they load once
+    //  here rather than only when Formation opens.
+    {
+      const sports = await q('sport');
+      const mine = sports.find(x => x.id === this.org?.primary_sport_id);
+      this.fp.lenses = ((mine && mine.lenses && mine.lenses.length ? mine
+                        : sports.find(x => x.lenses && x.lenses.length)) || {}).lenses || [];
+    }
     if(!this.newSession.rubric_id){
       const core = this.rubrics.find(r=>r.level==='core');
       this.newSession.rubric_id = (core||this.rubrics[0])?.id || '';
@@ -2955,8 +2982,7 @@ function app(){ return {
       cutd: c.age_cutoff?.d ?? 31,
       cutm: c.age_cutoff?.m ?? 12,
       brackets: (c.age_brackets || []).map(b => b.u + (b.mixed ? '*' : '')).join(', '),
-      zones: (c.roster_zones || []).join(', '),
-      positions: (c.positions || []).join(', '),
+      lenses: [...(c.lenses_used || [])],
       busy:false, err:'', msg:''};
   },
   async saveClubCfg(){
@@ -2968,8 +2994,7 @@ function app(){ return {
     const {error} = await this.sb.from('org_profile').update({
       age_cutoff: {d:Number(this.cfg2.cutd), m:Number(this.cfg2.cutm)},
       age_brackets: brackets,
-      roster_zones: list(this.cfg2.zones),
-      positions: list(this.cfg2.positions)
+      lenses_used: this.cfg2.lenses
     }).eq('org_id', this.org.id);
     this.cfg2.busy=false;
     if(error){ this.cfg2.err = error.message; return; }
@@ -2977,8 +3002,20 @@ function app(){ return {
     await this.loadTeams();
   },
 
-  zones(){ return this.clubCfg?.roster_zones || []; },
-  positions(){ return this.clubCfg?.positions || []; },
+  //  What the SPORT defines, and which of them this CLUB uses. Both read from
+  //  one place so a roster and the comparison board can never disagree about
+  //  what a Guard is.
+  sportLenses(){ return this.fp.lenses || []; },
+  clubLenses(){
+    const used = this.clubCfg?.lenses_used || [];
+    const all = this.sportLenses().map(l => ({...l,
+      short: String(l.t).split(/[ /]/)[0].toLowerCase() }));
+    return used.length ? all.filter(l => used.includes(l.k)) : all;
+  },
+  toggleLens(k){
+    const cur = this.cfg2.lenses || [];
+    this.cfg2.lenses = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k];
+  },
   selTeam(){ return this.teamSeasons.find(ts=>ts.id===this.tm.selected) || null; },
   rosterOf(tsId){
     return this.roster.filter(r=>r.team_season_id===tsId)
@@ -3096,7 +3133,7 @@ function app(){ return {
     //  authored by no tenant. The club's sport is on the organisation; if it is
     //  not set, take whichever sport actually declares lenses rather than naming
     //  one here.
-    const sports = await q('sport');
+    const sports = await q('sport');   // also loaded in load(), this refreshes it
     const mine = sports.find(x=>x.id===this.org?.primary_sport_id);
     this.fp.lenses = ((mine&&mine.lenses&&mine.lenses.length ? mine
                        : sports.find(x=>x.lenses&&x.lenses.length)) || {}).lenses || [];
@@ -3826,8 +3863,9 @@ function app(){ return {
     await this.loadTeams();
   },
   setStar(r,v){ return this.patchMember(r,{is_star:!!v}); },
-  setZone(r,v){ return this.patchMember(r,{zone:v||null}); },
-  setPosition(r,v){ return this.patchMember(r,{position:v||null}); },
+  //  One writer for all three axes — the lens names the column, so adding a
+  //  fourth axis to a sport needs no change here.
+  setSlot(r, axis, v){ return this.patchMember(r, {[axis]: v || null}); },
 
   async removeTeamSeason(){
     if(!this.tm.selected) return;
