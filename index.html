@@ -539,9 +539,11 @@ word-break:break-all}
              Courtside is the exception and stays a toggle: it is a MODE rather
              than a section, the sections are hidden while you are in it, and
              Ming asked for that label to keep changing. -->
-        <button class="hb" :class="stage==='court'?'pri':''"
-                @click="stage==='court' ? (stage='admin') : openCourt()"
-                x-text="stage==='court' ? 'Club' : 'Courtside'"></button>
+        <!-- Courtside is not a section, so it is not in this bar. It is reached
+             from the Rating stage, which is the screen it belongs to. This is
+             the only button here that exists in one stage and not the others —
+             it is the way back out of a mode that hides everything else. -->
+        <button class="hb" x-show="stage==='court'" @click="stage='dash'">Back to the club</button>
         <button class="hb" x-show="stage!=='court'" :class="stage==='dash'?'pri':''"
                 @click="openDash()">Dashboard</button>
         <button class="hb" x-show="stage!=='court'" :class="stage==='players'?'pri':''"
@@ -1585,6 +1587,13 @@ values (
         <div style="flex:1">
           <h2>Rating sessions</h2>
           <div class="sub">A multi-day trial is one session. Days are added inside it.</div>
+        </div>
+        <!-- COURTSIDE IS A MODE OF RATING, not a section of the club. Ming,
+             19 Aug 2026: it belongs under Rating. Same codebase, same tokens,
+             same deploy — this switches the screen to the coach's own device,
+             which saves to that device first and uploads second. -->
+        <div class="inline" style="margin:0">
+          <button class="btn" @click="openCourt()">Courtside</button>
         </div>
         <!-- The season is a SCOPE, not a section, so it sits on the stage rather
              than in the header beside Players and Rubrics. Everything below is
@@ -2697,7 +2706,9 @@ function app(){ return {
   pm:{personId:'',mode:'profile',editing:false,adding:false,returnTo:'',name:'',sessionName:'',mean:'',coverage:'',
       detail:[],history:[],resolutions:[],err:''},
   rz:{measure_id:'',source:'',adopted:null,score:null,rationale:'',err:'',busy:false},
-  stage:'admin', queueRows:[], onlyWaiting:false,
+  //  The app opens on the Dashboard: what has to happen next, before you
+  //  choose where to go and do it. Ming, 19 Aug 2026.
+  stage:'dash', queueRows:[], onlyWaiting:false,
   fm:{plan:'Gold 8, Navy 8, White 8', busy:false, err:'', result:null, sessionId:''},
   court:{sessions:[],session:null,people:[],measures:[],rated:{},person:null,
          scores:{},note:'',err:'',msg:''},
@@ -2757,6 +2768,8 @@ function app(){ return {
     addEventListener('offline', () => { this.online = false; });
     await this.load();
     this.flushQueue();
+    //  The app opens on the Dashboard, so its data has to be there when it does.
+    if(this.stage==='dash') await this.openDash();
   },
 
   async load(){
