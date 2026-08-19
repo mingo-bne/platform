@@ -806,10 +806,25 @@ word-break:break-all}
           <div class="field"><label class="fl">Division (optional)</label>
             <input type="text" x-model="tm.div" placeholder="e.g. Div 1"></div>
           <p class="note" style="margin-bottom:8px">Reusing an existing name puts that team into
-            this season — it does not create a second team.</p>
+            this season — it does not create a second team. The same name in <b>two different age
+            groups</b> is fine; twice in <b>one</b> age group is not, because they would be one team
+            on a team sheet.</p>
+          <!-- CASE IS NOT DATA. Shown rather than done quietly, so the club sees
+               what will be recorded before it is. -->
+          <p class="note" style="margin-bottom:8px" x-show="tmTidied()">
+            Will be recorded as <b x-text="tmTidied()"></b>.</p>
+          <!-- the prefix is PROPOSED, never imposed — naming is the club's (ADR-008) -->
+          <p class="note" style="margin-bottom:8px" x-show="tmProposed()">
+            Many clubs put the age group in front of the name.
+            <button class="lnk" @click="tmUsePrefix()">Enter it as <b x-text="tmProposed()"></b></button>
+          </p>
+          <div class="stop" x-show="tmNameStop()" style="margin-bottom:8px">
+            <b x-text="tmNameStop()?.t"></b>
+            <div class="how" x-text="tmNameStop()?.how"></div>
+          </div>
           <div class="inline">
             <button class="btn pri" @click="createTeam()"
-                    :disabled="!tm.name.trim() || tm.busy">Add team</button>
+                    :disabled="!tm.name.trim() || tm.busy || !!tmNameStop()">Add team</button>
             <button class="btn" @click="tm.adding=false">Cancel</button>
           </div>
         </div>
@@ -2061,7 +2076,7 @@ values (
           <span class="c" x-text="'average '+f2(fMean(fPool().map(p=>fVal(p))))"></span>
           <span class="c grp" x-show="fp.phase!=='setup'"
                 x-text="'graded on '+(fp.basis==='points'?'points per game':'coach rating')"></span>
-          <span class="c" x-show="fp.phase==='compare'">proposal confirmed · the engine is not running</span>
+          <span class="c" x-show="fp.phase==='draft'">draft board · nothing written yet · the engine is not running</span>
           <span class="c" x-show="fp.phase==='accept'">about to write the teams and the offers</span>
           <span class="c" x-show="fp.saved" x-text="fp.saved"></span>
           <button class="x" @click="modal=''" title="Close">×</button>
@@ -2333,15 +2348,19 @@ values (
              to balance like in the TMS." Confirming FREEZES the proposal — the
              engine does not run again, and every team shows what a hand move
              costs against the number its band set. ── -->
-        <div class="mbody" x-show="fp.phase==='compare' && fp.frozen">
-          <div class="cath">Move players between teams</div>
+        <div class="mbody" x-show="fp.phase==='draft' && fp.frozen">
+          <!-- THE DRAFT BOARD. Not a confirmation — in this product confirming is
+               what a head coach does to a rating session, and it cannot be undone.
+               Nothing on this surface writes anything; Accept does. -->
+          <div class="cath">Draft board — move players between teams</div>
           <p class="note" style="margin:0 0 8px" x-show="fMovedCount()">
             <b x-text="fMovedCount()+' player'+(fMovedCount()===1?'':'s')+' moved by hand.'"></b>
             Every move is on screen and against the proposal — the engine is not re-running, so
             nothing you have decided gets undone.</p>
           <p class="note" style="margin:0 0 8px" x-show="!fMovedCount()">
-            Drag a name from one team to another. The proposal is frozen: from here every change is
-            yours, and each team shows what it costs against the number its band set.</p>
+            Drag a name from one team to another. The engine's proposal is frozen and it is not
+            running again: from here every change is yours, and each team shows what it costs
+            against the number its band set. <b>Nothing here is written</b> until you accept.</p>
 
           <!-- THREE LENSES OVER ONE ROSTER, and they are sport-scoped. -->
           <div class="lens">
@@ -2514,15 +2533,16 @@ values (
                   x-text="fp.result ? (fp.stale?'Build again':'Build again') : 'Build the rosters'"></button>
           <button class="btn" x-show="fp.phase==='setup'"
                   @click="fSavePlan()" :disabled="fp.busy">Save without building</button>
-          <!-- CONFIRMING FREEZES IT. From here the engine does not run again. -->
+          <!-- THE DRAFT BOARD FREEZES THE ENGINE, and writes nothing. From here
+               every change is the coach's. -->
           <button class="btn pri" x-show="fp.phase==='setup' && fp.result && !fp.stale"
-                  @click="fConfirmProposal()">Confirm this proposal</button>
-          <button class="btn" x-show="fp.phase==='compare'" @click="fp.phase='setup'">← Back to the plan</button>
-          <button class="btn" x-show="fp.phase==='compare'" @click="fRestoreProposal()"
+                  @click="fOpenDraft()">Open the draft board →</button>
+          <button class="btn" x-show="fp.phase==='draft'" @click="fp.phase='setup'">← Back to the plan</button>
+          <button class="btn" x-show="fp.phase==='draft'" @click="fRestoreProposal()"
                   :disabled="!fMovedCount()">Restore the proposal</button>
-          <button class="btn pri" x-show="fp.phase==='compare'"
+          <button class="btn pri" x-show="fp.phase==='draft'"
                   @click="fp.acc.err=''; fp.acc.done=null; fp.phase='accept'">Accept these teams…</button>
-          <button class="btn" x-show="fp.phase==='accept'" @click="fp.phase='compare'">← Back to the board</button>
+          <button class="btn" x-show="fp.phase==='accept'" @click="fp.phase='draft'">← Back to the draft board</button>
           <button class="btn pri" x-show="fp.phase==='accept' && !fp.acc.done"
                   @click="fAccept()" :disabled="fp.acc.busy || fAcceptStops().length">
             Enter the teams and send the offers</button>
@@ -2534,9 +2554,9 @@ values (
           <span class="note" style="margin:0;margin-left:auto" x-show="fp.acc.err" x-text="fp.acc.err"></span>
           <span class="note" style="margin:0;margin-left:auto"
                 x-show="!fp.err && fp.phase==='setup' && fp.result && !fp.stale">
-            Confirm to move players by hand, then accept.</span>
-          <span class="note" style="margin:0;margin-left:auto" x-show="!fp.err && fp.phase==='compare'">
-            The proposal is frozen — move players by hand, then accept the teams.</span>
+            Open the draft board to move players by hand, then accept.</span>
+          <span class="note" style="margin:0;margin-left:auto" x-show="!fp.err && fp.phase==='draft'">
+            A draft — nothing is written until you accept. Move players by hand, then accept the teams.</span>
         </div>
       </div>
     </div>
@@ -3724,10 +3744,19 @@ function app(){ return {
     if(data?.error){ this.fp.err=data.error; return; }
     this.fp.result=data; this.fp.stale=false;
   },
-  // ═══ THE PROPOSAL, AND THE BOARD ═════════════════════════════════════════
-  //  Ported from prototype_formation_setup.html. Confirming FREEZES the
-  //  proposal: from then on the engine does not run again and every change is
-  //  the coach's, shown against the number its band set. ADR-001 made visible.
+  // ═══ THE PROPOSAL, AND THE DRAFT BOARD ═══════════════════════════════════
+  //  Ported from prototype_formation_setup.html. Opening the DRAFT BOARD freezes
+  //  the engine's proposal: from then on the engine does not run again and every
+  //  change is the coach's, shown against the number its band set. ADR-001 made
+  //  visible.
+  //
+  //  IT IS CALLED A DRAFT, NOT A CONFIRMATION. Ming, 19 Aug 2026:
+  //  "let's not call it Confirm a proposal, call it Draft formation workbench or
+  //  something not mislead to confirmation." In this product CONFIRMING is what a
+  //  head coach does to a rating session — it snapshots `player_rating` and
+  //  cannot be reopened. Nothing here writes anything at all; the writing step is
+  //  Accept. Reusing the word for a working surface would tell a coach they had
+  //  committed something when they had not.
 
   //  The lenses belong to the SPORT (migration 018). Colour is presentation and
   //  is taken by position from one palette, so adding a sport never touches this
@@ -3923,8 +3952,8 @@ function app(){ return {
   },
   fShortName(n){ return String(n||'').replace(this.fPrefix(this.fp.group)+' ',''); },
 
-  // ── the frozen proposal, and what the coach does to it ───────────────────
-  fConfirmProposal(){
+  // ── the draft board: the frozen proposal, and what the coach does to it ──
+  fOpenDraft(){
     this.fp.frozen=(this.fp.result?.squads||[]).map(sq=>({
       division_rank:sq.division_rank, ordinal:sq.ordinal,
       target:sq.target, target_total:sq.target_total,
@@ -3932,7 +3961,7 @@ function app(){ return {
       ids:sq.players.map(p=>p.person_id) }));
     this.fp.by={}; (this.fp.result?.squads||[]).forEach(sq=>sq.players
       .forEach(p=>this.fp.by[p.person_id]=p));
-    this.fp.moves={}; this.fp.phase='compare';
+    this.fp.moves={}; this.fp.phase='draft';
   },
   fBackToSetup(){ this.fp.phase='setup'; },
   fRestoreProposal(){ this.fp.moves={}; },
@@ -3998,8 +4027,14 @@ function app(){ return {
     const seen={}, twice=[];
     rows.forEach(r=>{ const n=r.name.trim().toLowerCase(); if(!n) return;
       if(seen[n]&&twice.indexOf(r.name)<0) twice.push(r.name); seen[n]=1; });
-    if(twice.length) out.push({k:'twice', t:twice.join(', ')+' is assigned to more than one roster',
-      how:'A team can only be entered once in a season.'});
+    if(twice.length) out.push({k:'twice',
+      t:twice.join(', ')+(twice.length===1?' is':' are')+' on more than one roster in this age group',
+      how:'Two squads of one name are one team on a team sheet. Rename one of them.'});
+    //  A NAME IN ANOTHER AGE GROUP IS NOT A CLASH. Ming, 19 Aug 2026: "the only
+    //  ban of same name would be within a same age group in the same season."
+    //  Gold in U14 and Gold in U16 are two entries against one club-level name.
+    //  The clash that matters is inside THIS age group, which is the `twice`
+    //  rule above — and it is case-blind for the same reason the database is.
     const unver=[...new Set(rows.flatMap(r=>r.unver))];
     if(unver.length) out.push({k:'unver', t:unver.length+
       (unver.length===1?' record has':' records have')+' not been checked against the registration: '+
@@ -4142,9 +4177,62 @@ function app(){ return {
   eligOf(p){ return this.eligible(p.age_group, p.gender, this.selTeam()?.age_group); },
   eligRow(r){ return this.eligible(r.natural_group, r.gender, r.age_group); },
 
+  //  ONE NAME PER AGE GROUP, AND CASE IS NOT A DIFFERENCE. Ming, 19 Aug 2026:
+  //  "The only ban of same name would be within a same age group in the same
+  //  season. Auto correct capital letters and don't differ them in the data as
+  //  most team admins are not as diligent."
+  //
+  //  Gold in U14 and Gold in U16 of one season are ORDINARY — two entries
+  //  against one club-level name. Two Golds in one age group are the pair
+  //  nobody can tell apart on a team sheet, and that is the only refusal.
+  tmPrefix(){ return this.tm.grp ? this.fPrefix(this.tm.grp) : ''; },
+  //  PROPOSED, NEVER IMPOSED, and now genuinely optional — it is a convention a
+  //  club may like, not the way out of a constraint. Naming is the club's
+  //  (ADR-008).
+  tmProposed(){
+    const n=(this.tm.name||'').trim(), p=this.tmPrefix();
+    if(!n || !p) return '';
+    return n.toUpperCase().startsWith(p.toUpperCase()+' ') ? '' : p+' '+n;
+  },
+  tmUsePrefix(){ const n=this.tmProposed(); if(n) this.tm={...this.tm, name:n}; },
+  //  THE SPELLING ON FILE WINS — the same rule the database applies, applied on
+  //  screen so the club sees it happen rather than being surprised by it. Typing
+  //  "gold" where "Gold" is on file gives you Gold; a brand-new name typed with
+  //  no capitals at all gets its words capitalised, and a name with any capital
+  //  anywhere is left exactly as typed (McTavish, B14 Gold, iCoach).
+  tmTidy(n){
+    const t=String(n||'').trim().replace(/\s+/g,' ');
+    if(!t) return '';
+    const known=(this.teams||[]).find(x=>x.name.toLowerCase()===t.toLowerCase());
+    if(known) return known.name;
+    return t===t.toLowerCase()
+      ? t.replace(/\b[a-z]/g, c=>c.toUpperCase()) : t;
+  },
+  //  What the name will actually be recorded as, shown when it differs from what
+  //  was typed. Derived once and rendered — never called from a nested scope.
+  tmTidied(){
+    const typed=(this.tm.name||'').trim(), tidy=this.tmTidy(typed);
+    return (tidy && tidy!==typed) ? tidy : '';
+  },
+  //  The one refusal: this name is already entered IN THIS AGE GROUP.
+  tmNameStop(){
+    const n=this.tmTidy(this.tm.name); if(!n) return null;
+    const team=(this.teams||[]).find(t=>t.name.toLowerCase()===n.toLowerCase());
+    if(!team) return null;
+    const here=(this.teamSeasons||[]).find(ts=>ts.team_id===team.id
+      && ts.season_id===this.seasonId
+      && (ts.age_group||'')===(this.tm.grp||''));
+    if(!here) return null;
+    return { t:team.name+' is already entered in '+(this.tm.grp||'this season with no age group')+'.',
+      how:'Two squads of one name are one team on a team sheet. Give this one a name of its own — '
+          +(this.tmPrefix()?this.tmPrefix()+' in front of it is the usual way.':'') };
+  },
   async createTeam(){
-    this.tm.err=''; this.tm.busy=true;
-    const name = this.tm.name.trim();
+    this.tm.err='';
+    const stop=this.tmNameStop();
+    if(stop){ this.tm.err=stop.t+' '+stop.how; return; }
+    this.tm.busy=true;
+    const name = this.tmTidy(this.tm.name);
     let team = this.teams.find(t => t.name.toLowerCase() === name.toLowerCase());
     if(!team){
       const {data,error} = await this.sb.from('team')
@@ -4164,8 +4252,9 @@ function app(){ return {
       division_rank:divRank!==null ? Number(divRank) : null});
     this.tm.busy=false;
     if(error){
-      this.tm.err = /team_season_season_id_team_id_key/.test(error.message)
-        ? name+' is already in this season.' : error.message;
+      this.tm.err = /one_entry_per_age_group|already entered in/.test(error.message)
+        ? name+' is already entered in '+(this.tm.grp||'this season')+'.'
+        : error.message;
       return;
     }
     this.tm={...this.tm, adding:false, name:'', grp:'', div:''};
