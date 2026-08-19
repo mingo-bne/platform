@@ -2366,6 +2366,15 @@ values (
                      so the picture and the roster never disagree. Every value is
                      written out beneath — nothing here is colour alone. -->
                 <div class="cshape" x-show="col.players.length && (fp.result?.categories||[]).length">
+                  <!-- x-if, not x-show: the shape must LEAVE the page rather than
+                       be hidden, so nothing can read a stale one. -->
+                  <template x-if="!fHasCat(col.players)">
+                    <p class="note" style="margin:2px 0">The rating shape needs the per-measure
+                      scores, and this proposal did not carry them. <b>Build again</b> and it will
+                      draw.</p>
+                  </template>
+                  <template x-if="fHasCat(col.players)">
+                  <div>
                   <div class="csvg" x-html="fRadar(col.players)"></div>
                   <div class="cskey">
                     <span class="lg"><i class="fill"></i>this team</span>
@@ -2376,6 +2385,8 @@ values (
                         <i x-text="(c.dev>=0?'+':'−')+f2(Math.abs(c.dev))"></i></span>
                     </template>
                   </div>
+                  </div>
+                  </template>
                 </div>
 
                 <!-- the mix at a glance; every count is in the title text too -->
@@ -3716,9 +3727,15 @@ function app(){ return {
   //
   //  Nothing is encoded by colour alone: the two series differ by dash as well
   //  as colour, and every value is written out beneath.
+  //  Every player carries their per-measure scores, so a column can be redrawn
+  //  after a hand move. If they DO NOT — an older engine, a payload that lost
+  //  them — the shape must not be drawn: a radar of zeros looks like a squad
+  //  with no ability rather than a screen with no data, and on 19 Aug 2026 it
+  //  did exactly that on Ming's screen.
+  fHasCat(players){ return players.some(p => Array.isArray(p.cat) && p.cat.length); },
   fRadar(players){
     const labs = this.fp.result?.categories || [];
-    if(!labs.length || !players.length) return '';
+    if(!labs.length || !players.length || !this.fHasCat(players)) return '';
     const mine = labs.map((_,ci) =>
       this.fMean(players.map(p => (p.cat && p.cat[ci]!=null) ? p.cat[ci] : null)));
     //  the cohort's own profile, from the run — not a nominal 3
