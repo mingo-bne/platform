@@ -60,6 +60,8 @@ background:#f7f6f3;white-space:nowrap}
 .cath{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;color:var(--ink2);
 text-transform:uppercase;letter-spacing:.04em;margin:12px 0 5px}
 .cath:first-child{margin-top:0}
+.pbody>:first-child{margin-top:0}
+.pbody>.cath:first-of-type{margin-top:0}
 .rgrp{margin-bottom:14px}.rgrp:last-child{margin-bottom:0}
 .cath b{margin-left:auto;font-weight:600;color:var(--ink3)}
 
@@ -329,6 +331,16 @@ word-break:break-all}
 /* ── the Formation stage. One row per age group; open one and you get that
       group alone. Ming, 19 Aug 2026: a page of every age group's every division
       was "too overwhelming". See DECISIONS.md ADR-006/007/008/009. ────────── */
+/* the dashboard: a number, what it counts, and the section it opens */
+.dsh{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:2px}
+.dc{display:flex;flex-direction:column;gap:1px;align-items:flex-start;min-width:104px;
+ border:1px solid var(--line2);border-radius:9px;background:#fff;padding:9px 13px;
+ cursor:pointer;font:inherit;text-align:left}
+.dc:hover{border-color:var(--navy);background:#fbfaf8}
+.dc b{font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--navy)}
+.dc span{font-size:11px;color:var(--ink2)}
+.dc.wn{border-color:var(--warnline);background:var(--warnbg)}
+.dc.wn b{color:var(--warn)}
 .fgen{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:12px 0 4px}
 .fgl{border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .fgr{display:flex;align-items:center;gap:12px;padding:9px 12px;border:0;
@@ -518,25 +530,29 @@ word-break:break-all}
     <div class="spacer"></div>
     <template x-if="org">
       <span>
+        <!-- THE SECTIONS, IN THE ORDER A SEASON IS WORKED THROUGH. Ming, 19 Aug
+             2026: Dashboard, Players, Rating, Teams, Formation, Setup. A button
+             without an ellipsis switches the view; one with an ellipsis opens a
+             dialog — Ming's own convention, and it is why Setup carries one and
+             the five sections do not. None of them renames itself; `.hb.pri`
+             marks the one you are in.
+             Courtside is the exception and stays a toggle: it is a MODE rather
+             than a section, the sections are hidden while you are in it, and
+             Ming asked for that label to keep changing. -->
         <button class="hb" :class="stage==='court'?'pri':''"
                 @click="stage==='court' ? (stage='admin') : openCourt()"
                 x-text="stage==='court' ? 'Club' : 'Courtside'"></button>
-        <!-- A SECTION BUTTON KEEPS ITS NAME AND SHOWS WHETHER YOU ARE IN IT.
-             These read as a set of places, not as toggles: renaming Teams to
-             "Sessions" while you stand in it makes the header say where you are
-             going instead of where you are. Ming, 19 Aug 2026. Courtside stays a
-             toggle because it is a MODE, and while you are in it the section
-             buttons are hidden — its label is the way back. -->
+        <button class="hb" x-show="stage!=='court'" :class="stage==='dash'?'pri':''"
+                @click="openDash()">Dashboard</button>
+        <button class="hb" x-show="stage!=='court'" :class="stage==='players'?'pri':''"
+                @click="openPlayersStage()">Players</button>
         <button class="hb" x-show="stage!=='court'" :class="stage==='admin'?'pri':''"
-                @click="stage='admin'">Sessions</button>
+                @click="stage='admin'">Rating</button>
         <button class="hb" x-show="stage!=='court'" :class="stage==='teams'?'pri':''"
                 @click="openTeams()">Teams</button>
         <button class="hb" x-show="stage!=='court'" :class="stage==='formation'?'pri':''"
                 @click="openFormation()">Formation</button>
-        <button class="hb" x-show="stage!=='court'" @click="modal='players'">Players…</button>
-        <button class="hb" x-show="stage==='admin'" @click="modal='rubrics'">Rubrics…</button>
-        <button class="hb" x-show="stage==='teams'"
-                @click="openClubCfg(); modal='clubcfg'">Club settings…</button>
+        <button class="hb" x-show="stage!=='court'" @click="openSetup()">Setup…</button>
       </span>
     </template>
     <button class="hb" @click="modal='more'">More…</button>
@@ -894,6 +910,103 @@ word-break:break-all}
          get that group alone. The club moves LINES on the distribution and a
          team's target is read off the band they cut — never typed at a cohort
          that cannot reach it. ADR-006/007/009. ─────────────────────────────── -->
+    <!-- ── DASHBOARD ────────────────────────────────────────────────────────
+         Ming, 19 Aug 2026, asked for it at the head of the sequence. It answers
+         one question — what has to happen next — and every number is a way into
+         the section that would do it. It reads views that already exist; it
+         decides nothing, writes nothing, and is not a place to work. ── -->
+    <template x-if="stage==='dash'">
+    <div class="panel">
+      <div class="rhead" style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1">
+          <h2>Dashboard</h2>
+          <div class="sub">Where this season stands, and what is waiting on you.</div>
+        </div>
+        <div class="inline" style="margin:0">
+          <select x-model="seasonId" @change="onSeasonChange(); openDash()" style="width:auto">
+            <template x-for="s in seasons" :key="s.id">
+              <option :value="s.id" x-text="seasonOptionLabel(s)" :selected="s.id===seasonId"></option>
+            </template>
+          </select>
+        </div>
+      </div>
+
+      <div class="pbody">
+      <p x-show="dash.err" x-text="dash.err" class="err" style="margin-top:0"></p>
+
+      <template x-if="!seasonId">
+        <div class="empty">Choose a season — everything here is read through one.</div>
+      </template>
+
+      <template x-if="seasonId">
+        <div>
+          <div class="cath">The pool</div>
+          <div class="dsh">
+            <button class="dc" @click="openPlayersStage()">
+              <b x-text="dash.pool.length"></b><span>in the pool</span></button>
+            <button class="dc" @click="stage='admin'">
+              <b x-text="dashRated()"></b><span>rated</span></button>
+            <button class="dc" :class="dashUnrated()?'wn':''" @click="stage='admin'">
+              <b x-text="dashUnrated()"></b><span>not rated yet</span></button>
+            <!-- the gate bites at the OFFER, so this is a warning, never a block -->
+            <button class="dc" :class="dashUnverified()?'wn':''" @click="openPlayersStage()">
+              <b x-text="dashUnverified()"></b><span>unverified</span></button>
+          </div>
+
+          <div class="cath">Rating</div>
+          <div class="dsh">
+            <button class="dc" @click="stage='admin'">
+              <b x-text="dashSessionsOpen()"></b><span>trials open</span></button>
+            <button class="dc" :class="dashSessionsToSettle()?'wn':''" @click="stage='admin'">
+              <b x-text="dashSessionsToSettle()"></b><span>to settle</span></button>
+            <button class="dc" :class="dashSessionsLate()?'wn':''" @click="stage='admin'">
+              <b x-text="dashSessionsLate()"></b><span>open past close</span></button>
+          </div>
+          <p class="note" style="margin-top:2px" x-show="dashSessionsLate()">A trial sitting open
+            past its own closing date is a signal, not a lock — coaches still enter ratings from a
+            clipboard days later.</p>
+
+          <div class="cath">Places</div>
+          <div class="dsh">
+            <button class="dc" @click="openTeams()">
+              <b x-text="dash.ts.length"></b><span>teams entered</span></button>
+            <button class="dc" @click="openTeams()">
+              <b x-text="dashOffered()"></b><span>offers made</span></button>
+            <button class="dc" @click="openTeams()">
+              <b x-text="dashAccepted()"></b><span>accepted</span></button>
+            <button class="dc" @click="openTeams()">
+              <b x-text="dashConfirmed()"></b><span>registered</span></button>
+          </div>
+          <p class="note" style="margin-top:2px">A place is binding at registration, not at
+            acceptance and not at payment.</p>
+
+          <div class="cath">Formation, by age group</div>
+          <table class="fbt">
+            <tr><th>Age group</th><th class="num">Players</th><th class="num">Rated</th>
+                <th class="num">Teams planned</th><th class="num">Named</th><th>Where it is up to</th></tr>
+            <template x-for="r in dashGroups()" :key="r.g">
+              <tr @click="stage='formation'; fp.gender=fGenderOf(r.g); fOpen(r.g)"
+                  style="cursor:pointer">
+                <td><b x-text="r.g"></b></td>
+                <td class="num" x-text="r.n"></td>
+                <td class="num" x-text="r.rated"></td>
+                <td class="num" x-text="r.teams||'—'"></td>
+                <td class="num" x-text="r.named||'—'"></td>
+                <td><span class="c" :class="r.state==='teams named'?'ok'
+                          :(r.state==='no plan yet'?'':'wn')" x-text="r.state"></span></td>
+              </tr>
+            </template>
+          </table>
+          <p class="note" x-show="!dashGroups().length">No player has a date of birth and a rating
+            in this season yet, so there is nothing to band.</p>
+          <p class="note" style="margin-bottom:0" x-show="dashGroups().length">A row opens that
+            age group in Formation.</p>
+        </div>
+      </template>
+      </div>
+    </div>
+    </template>
+
     <template x-if="stage==='formation'">
     <div class="panel">
       <div class="rhead" style="display:flex;align-items:flex-start;gap:10px">
@@ -911,7 +1024,8 @@ word-break:break-all}
         </div>
       </div>
 
-      <p x-show="fp.err" x-text="fp.err" class="err"></p>
+      <div class="pbody">
+      <p x-show="fp.err" x-text="fp.err" class="err" style="margin-top:0"></p>
 
       <template x-if="!seasonId">
         <div class="empty">Choose a season first — formation belongs to one.</div>
@@ -961,12 +1075,483 @@ word-break:break-all}
               </button>
             </template>
           </div>
-          <p class="note">The strip is that age group's distribution, shaded by the divisions you
-            have set. There is nothing to set club-wide — no two age groups have the same players
-            in them.</p>
+          <p class="note" style="margin-bottom:0">The strip is that age group's distribution,
+            shaded by the divisions you have set. There is nothing to set club-wide — no two age
+            groups have the same players in them.</p>
         </div>
       </template>
+      </div>
     </div>
+    </template>
+
+    <!-- PLAYERS IS A SECTION, NOT A DIALOG. Ming, 19 Aug 2026, put it in the
+         sequence beside Rating, Teams and Formation. The directory was always a
+         working surface fighting a modal container — list left, detail right, the
+         list scrolling on its own. Reached from a review row it stays scoped to
+         that session and `← Review` goes back to the ledger. -->
+    <template x-if="stage==='players'">
+      <div class="panel">
+        <div>
+          <div class="rhead" style="display:flex;align-items:baseline;gap:10px">
+            <h2 style="margin:0">Players</h2>
+            <span class="c" x-text="peopleShown().length+' of '+people.length"></span>
+            <span class="c wn" x-show="unverifiedCount()"
+                  x-text="unverifiedCount()+' unverified'"></span>
+            <span style="margin-left:auto"></span>
+            <button class="btn sm pri" @click="startAdd()"
+                    x-show="!pm.editing && pm.returnTo!=='review'">Add a player</button></div>
+
+          <div class="mbody" style="max-height:none">
+            <p x-show="peopleErr" x-text="peopleErr" class="err" style="margin-top:0"></p>
+
+            <!-- ── filters. Age is arithmetic — age at 31 December of the year you
+                   pick — NOT a named band. U12 / U14 are an association's own
+                   convention and belong with the season, not hard-coded here. ── -->
+            <p class="note" x-show="pm.returnTo==='review'" style="margin-top:0">
+              Showing the players in <b x-text="pm.sessionName"></b>. Pick any of them on the left —
+              you do not have to go back to the ledger between players.</p>
+            <div class="inline" style="margin-top:0" x-show="pm.returnTo!=='review'">
+              <input type="search" x-model="pf.q" placeholder="Search a name"
+                     style="flex:1;min-width:150px">
+              <select x-model="pf.show" style="width:auto">
+                <option value="active">Active</option>
+                <option value="unverified">Unverified only</option>
+                <option value="inactive">Inactive</option>
+                <option value="all">Everyone</option>
+              </select>
+              <select x-model="pf.gender" style="width:auto">
+                <option value="">Any gender</option>
+                <option value="F">F</option><option value="M">M</option><option value="X">X</option>
+              </select>
+              <select x-model.number="pf.year" style="width:auto">
+                <template x-for="y in ageYears()" :key="y">
+                  <option :value="y" x-text="'age at 31 Dec '+y"></option>
+                </template>
+              </select>
+            </div>
+            <div class="fchips" x-show="pm.returnTo!=='review'">
+              <button class="fc" :class="pf.age===null?'on':''" @click="pf.age=null">All ages</button>
+              <template x-for="g in ageGroups()" :key="g.age">
+                <button class="fc" :class="pf.age===g.age?'on':''" @click="pf.age=g.age">
+                  <b x-text="g.age"></b><span x-text="' · '+g.n"></span></button>
+              </template>
+              <span class="c" x-show="!ageGroups().length">no dates of birth recorded</span>
+            </div>
+
+            <div class="psplit" style="margin-top:10px">
+              <div>
+                <div class="plist2">
+                  <template x-for="p in peopleShown()" :key="p.id">
+                    <button class="prow" :class="pm.personId===p.id?'on':''"
+                            @click="selectPlayer(p)">
+                      <span class="u" x-show="p.verification!=='verified'"
+                            title="not verified"></span>
+                      <span class="bd">
+                        <span class="n2" x-text="p.given_name+' '+p.family_name"></span>
+                        <span class="m2">
+                          <span x-text="p.dob ? ageAt(p.dob, pf.year)+' in '+pf.year : 'no DOB'"></span>
+                          <span x-show="p.gender" x-text="' · '+p.gender"></span>
+                          <span x-show="p.status==='inactive'"> · inactive</span>
+                          <span x-show="ratedCount(p.id)" x-text="' · '+ratedCount(p.id)+' rated'"></span>
+                        </span>
+                      </span>
+                    </button>
+                  </template>
+                  <template x-if="!peopleShown().length">
+                    <div class="empty" style="padding:18px 10px"
+                         x-text="people.length ? 'Nobody matches that.' : 'No players yet.'"></div>
+                  </template>
+                </div>
+                <p class="note">A dot marks a record nobody has stood behind yet. Rating never waits
+                  on it; <b>an offer of a place does</b>.</p>
+              </div>
+
+              <div class="pdet" data-modal="player">
+                <template x-if="!pm.personId">
+                  <div class="empty">Pick a player on the left.</div>
+                </template>
+                <template x-if="pm.personId">
+                  <div>
+                    <div class="inline" style="margin:0 0 8px">
+                      <b style="font-size:15px" x-text="pm.name"></b>
+                      <span class="c" x-show="pe.dob" x-text="ageAt(pe.dob, pf.year)+' in '+pf.year"></span>
+                      <span class="c" x-show="pe.status==='inactive'">inactive</span>
+                      <span class="c" :class="pe.verification==='verified' ? 'ok':'wn'"
+                            x-text="pe.verification==='verified'
+                                    ? vsourceShort(pe.vsource) : 'unverified'"></span>
+                      <span class="c grp" x-show="pm.sessionName" x-text="pm.sessionName"></span>
+                      <span style="margin-left:auto"></span>
+                      <button class="btn sm" x-show="pm.returnTo==='review' && !pm.editing"
+                              @click="stage='admin'; modal='review'">&larr; Review</button>
+                      <button class="btn sm" x-show="!pm.editing && canEditPlayer()"
+                              @click="pm.editing=true">Edit</button>
+                      <button class="btn sm pri" x-show="pm.editing" @click="savePerson()"
+                              :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
+                              x-text="pe.busy ? 'Saving…' : 'Done'"></button>
+                      <button class="btn sm" x-show="pm.editing" @click="cancelEdit()">Cancel</button>
+                    </div>
+
+            <p x-show="pm.err" x-text="pm.err" class="err" style="margin-top:0"></p>
+
+            <!-- ── details ─────────────────────────────────────────────────── -->
+            <div class="cath">Details</div>
+            <div class="dl">
+              <div class="r"><span class="k">Given name</span>
+                <span class="v" x-show="!pm.editing" x-text="pe.given"></span>
+                <input type="text" x-show="pm.editing" x-model="pe.given" @blur="checkDupes()"></div>
+              <div class="r"><span class="k">Family name</span>
+                <span class="v" x-show="!pm.editing" x-text="pe.family"></span>
+                <input type="text" x-show="pm.editing" x-model="pe.family" @blur="checkDupes()"></div>
+              <div class="r"><span class="k">Date of birth</span>
+                <span class="v" x-show="!pm.editing" :class="pe.dob?'':'none'"
+                      x-text="pe.dob ? pe.dob+'  ('+ageOf(pe.dob)+' years)' : 'not recorded'"></span>
+                <input type="date" x-show="pm.editing" x-model="pe.dob" @blur="checkDupes()"></div>
+              <div class="r"><span class="k">Gender</span>
+                <span class="v" x-show="!pm.editing" :class="pe.gender?'':'none'"
+                      x-text="pe.gender || 'not recorded'"></span>
+                <select x-show="pm.editing" x-model="pe.gender">
+                  <option value="">—</option><option value="F">F</option>
+                  <option value="M">M</option><option value="X">X</option></select></div>
+              <div class="r"><span class="k">Association ref</span>
+                <span class="v" x-show="!pm.editing" :class="pe.ref?'':'none'"
+                      x-text="pe.ref || 'none held'"></span>
+                <input type="text" x-show="pm.editing" x-model="pe.ref"
+                       placeholder="e.g. BC-2027-00412"></div>
+              <div class="r" x-show="pm.editing || pe.status==='inactive'">
+                <span class="k">Status</span>
+                <span class="v" x-show="!pm.editing" x-text="pe.status"></span>
+                <select x-show="pm.editing" x-model="pe.status">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive — off the lists, ratings kept</option></select></div>
+              <div class="r" x-show="!pm.editing && pm.personId"><span class="k">Came in as</span>
+                <span class="v" x-text="sourceLabel(pmRow()?.source)"></span></div>
+            </div>
+
+            <!-- The duplicate check runs BEFORE a second record can exist. Same
+                 rule import will use — match_person(), not a second implementation
+                 that quietly disagrees with the first. -->
+            <template x-if="pm.editing && pe.dupes.length">
+              <div class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);
+                          margin:10px 0 0">
+                <b x-text="pe.dupes.length===1 ? 'This player may already be here'
+                                               : 'These players may already be here'"></b>
+                <template x-for="d in pe.dupes" :key="d.person_id">
+                  <div style="margin-top:4px">
+                    <b x-text="d.given_name+' '+d.family_name"></b>
+                    <span x-text="' — '+d.reason+' ('+d.confidence+')'"></span>
+                    <button class="btn sm" style="margin-left:6px"
+                            @click="selectPlayer(people.find(p=>p.id===d.person_id))">
+                      Open that record instead</button>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- ── verification ────────────────────────────────────────────── -->
+            <div class="cath">Verification</div>
+            <p class="note" style="margin:0 0 6px" x-show="!pm.editing">
+              <span x-show="pe.verification==='verified'">Checked
+                <b x-text="vsourceLabel(pe.vsource)"></b><span x-show="pmRow()?.verified_by_name">,
+                by <b x-text="pmRow()?.verified_by_name"></b></span><span
+                x-show="pmRow()?.verified_at"> on <b x-text="fmt(pmRow()?.verified_at)"></b></span>.
+                <span x-show="pe.vnote"><br>Reason given: <i x-text="pe.vnote"></i></span></span>
+              <span x-show="pe.verification!=='verified'">Nobody has checked this record yet, so this
+                player <b>cannot be offered a place</b>. Rating is unaffected.</span>
+            </p>
+
+            <!-- ── verifying, without going into edit ──────────────────────────
+                 Ming, 13 Aug 2026: "to go into edit and confirm is too much
+                 burden". Verification is the act a club repeats dozens of times
+                 in a sitting, so it is one click from the card. Editing a record
+                 is rare; verifying one is not. The `admin` path still asks for a
+                 reason, because that is the whole difference between an override
+                 and a bypass — but it asks inline, not in a different mode. ── -->
+            <template x-if="!pm.editing && canEditPlayer()">
+              <div>
+                <div class="inline" style="margin-top:0" x-show="pe.verification!=='verified'">
+                  <button class="btn pri" @click="quickVerify('association')"
+                          :disabled="qv.busy">Matched the registration</button>
+                  <button class="btn" @click="quickVerify('attested')"
+                          :disabled="qv.busy">Parent attested</button>
+                  <button class="btn" @click="qv.open=!qv.open"
+                          x-text="qv.open ? 'Cancel' : 'My own authority…'"></button>
+                </div>
+
+                <div class="inline" style="margin-top:0" x-show="pe.verification==='verified'">
+                  <button class="btn" @click="quickUnverify()" :disabled="qv.busy">Unverify</button>
+                  <span class="c" x-show="!pe.dob">no date of birth on record</span>
+                </div>
+
+                <div x-show="qv.open" style="margin-top:8px">
+                  <div class="field" style="margin-bottom:6px">
+                    <label class="fl">What did you check? — this goes on the record</label>
+                    <input type="text" x-model="qv.note" @keydown.enter="quickVerify('admin', qv.note)"
+                           placeholder="e.g. birth certificate sighted, Connect record not live yet">
+                  </div>
+                  <button class="btn pri" @click="quickVerify('admin', qv.note)"
+                          :disabled="!qv.note.trim() || qv.busy">Verify on my authority</button>
+                </div>
+                <p x-show="qv.err" x-text="qv.err" class="err"></p>
+                <p class="note" x-show="pe.verification!=='verified' && !qv.open" style="margin-top:6px">
+                  <span x-text="unverifiedCount()"></span> still to check.
+                </p>
+              </div>
+            </template>
+
+            <template x-if="pm.editing">
+              <div>
+                <p class="note" style="margin:0 0 6px">A club is downstream of the association, whose
+                  registration the parent already attested to — so match that, and only go back to a
+                  family where the two disagree.</p>
+                <div class="vsrc">
+                  <button class="btn" :class="pe.verification==='verified' && pe.vsource==='association' ? 'pri':''"
+                          @click="setVerification('association')">Matched the registration</button>
+                  <button class="btn" :class="pe.verification==='verified' && pe.vsource==='attested' ? 'pri':''"
+                          @click="setVerification('attested')">Parent attested</button>
+                  <button class="btn" :class="pe.verification==='verified' && pe.vsource==='admin' ? 'pri':''"
+                          @click="setVerification('admin')">My own authority</button>
+                  <button class="btn" :class="pe.verification!=='verified' ? 'pri':''"
+                          @click="setVerification('')">Not verified</button>
+                </div>
+                <!-- The override has to say what was actually checked. That is the
+                     whole difference between an override and a bypass. -->
+                <div class="field" x-show="pe.verification==='verified' && pe.vsource==='admin'"
+                     style="margin-top:8px">
+                  <label class="fl">What did you check? — this is the reason on the record</label>
+                  <input type="text" x-model="pe.vnote"
+                         placeholder="e.g. birth certificate sighted, Connect record not live yet">
+                </div>
+                <p class="note" x-show="pe.verification==='verified'" style="margin-top:8px">
+                  Changing the date of birth un-verifies this record — the registration it was matched
+                  against is keyed on that date, so somebody has to look again.</p>
+                <p class="note" x-show="!pm.personId">Anything created here is flagged <b>DEMO</b>.
+                  This version holds fabricated data only.</p>
+
+                <div class="inline" style="margin-top:10px" x-show="pm.personId">
+                  <button class="btn" x-show="!pe.delConfirm" @click="pe.delConfirm=true">Delete…</button>
+                  <template x-if="pe.delConfirm">
+                    <span class="inline" style="margin:0">
+                      <span class="c wn">Delete permanently?</span>
+                      <button class="btn" @click="deletePerson()">Yes, delete</button>
+                      <button class="btn" @click="pe.delConfirm=false">No</button>
+                    </span>
+                  </template>
+                </div>
+                <p class="note" x-show="pe.delConfirm">A player who has been rated cannot be deleted —
+                  the ratings would go with them. Mark them <b>inactive</b> instead; they leave the
+                  lists and the record survives.</p>
+                <p x-show="pe.err" x-text="pe.err" class="err"></p>
+              </div>
+            </template>
+
+            <template x-if="!pm.editing && !pm.detail.length && !pm.err && pm.mode!=='profile'">
+              <div class="empty">Nothing recorded for this player in this session yet.</div>
+            </template>
+
+
+            <template x-if="pm.detail.length">
+              <div>
+                <div class="statrow" style="border:1px solid var(--line);border-radius:8px;margin-bottom:12px">
+                  <div><b x-text="pm.mean"></b>rating</div>
+                  <div><b x-text="pmRaters().length"></b><span x-text="pmRaters().length===1?'pass':'passes'"></span></div>
+                  <div><b x-text="pmMeasures().length"></b>measures</div>
+                  <div><b x-text="pmWorst()"></b>worst spread</div>
+                </div>
+
+                <div class="cath">What each rater said
+                  <b x-text="'threshold '+review.threshold"></b></div>
+                <div class="inline" style="margin:0 0 6px">
+                  <template x-for="w in pmRaters()" :key="w.key">
+                    <span class="c grp"><span x-text="w.name"></span> ·
+                      <span x-text="w.when"></span></span>
+                  </template>
+                </div>
+                <div class="pc">
+                  <template x-for="m in pmMeasures()" :key="m.measure_id">
+                    <div>
+                    <div class="pcr" :class="res(m.measure_id) ? 'settled'
+                                          : (!m.rated ? 'gap'
+                                          : (m.spread > review.threshold ? 'wide' : ''))">
+                      <span class="lb" x-text="m.label"></span>
+                      <span class="passes">
+                        <template x-for="w in pmRaters()" :key="w.key">
+                          <span class="pv" :class="m.by[w.key] == null ? 'none' : ''"
+                                x-text="m.by[w.key] ?? '–'"></span>
+                        </template>
+                      </span>
+                      <span class="meter" :title="effOf(m) + ' of 5'">
+                        <i :style="'width:'+ (isNaN(effOf(m)) ? 0 : effOf(m)/5*100) +'%'"></i>
+                      </span>
+                      <span class="mn" x-text="effOf(m)"></span>
+                      <span class="sp" x-text="res(m.measure_id)
+                            ? (res(m.measure_id).source==='adopted'
+                                ? 'took '+res(m.measure_id).adopted_name
+                                : 'HC call')
+                            : (!m.rated ? 'not rated' : (m.spread ? 'spread '+m.spread : ''))"></span>
+                      <span class="act">
+                        <button class="btn sm" x-show="canResolve()"
+                                @click="toggleResolve(m)"
+                                x-text="rz.measure_id===m.measure_id ? 'Cancel'
+                                      : (res(m.measure_id) ? 'Change' : 'Override')"></button>
+                      </span>
+                    </div>
+
+                    <!-- Pick one of the raters, or record your own. Both are the head
+                         coach's call; only the record of WHOSE call differs. -->
+                    <div class="rz" x-show="rz.measure_id===m.measure_id">
+                      <div class="cath" style="margin-top:0">The head coach's call</div>
+                      <p class="note" style="margin:0 0 7px">A session is usually run by the coaching
+                        staff; the head coach carries the final say on every rating, and the
+                        explanation with it.</p>
+                      <template x-for="w in pmRaters()" :key="w.key">
+                        <div class="opt" x-show="m.by[w.key] != null"
+                             :class="rz.source==='adopted' && rz.adopted===w.mid ? 'on' : ''"
+                             @click="rz.source='adopted'; rz.adopted=w.mid; rz.score=m.by[w.key]">
+                          <span class="v" x-text="m.by[w.key]"></span>
+                          <span>Take <b x-text="w.name"></b>'s rating</span>
+                        </div>
+                      </template>
+                      <div class="opt" :class="rz.source==='own' ? 'on' : ''"
+                           @click="rz.source='own'; rz.adopted=null">
+                        <span class="v" x-text="rz.source==='own' && rz.score ? rz.score : '?'"></span>
+                        <span>Record my own</span>
+                        <span class="scale" style="margin-left:auto">
+                          <template x-for="v in scaleOf(rzMeasure())" :key="v">
+                            <button class="sv" :class="rz.source==='own' && rz.score===v ? 'on' : ''"
+                                    @click.stop="rz.source='own'; rz.adopted=null; rz.score=v"
+                                    x-text="v"></button>
+                          </template>
+                        </span>
+                      </div>
+                      <div class="field" style="margin:8px 0 0">
+                        <label class="fl">Why — optional, and only for you. The head coach's
+                          authority does not rest on writing it down</label>
+                        <input type="text" x-model="rz.rationale"
+                               placeholder="e.g. watched the second half">
+                      </div>
+                      <div class="inline" style="margin-top:8px">
+                        <button class="btn pri" @click="saveResolution(m)"
+                                :disabled="!rz.score || rz.busy">Save the call</button>
+                        <button class="btn" @click="rz.measure_id=''">Cancel</button>
+                      </div>
+                      <p x-show="rz.err" x-text="rz.err" class="err"></p>
+                    </div>
+                    </div>
+                  </template>
+                </div>
+                <p class="note" x-show="pmRaters().length>1">One box per rating pass, in the order
+                  they were taken. Where the same coach rated twice the passes stay separate —
+                  nothing is averaged away before you see it. The bar repeats the mean; it does not
+                  add anything the number does not already say.</p>
+                <p class="note" x-show="pmRaters().length===1">One pass, so there is nothing to
+                  disagree with yet. Spread appears once a second coach rates this player.</p>
+              </div>
+            </template>
+
+            <!-- The shape. Ported from the TMS `radarSVG` so the two systems draw a
+                 player the same way. Series are distinguished by BOTH colour and
+                 dash, and every value is written out beside the chart, so nothing
+                 depends on telling two colours apart. -->
+            <template x-if="pmHistory().length">
+              <div>
+                <div class="cath">The shape
+                  <b x-text="pmHistory().length > 1
+                       ? 'latest against the one before'
+                       : 'one confirmed session so far'"></b></div>
+                <div class="shape">
+                  <div>
+                    <div x-html="playerRadar()"></div>
+                    <div class="leg">
+                      <div><i :style="'border-color:var(--navy)'"></i>
+                        <span x-text="pmHistory()[pmHistory().length-1]?.session_name"></span></div>
+                      <div x-show="pmHistory().length > 1">
+                        <i style="border-color:var(--ink3);border-top-style:dashed"></i>
+                        <span x-text="pmHistory()[pmHistory().length-2]?.session_name"></span></div>
+                    </div>
+                  </div>
+                  <table class="vtab">
+                    <thead><tr>
+                      <th>Measure</th>
+                      <th class="r">Rating</th>
+                      <th class="r" x-show="pmHistory().length>1">Change</th>
+                    </tr></thead>
+                    <tbody>
+                      <template x-for="r in pmShapeRows()" :key="r.measure_id">
+                        <tr>
+                          <td x-text="r.label"></td>
+                          <td class="r v" x-text="r.now.toFixed(2)"></td>
+                          <td class="r d dlt" x-show="pmHistory().length>1"
+                              :class="r.delta > 0 ? 'up' : (r.delta < 0 ? 'dn' : 'flat')"
+                              x-text="r.delta == null ? '—'
+                                    : (r.delta > 0 ? '▲ +' : (r.delta < 0 ? '▼ ' : '– '))
+                                      + (r.delta === 0 ? '0.00' : r.delta.toFixed(2))"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </template>
+
+            <!-- The trend. One bar per confirmed session, oldest first. With a
+                 single session it is a single bar and says so — better than an
+                 empty frame pretending a line exists. -->
+            <template x-if="pmHistory().length">
+              <div>
+                <div class="cath">Overall, session by session</div>
+                <div class="trend">
+                  <div class="tline">
+                    <template x-for="h in pmHistory()" :key="h.session_id">
+                      <b :style="'height:'+ Math.max(3, h.mean/5*34) +'px'"
+                         :title="h.session_name + ' — ' + h.mean"></b>
+                    </template>
+                  </div>
+                  <div class="inline" style="margin-top:5px">
+                    <template x-for="h in pmHistory()" :key="h.session_id">
+                      <span class="c"><span x-text="h.session_date"></span> ·
+                        <b x-text="h.mean"></b></span>
+                    </template>
+                  </div>
+                </div>
+                <p class="note" x-show="pmHistory().length === 1">
+                  One confirmed session. The trend fills in as more are signed off — this is the
+                  first point on it.</p>
+                <p class="note" x-show="pmHistory().length > 1">
+                  Overall is the plain mean across every approved measure in that session, the same
+                  arithmetic the rating itself uses.</p>
+              </div>
+            </template>
+
+            <div class="cath">Approved record</div>
+            <template x-if="!pm.history.length">
+              <p class="note" style="margin-top:0">Nothing approved yet. A rating enters this player's
+                permanent record when the head coach confirms the session it came from.</p>
+            </template>
+            <template x-if="pm.history.length">
+              <div>
+                <template x-for="h in pmHistory()" :key="h.session_id">
+                  <div class="sess">
+                    <span class="big" x-text="h.mean"></span>
+                    <div class="body">
+                      <div class="t" x-text="h.session_name"></div>
+                      <div class="d"><span x-text="h.session_date"></span> ·
+                        <span x-text="h.n"></span> measures</div>
+                    </div>
+                    <span class="c" :class="h.anyResolved?'acc':''"
+                          x-text="h.anyResolved?'resolved':'mean'"></span>
+                  </div>
+                </template>
+                <p class="note">One card per confirmed session, oldest first. The matrix and the
+                  trend chart will read from this same record.</p>
+              </div>
+            </template>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </template>
 
     <template x-if="stage==='admin'">
@@ -1318,469 +1903,6 @@ values (
        club matches the association's registration, which the parent already
        attested to and paid against, and only contacts a family where the two
        disagree. Hence three sources, and an override that must say why. ── -->
-  <template x-if="modal==='players'">
-    <div class="modal" @click.self="pm.editing ? null : (modal='')">
-      <div class="box lg">
-        <div class="mhead"><h3>Players</h3>
-          <span class="c" x-text="peopleShown().length+' of '+people.length"></span>
-          <span class="c wn" x-show="unverifiedCount()"
-                x-text="unverifiedCount()+' unverified'"></span>
-          <button class="btn sm pri" @click="startAdd()"
-                  x-show="!pm.editing && pm.returnTo!=='review'">Add a player</button>
-          <button class="x" @click="modal=''" x-show="!pm.editing" title="Close">×</button></div>
-
-        <div class="mbody">
-          <p x-show="peopleErr" x-text="peopleErr" class="err" style="margin-top:0"></p>
-
-          <!-- ── filters. Age is arithmetic — age at 31 December of the year you
-                 pick — NOT a named band. U12 / U14 are an association's own
-                 convention and belong with the season, not hard-coded here. ── -->
-          <p class="note" x-show="pm.returnTo==='review'" style="margin-top:0">
-            Showing the players in <b x-text="pm.sessionName"></b>. Pick any of them on the left —
-            you do not have to go back to the ledger between players.</p>
-          <div class="inline" style="margin-top:0" x-show="pm.returnTo!=='review'">
-            <input type="search" x-model="pf.q" placeholder="Search a name"
-                   style="flex:1;min-width:150px">
-            <select x-model="pf.show" style="width:auto">
-              <option value="active">Active</option>
-              <option value="unverified">Unverified only</option>
-              <option value="inactive">Inactive</option>
-              <option value="all">Everyone</option>
-            </select>
-            <select x-model="pf.gender" style="width:auto">
-              <option value="">Any gender</option>
-              <option value="F">F</option><option value="M">M</option><option value="X">X</option>
-            </select>
-            <select x-model.number="pf.year" style="width:auto">
-              <template x-for="y in ageYears()" :key="y">
-                <option :value="y" x-text="'age at 31 Dec '+y"></option>
-              </template>
-            </select>
-          </div>
-          <div class="fchips" x-show="pm.returnTo!=='review'">
-            <button class="fc" :class="pf.age===null?'on':''" @click="pf.age=null">All ages</button>
-            <template x-for="g in ageGroups()" :key="g.age">
-              <button class="fc" :class="pf.age===g.age?'on':''" @click="pf.age=g.age">
-                <b x-text="g.age"></b><span x-text="' · '+g.n"></span></button>
-            </template>
-            <span class="c" x-show="!ageGroups().length">no dates of birth recorded</span>
-          </div>
-
-          <div class="psplit" style="margin-top:10px">
-            <div>
-              <div class="plist2">
-                <template x-for="p in peopleShown()" :key="p.id">
-                  <button class="prow" :class="pm.personId===p.id?'on':''"
-                          @click="selectPlayer(p)">
-                    <span class="u" x-show="p.verification!=='verified'"
-                          title="not verified"></span>
-                    <span class="bd">
-                      <span class="n2" x-text="p.given_name+' '+p.family_name"></span>
-                      <span class="m2">
-                        <span x-text="p.dob ? ageAt(p.dob, pf.year)+' in '+pf.year : 'no DOB'"></span>
-                        <span x-show="p.gender" x-text="' · '+p.gender"></span>
-                        <span x-show="p.status==='inactive'"> · inactive</span>
-                        <span x-show="ratedCount(p.id)" x-text="' · '+ratedCount(p.id)+' rated'"></span>
-                      </span>
-                    </span>
-                  </button>
-                </template>
-                <template x-if="!peopleShown().length">
-                  <div class="empty" style="padding:18px 10px"
-                       x-text="people.length ? 'Nobody matches that.' : 'No players yet.'"></div>
-                </template>
-              </div>
-              <p class="note">A dot marks a record nobody has stood behind yet. Rating never waits
-                on it; <b>an offer of a place does</b>.</p>
-            </div>
-
-            <div class="pdet" data-modal="player">
-              <template x-if="!pm.personId">
-                <div class="empty">Pick a player on the left.</div>
-              </template>
-              <template x-if="pm.personId">
-                <div>
-                  <div class="inline" style="margin:0 0 8px">
-                    <b style="font-size:15px" x-text="pm.name"></b>
-                    <span class="c" x-show="pe.dob" x-text="ageAt(pe.dob, pf.year)+' in '+pf.year"></span>
-                    <span class="c" x-show="pe.status==='inactive'">inactive</span>
-                    <span class="c" :class="pe.verification==='verified' ? 'ok':'wn'"
-                          x-text="pe.verification==='verified'
-                                  ? vsourceShort(pe.vsource) : 'unverified'"></span>
-                    <span class="c grp" x-show="pm.sessionName" x-text="pm.sessionName"></span>
-                    <span style="margin-left:auto"></span>
-                    <button class="btn sm" x-show="pm.returnTo==='review' && !pm.editing"
-                            @click="modal='review'">&larr; Review</button>
-                    <button class="btn sm" x-show="!pm.editing && canEditPlayer()"
-                            @click="pm.editing=true">Edit</button>
-                    <button class="btn sm pri" x-show="pm.editing" @click="savePerson()"
-                            :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
-                            x-text="pe.busy ? 'Saving…' : 'Done'"></button>
-                    <button class="btn sm" x-show="pm.editing" @click="cancelEdit()">Cancel</button>
-                  </div>
-
-          <p x-show="pm.err" x-text="pm.err" class="err" style="margin-top:0"></p>
-
-          <!-- ── details ─────────────────────────────────────────────────── -->
-          <div class="cath">Details</div>
-          <div class="dl">
-            <div class="r"><span class="k">Given name</span>
-              <span class="v" x-show="!pm.editing" x-text="pe.given"></span>
-              <input type="text" x-show="pm.editing" x-model="pe.given" @blur="checkDupes()"></div>
-            <div class="r"><span class="k">Family name</span>
-              <span class="v" x-show="!pm.editing" x-text="pe.family"></span>
-              <input type="text" x-show="pm.editing" x-model="pe.family" @blur="checkDupes()"></div>
-            <div class="r"><span class="k">Date of birth</span>
-              <span class="v" x-show="!pm.editing" :class="pe.dob?'':'none'"
-                    x-text="pe.dob ? pe.dob+'  ('+ageOf(pe.dob)+' years)' : 'not recorded'"></span>
-              <input type="date" x-show="pm.editing" x-model="pe.dob" @blur="checkDupes()"></div>
-            <div class="r"><span class="k">Gender</span>
-              <span class="v" x-show="!pm.editing" :class="pe.gender?'':'none'"
-                    x-text="pe.gender || 'not recorded'"></span>
-              <select x-show="pm.editing" x-model="pe.gender">
-                <option value="">—</option><option value="F">F</option>
-                <option value="M">M</option><option value="X">X</option></select></div>
-            <div class="r"><span class="k">Association ref</span>
-              <span class="v" x-show="!pm.editing" :class="pe.ref?'':'none'"
-                    x-text="pe.ref || 'none held'"></span>
-              <input type="text" x-show="pm.editing" x-model="pe.ref"
-                     placeholder="e.g. BC-2027-00412"></div>
-            <div class="r" x-show="pm.editing || pe.status==='inactive'">
-              <span class="k">Status</span>
-              <span class="v" x-show="!pm.editing" x-text="pe.status"></span>
-              <select x-show="pm.editing" x-model="pe.status">
-                <option value="active">Active</option>
-                <option value="inactive">Inactive — off the lists, ratings kept</option></select></div>
-            <div class="r" x-show="!pm.editing && pm.personId"><span class="k">Came in as</span>
-              <span class="v" x-text="sourceLabel(pmRow()?.source)"></span></div>
-          </div>
-
-          <!-- The duplicate check runs BEFORE a second record can exist. Same
-               rule import will use — match_person(), not a second implementation
-               that quietly disagrees with the first. -->
-          <template x-if="pm.editing && pe.dupes.length">
-            <div class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);
-                        margin:10px 0 0">
-              <b x-text="pe.dupes.length===1 ? 'This player may already be here'
-                                             : 'These players may already be here'"></b>
-              <template x-for="d in pe.dupes" :key="d.person_id">
-                <div style="margin-top:4px">
-                  <b x-text="d.given_name+' '+d.family_name"></b>
-                  <span x-text="' — '+d.reason+' ('+d.confidence+')'"></span>
-                  <button class="btn sm" style="margin-left:6px"
-                          @click="selectPlayer(people.find(p=>p.id===d.person_id))">
-                    Open that record instead</button>
-                </div>
-              </template>
-            </div>
-          </template>
-
-          <!-- ── verification ────────────────────────────────────────────── -->
-          <div class="cath">Verification</div>
-          <p class="note" style="margin:0 0 6px" x-show="!pm.editing">
-            <span x-show="pe.verification==='verified'">Checked
-              <b x-text="vsourceLabel(pe.vsource)"></b><span x-show="pmRow()?.verified_by_name">,
-              by <b x-text="pmRow()?.verified_by_name"></b></span><span
-              x-show="pmRow()?.verified_at"> on <b x-text="fmt(pmRow()?.verified_at)"></b></span>.
-              <span x-show="pe.vnote"><br>Reason given: <i x-text="pe.vnote"></i></span></span>
-            <span x-show="pe.verification!=='verified'">Nobody has checked this record yet, so this
-              player <b>cannot be offered a place</b>. Rating is unaffected.</span>
-          </p>
-
-          <!-- ── verifying, without going into edit ──────────────────────────
-               Ming, 13 Aug 2026: "to go into edit and confirm is too much
-               burden". Verification is the act a club repeats dozens of times
-               in a sitting, so it is one click from the card. Editing a record
-               is rare; verifying one is not. The `admin` path still asks for a
-               reason, because that is the whole difference between an override
-               and a bypass — but it asks inline, not in a different mode. ── -->
-          <template x-if="!pm.editing && canEditPlayer()">
-            <div>
-              <div class="inline" style="margin-top:0" x-show="pe.verification!=='verified'">
-                <button class="btn pri" @click="quickVerify('association')"
-                        :disabled="qv.busy">Matched the registration</button>
-                <button class="btn" @click="quickVerify('attested')"
-                        :disabled="qv.busy">Parent attested</button>
-                <button class="btn" @click="qv.open=!qv.open"
-                        x-text="qv.open ? 'Cancel' : 'My own authority…'"></button>
-              </div>
-
-              <div class="inline" style="margin-top:0" x-show="pe.verification==='verified'">
-                <button class="btn" @click="quickUnverify()" :disabled="qv.busy">Unverify</button>
-                <span class="c" x-show="!pe.dob">no date of birth on record</span>
-              </div>
-
-              <div x-show="qv.open" style="margin-top:8px">
-                <div class="field" style="margin-bottom:6px">
-                  <label class="fl">What did you check? — this goes on the record</label>
-                  <input type="text" x-model="qv.note" @keydown.enter="quickVerify('admin', qv.note)"
-                         placeholder="e.g. birth certificate sighted, Connect record not live yet">
-                </div>
-                <button class="btn pri" @click="quickVerify('admin', qv.note)"
-                        :disabled="!qv.note.trim() || qv.busy">Verify on my authority</button>
-              </div>
-              <p x-show="qv.err" x-text="qv.err" class="err"></p>
-              <p class="note" x-show="pe.verification!=='verified' && !qv.open" style="margin-top:6px">
-                <span x-text="unverifiedCount()"></span> still to check.
-              </p>
-            </div>
-          </template>
-
-          <template x-if="pm.editing">
-            <div>
-              <p class="note" style="margin:0 0 6px">A club is downstream of the association, whose
-                registration the parent already attested to — so match that, and only go back to a
-                family where the two disagree.</p>
-              <div class="vsrc">
-                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='association' ? 'pri':''"
-                        @click="setVerification('association')">Matched the registration</button>
-                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='attested' ? 'pri':''"
-                        @click="setVerification('attested')">Parent attested</button>
-                <button class="btn" :class="pe.verification==='verified' && pe.vsource==='admin' ? 'pri':''"
-                        @click="setVerification('admin')">My own authority</button>
-                <button class="btn" :class="pe.verification!=='verified' ? 'pri':''"
-                        @click="setVerification('')">Not verified</button>
-              </div>
-              <!-- The override has to say what was actually checked. That is the
-                   whole difference between an override and a bypass. -->
-              <div class="field" x-show="pe.verification==='verified' && pe.vsource==='admin'"
-                   style="margin-top:8px">
-                <label class="fl">What did you check? — this is the reason on the record</label>
-                <input type="text" x-model="pe.vnote"
-                       placeholder="e.g. birth certificate sighted, Connect record not live yet">
-              </div>
-              <p class="note" x-show="pe.verification==='verified'" style="margin-top:8px">
-                Changing the date of birth un-verifies this record — the registration it was matched
-                against is keyed on that date, so somebody has to look again.</p>
-              <p class="note" x-show="!pm.personId">Anything created here is flagged <b>DEMO</b>.
-                This version holds fabricated data only.</p>
-
-              <div class="inline" style="margin-top:10px" x-show="pm.personId">
-                <button class="btn" x-show="!pe.delConfirm" @click="pe.delConfirm=true">Delete…</button>
-                <template x-if="pe.delConfirm">
-                  <span class="inline" style="margin:0">
-                    <span class="c wn">Delete permanently?</span>
-                    <button class="btn" @click="deletePerson()">Yes, delete</button>
-                    <button class="btn" @click="pe.delConfirm=false">No</button>
-                  </span>
-                </template>
-              </div>
-              <p class="note" x-show="pe.delConfirm">A player who has been rated cannot be deleted —
-                the ratings would go with them. Mark them <b>inactive</b> instead; they leave the
-                lists and the record survives.</p>
-              <p x-show="pe.err" x-text="pe.err" class="err"></p>
-            </div>
-          </template>
-
-          <template x-if="!pm.editing && !pm.detail.length && !pm.err && pm.mode!=='profile'">
-            <div class="empty">Nothing recorded for this player in this session yet.</div>
-          </template>
-
-
-          <template x-if="pm.detail.length">
-            <div>
-              <div class="statrow" style="border:1px solid var(--line);border-radius:8px;margin-bottom:12px">
-                <div><b x-text="pm.mean"></b>rating</div>
-                <div><b x-text="pmRaters().length"></b><span x-text="pmRaters().length===1?'pass':'passes'"></span></div>
-                <div><b x-text="pmMeasures().length"></b>measures</div>
-                <div><b x-text="pmWorst()"></b>worst spread</div>
-              </div>
-
-              <div class="cath">What each rater said
-                <b x-text="'threshold '+review.threshold"></b></div>
-              <div class="inline" style="margin:0 0 6px">
-                <template x-for="w in pmRaters()" :key="w.key">
-                  <span class="c grp"><span x-text="w.name"></span> ·
-                    <span x-text="w.when"></span></span>
-                </template>
-              </div>
-              <div class="pc">
-                <template x-for="m in pmMeasures()" :key="m.measure_id">
-                  <div>
-                  <div class="pcr" :class="res(m.measure_id) ? 'settled'
-                                        : (!m.rated ? 'gap'
-                                        : (m.spread > review.threshold ? 'wide' : ''))">
-                    <span class="lb" x-text="m.label"></span>
-                    <span class="passes">
-                      <template x-for="w in pmRaters()" :key="w.key">
-                        <span class="pv" :class="m.by[w.key] == null ? 'none' : ''"
-                              x-text="m.by[w.key] ?? '–'"></span>
-                      </template>
-                    </span>
-                    <span class="meter" :title="effOf(m) + ' of 5'">
-                      <i :style="'width:'+ (isNaN(effOf(m)) ? 0 : effOf(m)/5*100) +'%'"></i>
-                    </span>
-                    <span class="mn" x-text="effOf(m)"></span>
-                    <span class="sp" x-text="res(m.measure_id)
-                          ? (res(m.measure_id).source==='adopted'
-                              ? 'took '+res(m.measure_id).adopted_name
-                              : 'HC call')
-                          : (!m.rated ? 'not rated' : (m.spread ? 'spread '+m.spread : ''))"></span>
-                    <span class="act">
-                      <button class="btn sm" x-show="canResolve()"
-                              @click="toggleResolve(m)"
-                              x-text="rz.measure_id===m.measure_id ? 'Cancel'
-                                    : (res(m.measure_id) ? 'Change' : 'Override')"></button>
-                    </span>
-                  </div>
-
-                  <!-- Pick one of the raters, or record your own. Both are the head
-                       coach's call; only the record of WHOSE call differs. -->
-                  <div class="rz" x-show="rz.measure_id===m.measure_id">
-                    <div class="cath" style="margin-top:0">The head coach's call</div>
-                    <p class="note" style="margin:0 0 7px">A session is usually run by the coaching
-                      staff; the head coach carries the final say on every rating, and the
-                      explanation with it.</p>
-                    <template x-for="w in pmRaters()" :key="w.key">
-                      <div class="opt" x-show="m.by[w.key] != null"
-                           :class="rz.source==='adopted' && rz.adopted===w.mid ? 'on' : ''"
-                           @click="rz.source='adopted'; rz.adopted=w.mid; rz.score=m.by[w.key]">
-                        <span class="v" x-text="m.by[w.key]"></span>
-                        <span>Take <b x-text="w.name"></b>'s rating</span>
-                      </div>
-                    </template>
-                    <div class="opt" :class="rz.source==='own' ? 'on' : ''"
-                         @click="rz.source='own'; rz.adopted=null">
-                      <span class="v" x-text="rz.source==='own' && rz.score ? rz.score : '?'"></span>
-                      <span>Record my own</span>
-                      <span class="scale" style="margin-left:auto">
-                        <template x-for="v in scaleOf(rzMeasure())" :key="v">
-                          <button class="sv" :class="rz.source==='own' && rz.score===v ? 'on' : ''"
-                                  @click.stop="rz.source='own'; rz.adopted=null; rz.score=v"
-                                  x-text="v"></button>
-                        </template>
-                      </span>
-                    </div>
-                    <div class="field" style="margin:8px 0 0">
-                      <label class="fl">Why — optional, and only for you. The head coach's
-                        authority does not rest on writing it down</label>
-                      <input type="text" x-model="rz.rationale"
-                             placeholder="e.g. watched the second half">
-                    </div>
-                    <div class="inline" style="margin-top:8px">
-                      <button class="btn pri" @click="saveResolution(m)"
-                              :disabled="!rz.score || rz.busy">Save the call</button>
-                      <button class="btn" @click="rz.measure_id=''">Cancel</button>
-                    </div>
-                    <p x-show="rz.err" x-text="rz.err" class="err"></p>
-                  </div>
-                  </div>
-                </template>
-              </div>
-              <p class="note" x-show="pmRaters().length>1">One box per rating pass, in the order
-                they were taken. Where the same coach rated twice the passes stay separate —
-                nothing is averaged away before you see it. The bar repeats the mean; it does not
-                add anything the number does not already say.</p>
-              <p class="note" x-show="pmRaters().length===1">One pass, so there is nothing to
-                disagree with yet. Spread appears once a second coach rates this player.</p>
-            </div>
-          </template>
-
-          <!-- The shape. Ported from the TMS `radarSVG` so the two systems draw a
-               player the same way. Series are distinguished by BOTH colour and
-               dash, and every value is written out beside the chart, so nothing
-               depends on telling two colours apart. -->
-          <template x-if="pmHistory().length">
-            <div>
-              <div class="cath">The shape
-                <b x-text="pmHistory().length > 1
-                     ? 'latest against the one before'
-                     : 'one confirmed session so far'"></b></div>
-              <div class="shape">
-                <div>
-                  <div x-html="playerRadar()"></div>
-                  <div class="leg">
-                    <div><i :style="'border-color:var(--navy)'"></i>
-                      <span x-text="pmHistory()[pmHistory().length-1]?.session_name"></span></div>
-                    <div x-show="pmHistory().length > 1">
-                      <i style="border-color:var(--ink3);border-top-style:dashed"></i>
-                      <span x-text="pmHistory()[pmHistory().length-2]?.session_name"></span></div>
-                  </div>
-                </div>
-                <table class="vtab">
-                  <thead><tr>
-                    <th>Measure</th>
-                    <th class="r">Rating</th>
-                    <th class="r" x-show="pmHistory().length>1">Change</th>
-                  </tr></thead>
-                  <tbody>
-                    <template x-for="r in pmShapeRows()" :key="r.measure_id">
-                      <tr>
-                        <td x-text="r.label"></td>
-                        <td class="r v" x-text="r.now.toFixed(2)"></td>
-                        <td class="r d dlt" x-show="pmHistory().length>1"
-                            :class="r.delta > 0 ? 'up' : (r.delta < 0 ? 'dn' : 'flat')"
-                            x-text="r.delta == null ? '—'
-                                  : (r.delta > 0 ? '▲ +' : (r.delta < 0 ? '▼ ' : '– '))
-                                    + (r.delta === 0 ? '0.00' : r.delta.toFixed(2))"></td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </template>
-
-          <!-- The trend. One bar per confirmed session, oldest first. With a
-               single session it is a single bar and says so — better than an
-               empty frame pretending a line exists. -->
-          <template x-if="pmHistory().length">
-            <div>
-              <div class="cath">Overall, session by session</div>
-              <div class="trend">
-                <div class="tline">
-                  <template x-for="h in pmHistory()" :key="h.session_id">
-                    <b :style="'height:'+ Math.max(3, h.mean/5*34) +'px'"
-                       :title="h.session_name + ' — ' + h.mean"></b>
-                  </template>
-                </div>
-                <div class="inline" style="margin-top:5px">
-                  <template x-for="h in pmHistory()" :key="h.session_id">
-                    <span class="c"><span x-text="h.session_date"></span> ·
-                      <b x-text="h.mean"></b></span>
-                  </template>
-                </div>
-              </div>
-              <p class="note" x-show="pmHistory().length === 1">
-                One confirmed session. The trend fills in as more are signed off — this is the
-                first point on it.</p>
-              <p class="note" x-show="pmHistory().length > 1">
-                Overall is the plain mean across every approved measure in that session, the same
-                arithmetic the rating itself uses.</p>
-            </div>
-          </template>
-
-          <div class="cath">Approved record</div>
-          <template x-if="!pm.history.length">
-            <p class="note" style="margin-top:0">Nothing approved yet. A rating enters this player's
-              permanent record when the head coach confirms the session it came from.</p>
-          </template>
-          <template x-if="pm.history.length">
-            <div>
-              <template x-for="h in pmHistory()" :key="h.session_id">
-                <div class="sess">
-                  <span class="big" x-text="h.mean"></span>
-                  <div class="body">
-                    <div class="t" x-text="h.session_name"></div>
-                    <div class="d"><span x-text="h.session_date"></span> ·
-                      <span x-text="h.n"></span> measures</div>
-                  </div>
-                  <span class="c" :class="h.anyResolved?'acc':''"
-                        x-text="h.anyResolved?'resolved':'mean'"></span>
-                </div>
-              </template>
-              <p class="note">One card per confirmed session, oldest first. The matrix and the
-                trend chart will read from this same record.</p>
-            </div>
-          </template>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </template>
 
   <!-- ─────────── ADD A PLAYER (modal) ───────────
        A focused dialog rather than a mode of the directory: you are not
@@ -2209,12 +2331,41 @@ values (
     </div>
   </template>
 
-  <template x-if="modal==='clubcfg'">
+  <!-- SETUP holds the two things a club looks at rarely and reads together: its
+       own conventions, and the rubrics it rates against. One dialog with a tab,
+       not two header buttons — the ellipsis marks it as a dialog, which is
+       Ming's own convention and the reason the five sections carry none. -->
+  <template x-if="modal==='setup'">
     <div class="modal" @click.self="modal=''">
       <div class="box">
-        <div class="mhead"><h3>Club settings</h3>
+        <div class="mhead"><h3>Setup</h3>
+          <button class="lb" :class="setupTab==='club'?'on':''"
+                  @click="setupTab='club'">This club</button>
+          <button class="lb" :class="setupTab==='rubrics'?'on':''"
+                  @click="setupTab='rubrics'">Rubrics</button>
+          <span class="c" x-show="setupTab==='rubrics'">locked · scale 1–5</span>
           <button class="x" @click="modal=''" title="Close">×</button></div>
-        <div class="mbody">
+
+        <div class="mbody" x-show="setupTab==='rubrics'">
+          <p class="note" style="margin-top:0">Identical for every club in the sport. Every club
+            completes <b>Core</b>. <b>Extended</b> is for clubs that can do more, and its measures
+            roll up into Core so both depths stay comparable.</p>
+          <template x-for="r in rubrics" :key="r.id">
+            <div class="rgrp">
+              <div class="cath"><span x-text="r.name"></span>
+                <b x-text="measuresOf(r.id).length+' measures'"></b></div>
+              <div class="chips">
+                <template x-for="m in measuresOf(r.id)" :key="m.id">
+                  <span class="c" :class="r.level==='core' ? 'grp' : (m.rolls_up_to ? 'acc' : '')"
+                        x-text="m.label"></span>
+                </template>
+              </div>
+            </div>
+          </template>
+          <p class="note">A tenant never authors a measure. Adding a sport is seeding, not coding.</p>
+        </div>
+
+        <div class="mbody" x-show="setupTab==='club'">
           <p class="note" style="margin-top:0">These are this club's own conventions, not rules of
             the sport. They decide which age group a player falls in and what a coach can mark on a
             roster.</p>
@@ -2327,37 +2478,6 @@ values (
       </div>
     </div>
   </template>
-
-  <!-- ─────────── RUBRICS (modal) ─────────── -->
-  <template x-if="modal==='rubrics'">
-    <div class="modal" @click.self="modal=''">
-      <div class="box">
-        <div class="mhead"><h3>Rubrics</h3>
-          <span class="c">locked · scale 1–5</span>
-          <button class="x" @click="modal=''" title="Close">×</button></div>
-        <div class="mbody">
-          <p class="note" style="margin-top:0">Identical for every club in the sport. Every club
-            completes <b>Core</b>. <b>Extended</b> is for clubs that can do more, and its measures
-            roll up into Core so both depths stay comparable.</p>
-          <template x-for="r in rubrics" :key="r.id">
-            <div class="rgrp">
-              <div class="cath"><span x-text="r.name"></span>
-                <b x-text="measuresOf(r.id).length+' measures'"></b></div>
-              <div class="chips">
-                <template x-for="m in measuresOf(r.id)" :key="m.id">
-                  <span class="c" :class="r.level==='core' ? 'grp' : (m.rolls_up_to ? 'acc' : '')"
-                        :title="m.rolls_up_to ? 'rolls up to '+labelOf(m.rolls_up_to)
-                                : (r.level==='extended' ? 'extended signal only' : '')"
-                        x-text="m.label"></span>
-                </template>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-    </div>
-  </template>
-
 
   <!-- ─────────── RATE (modal) ─────────── -->
   <template x-if="modal==='rate'">
@@ -2807,11 +2927,72 @@ function app(){ return {
   //  The club moves LINES on the cohort's distribution; a team's target is read
   //  off the band they cut. That is the whole of ADR-007: a number typed at a
   //  cohort can be unreachable, a number read off it never is.
+  setupTab:'club',
+  dash:{busy:false, err:'', pipe:[], queue:[], pool:[], plans:[], ts:[]},
+
   fp:{group:'', basis:'rating', teams:[], cuts:[], cap:10, min:8, lock:true,
       newdiv:1, err:'', busy:false, saved:'', plans:[], scoring:[], drag:null,
       phase:'setup', result:null,
       naming:false, names:{}, pattern:'Div {n}', namesErr:'', gender:'', stale:false,
+      /* dashboard state lives beside it */
       lenses:[], lens:'', marks:{}, stars:{}, assign:{}, frozen:null, by:{}, moves:{}},
+
+  openPlayersStage(){
+    //  Opened from the header the directory is the whole club; opened from a
+    //  review row it stays scoped to that session, so clear the scope here.
+    this.stage='players'; this.modal='';
+    this.pm.returnTo=''; this.pm.editing=false;
+  },
+  openSetup(){ this.openClubCfg(); this.modal='setup'; },
+
+  // ── the dashboard: the season at a glance ────────────────────────────────
+  //  Everything here is READ from views that already exist. It answers one
+  //  question per row — what has to happen next — and every number is a link
+  //  into the section that would do it. It decides nothing and writes nothing.
+  async openDash(){
+    this.stage='dash'; this.dash.err='';
+    if(!this.org || !this.seasonId) return;
+    this.dash.busy=true;
+    const q = async (t,f) => { let r=this.sb.from(t).select('*');
+      if(f) r=r.eq(f[0],f[1]);
+      const {data,error}=await r;
+      if(error){ this.dash.err=t+': '+error.message; return []; }
+      return data||[]; };
+    const [pipe,queue,pool,plans,ts] = await Promise.all([
+      q('v_season_pipeline',['season_id',this.seasonId]),
+      q('v_session_queue'),
+      q('v_player_pool',['season_id',this.seasonId]),
+      q('formation_plan',['season_id',this.seasonId]),
+      q('team_season',['season_id',this.seasonId]),
+    ]);
+    this.dash={...this.dash, busy:false, pipe, queue, pool, plans, ts};
+  },
+  dashRated(){ return this.dash.pool.filter(p=>p.rating!=null).length; },
+  dashUnrated(){ return this.dash.pool.filter(p=>p.rating==null).length; },
+  dashUnverified(){ return this.dash.pool.filter(p=>p.verification!=='verified').length; },
+  dashOffered(){ return this.dash.pipe.filter(r=>r.offer_response).length; },
+  dashAccepted(){ return this.dash.pipe.filter(r=>r.offer_response==='accepted').length; },
+  dashConfirmed(){ return this.dash.pipe.filter(r=>r.status==='confirmed').length; },
+  dashSessionsOpen(){ return this.dash.queue.filter(s=>s.status==='open').length; },
+  dashSessionsToSettle(){ return this.dash.queue.reduce((a,s)=>a+(+s.to_settle||0),0); },
+  dashSessionsLate(){ return this.dash.queue.filter(s=>s.outside_window).length; },
+  //  One row per age group: is there a plan, and does it describe the cohort?
+  dashGroups(){
+    const gs=[...new Set(this.dash.pool.map(p=>p.age_group).filter(Boolean))]
+      .sort((a,b)=>this.fByAge(a,b));
+    return gs.map(g=>{
+      const ps=this.dash.pool.filter(p=>p.age_group===g);
+      const plan=this.dash.plans.find(x=>x.age_group===g);
+      const named=this.dash.ts.filter(t=>t.age_group===g).length;
+      return { g, n:ps.length,
+        rated:ps.filter(p=>p.rating!=null).length,
+        teams:(plan&&plan.teams&&plan.teams.length)||0,
+        named,
+        state: !plan||!plan.teams||!plan.teams.length ? 'no plan yet'
+             : named>=plan.teams.length ? 'teams named'
+             : 'planned, not named' };
+    });
+  },
 
   async openFormation(){
     this.stage='formation'; this.fp.err='';
@@ -3970,7 +4151,7 @@ function app(){ return {
     const sc  = this.review.scores?.[personId];
     const dir = this.people.find(p => p.id === personId);
     this.pe = dir ? this.bufferFrom(dir) : this.blankPerson();
-    this.modal = 'players';
+    this.stage = 'players'; this.modal = '';
     this.pm = {
       personId, mode:'session', editing:false, adding:false, returnTo:'review',
       name: [row.given_name, row.family_name].filter(Boolean).join(' '),
