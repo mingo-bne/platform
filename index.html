@@ -361,37 +361,74 @@ word-break:break-all}
 .fbt tr:last-child td{border-bottom:0}
 .fbt .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
 .fbt .num{text-align:right;font-variant-numeric:tabular-nums}
-/* the proposal — one card per team, each read against ITS OWN band's number */
-.fsq{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px;margin-top:10px}
-.fsqc{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:11px 12px}
-.fsqc.over{border-color:#d9a441;background:#fffdf7}
-.fsqh{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:7px}
-.fsqh b{font-size:13.5px;color:var(--navy)}
-.fsqm{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--ink3);
- padding-bottom:7px;border-bottom:1px solid var(--line);margin-bottom:6px}
-.fsqm b{color:var(--ink);font-variant-numeric:tabular-nums}
-.fsqm .off{color:#b06a00;font-weight:650}
-.fsqm .ref{margin-left:auto;font-style:italic}
-.fsqt{width:100%;border-collapse:collapse;font-size:12px}
-.fsqt td{padding:2.5px 4px;border-bottom:1px solid #f0efec}
-.fsqt tr:last-child td{border-bottom:0}
-.fsqt .num{text-align:right;font-variant-numeric:tabular-nums;width:1%;white-space:nowrap}
-/* the shape: every category written out, never encoded by colour alone */
-.fsqs{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;padding-top:7px;
- border-top:1px solid var(--line);font-size:10.5px;color:var(--ink3)}
-.fsqs span{display:inline-flex;gap:4px;align-items:baseline}
-.fsqs b{color:var(--ink);font-variant-numeric:tabular-nums}
-.fsqs i{font-style:normal;font-variant-numeric:tabular-nums;opacity:.75}
-.fsqs .off i,.fsqs .off b{color:#b06a00;font-weight:650}
-/* naming the divisions — a panel inside the setup, not a second modal */
-.fnm{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:11px 13px;margin-top:10px}
-.fnmh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:8px}
-.fnmh b{font-size:13px;color:var(--navy)}
-.fnmp{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-bottom:9px;
- border-bottom:1px solid var(--line)}
-.fnmp .fl{margin:0;font-size:11px}
-.fnm code{background:#f0efec;padding:1px 4px;border-radius:3px;font-size:11px}
-.fnm .fbt{margin-top:4px}
+/* ── THE PROPOSAL AND THE COMPARISON BOARD ──────────────────────────────────
+   Lifted from prototype_formation_setup.html with the rules unchanged. Ming,
+   19 Aug 2026: "I want them look like the prototype we've just built this
+   morning." Same tokens, same geometry, same class names — this is a PORT, and
+   restyling it independently is how the two drift apart. */
+.c.bad{background:var(--badbg);border-color:var(--badline);color:var(--bad);font-weight:600}
+.sq{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,268px));gap:10px;margin-top:8px}
+.sqc{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}
+.sqc.short{border-color:var(--warnline)}
+.sqh{padding:7px 10px;border-bottom:1px solid var(--line);background:#fbfaf8;font-size:12.5px}
+.sqh .row{display:flex;gap:6px;align-items:baseline;margin-top:3px;font-size:11px;color:var(--ink2);
+ flex-wrap:wrap}
+.asg select{width:100%;font:600 12.5px inherit;padding:3px 5px;border-color:#b9c7de;
+ background:var(--navy2);color:var(--navy)}
+.cats{padding:6px 10px}
+.catr{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink2);margin-bottom:2px}
+.catr .nm2{width:70px;flex:0 0 70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catr .tr{position:relative;flex:1;height:7px;background:#f1efea;border-radius:4px}
+.catr .tr i{position:absolute;top:0;bottom:0;width:2px;background:var(--line2);left:50%}
+.catr .tr b{position:absolute;top:1px;height:5px;border-radius:3px;background:var(--navy)}
+.catr .tr b.lo{background:var(--warn)}
+.catr .dv{width:32px;text-align:right;font-variant-numeric:tabular-nums}
+.sqp{list-style:none;margin:0;padding:2px 0 4px;max-height:170px;overflow:auto}
+.nl{border-top:1px solid var(--line)}
+.nl summary{padding:5px 10px;font-size:11px;color:var(--ink2);cursor:pointer;list-style:none}
+.nl summary::-webkit-details-marker{display:none}
+.nl summary::before{content:'\25b8 ';color:var(--ink3)}
+.nl[open] summary::before{content:'\25be '}
+.sqp li{display:flex;gap:8px;padding:2px 10px;font-size:11.5px}
+.sqp li .r{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.warnbox{background:var(--accbg);border:1px solid var(--accline);color:var(--acc);
+ border-radius:9px;padding:8px 11px;font-size:12px;margin-top:10px}
+/* the comparison board */
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(206px,1fr));gap:10px;
+ align-items:start}
+.col{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}
+.col.over{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy2)}
+.col.warn{border-color:var(--warnline)}
+.colh{padding:7px 9px;border-bottom:1px solid var(--line);background:#fbfaf8}
+.colh b{font-size:12.5px;display:block}
+.colh .mt{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.pl{list-style:none;margin:0;padding:3px 0;min-height:56px}
+.pl li{display:flex;gap:7px;padding:3px 9px;font-size:11.5px;cursor:grab;
+ border-bottom:1px solid #f3f1ec}
+.pl li:last-child{border-bottom:0}
+.pl li:hover{background:#fbfaf8}
+.pl li .r{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.pl li .mk{color:var(--acc);font-weight:700;font-size:9px;letter-spacing:.04em}
+.pl li .mvn{color:var(--acc);font-weight:600}
+.pl li .ax{font-size:9px;color:var(--ink3);border:1px solid var(--line);border-radius:9px;
+ padding:0 5px;white-space:nowrap}
+.pl li .st{background:0;border:0;padding:0 2px 0 0;font-size:11px;color:var(--line2);cursor:pointer}
+.pl li .st.on{color:#c9a227}
+.pl li.ph{color:var(--ink3);cursor:default;justify-content:center;font-size:10px}
+.lens{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.lb{background:#fff;border:1px solid var(--line2);border-radius:7px;padding:4px 11px;
+ font:12.5px inherit;cursor:pointer}
+.lb.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+.zbar{display:flex;height:6px;margin:0 9px 6px}
+.zbar i{display:block}
+.zbar i:first-child{border-radius:3px 0 0 3px}
+.zbar i:last-child{border-radius:0 3px 3px 0}
+.zsec{border-top:1px solid var(--line)}
+.zsec.over{background:var(--navy2)}
+.zh{display:flex;align-items:center;gap:5px;padding:4px 9px 2px;font-size:9.5px;
+ letter-spacing:.05em;text-transform:uppercase;color:var(--ink3);font-weight:650}
+.zh i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.zh span{margin-left:auto;font-weight:600}
 .ftms{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 .ftm{display:inline-flex;align-items:center;gap:5px;background:var(--navy2);border:1px solid #b9c7de;
  color:var(--navy);font-weight:600;font-size:12px;padding:3px 5px 3px 10px;border-radius:20px}
@@ -1780,6 +1817,9 @@ values (
           <h3 x-text="fp.group"></h3>
           <span class="c" x-text="fPool().length+' players'"></span>
           <span class="c" x-text="'average '+f2(fMean(fPool().map(p=>fVal(p))))"></span>
+          <span class="c grp" x-show="fp.phase!=='setup'"
+                x-text="'graded on '+(fp.basis==='points'?'points per game':'coach rating')"></span>
+          <span class="c" x-show="fp.phase==='compare'">proposal confirmed · the engine is not running</span>
           <span class="c" x-show="fp.saved" x-text="fp.saved"></span>
           <button class="x" @click="modal=''" title="Close">×</button>
         </div>
@@ -1922,68 +1962,91 @@ values (
           </table>
         </div>
 
-        <!-- ── the proposal ──────────────────────────────────────────────────
-             The engine ran on the server (edge/formation). Every team is shown
-             against the number ITS BAND set, not against the other teams: two
-             sides in the same division are peers, sides in different divisions
-             are not comparable and never should be shown as if they were. ── -->
+        <!-- ── THE PROPOSAL ────────────────────────────────────────────────
+             The prototype's own surface, ported. One card per team: the standing
+             team it would be given, its division, what it came out at against
+             the number its band set, and every category as a bar against what a
+             team at this level should look like. ── -->
         <div class="mbody" x-show="fp.phase==='proposal' && fp.result">
           <div class="cath">What this plan builds</div>
           <p class="note" style="margin-top:0">
-            <b x-text="fp.result?.squads.length + ' teams'"></b> ·
-            <span x-text="fp.result?.placed + ' of ' + (fp.result?.placed + (fp.result?.unplaced.length||0)) + ' players placed'"></span>
+            <b x-text="(fp.result?.squads.length||0) + ' teams'"></b> ·
+            <span x-text="fp.result?.placed + ' of ' + ((fp.result?.placed||0) + (fp.result?.unplaced.length||0)) + ' players placed'"></span>
             <span x-show="fp.result?.exchanged"
                   x-text="' · ' + fp.result?.exchanged + ' exchanged across a line for shape'"></span>
           </p>
+          <p class="note" style="margin-top:0">
+            <span class="c grp" x-text="'graded on '+(fp.basis==='points'?'points per game':'coach rating')"></span>
+            Accepting would give <b x-text="fp.result?.squads.length"></b> standing
+            team<span x-show="fp.result?.squads.length!==1">s</span> this season's roster and the
+            division beside it.</p>
 
-          <div class="fsq">
-            <!-- keyed on POSITION, not on anything the engine numbers. A duplicate
-                 key makes Alpine silently reuse one card for two teams — a whole
-                 squad vanishes and the one left shows the other's flags. -->
+          <div class="sq">
             <template x-for="(s,si) in (fp.result?.squads||[])" :key="si">
-              <div class="fsqc" :class="s.over_cap?'over':''">
-                <div class="fsqh">
-                  <b x-text="fSquadName(s)"></b>
-                  <span class="c" x-text="s.players.length+' players'"></span>
-                  <span class="c wn" x-show="s.over_cap"
-                        x-text="'over the cap of '+fp.result.cap"></span>
+              <div class="sqc" :class="(s.players.length<fp.min || s.over_cap)?'short':''">
+                <div class="sqh">
+                  <!-- EVERY standing team is offered on EVERY roster; assigning one
+                       twice is flagged, never prevented (ADR-008). -->
+                  <div class="asg">
+                    <!-- :selected per option, not :value on the select — the options
+                         come from a template and do not exist when :value binds, so
+                         the select showed "name it later" over a proposed name. -->
+                    <select @change="fAssignTo(s.division_rank+'#'+s.ordinal, $event.target.value)">
+                      <template x-for="n in fTeamOptions()" :key="n">
+                        <option :value="n" :selected="n===fAssignedName(s)" x-text="n"></option>
+                      </template>
+                      <option value="" :selected="!fAssignedName(s)">— name it later —</option>
+                    </select>
+                  </div>
+                  <div class="row">
+                    <span class="c grp" x-text="fDivLabel(s.division_rank)"></span>
+                    <span class="c" x-text="fLastDivNote(s)"></span>
+                  </div>
+                  <div class="row">
+                    <span x-text="s.players.length+' players'"></span>
+                    <span class="c" :class="fSqOff(s)?'wn':'ok'" x-show="s.players.length"
+                          x-text="fSqVs(s)"></span>
+                    <span class="c bad" x-show="!s.players.length">nobody in this band</span>
+                    <span class="c bad" x-show="s.over_cap"
+                          x-text="(s.players.length-fp.result.cap)+' over the cap of '+fp.result.cap"></span>
+                    <span class="c wn" x-show="!s.over_cap && s.players.length && s.players.length<fp.min"
+                          x-text="'under '+fp.min"></span>
+                    <span class="c bad" x-show="fAssignedTwice(s)">this team is assigned twice</span>
+                  </div>
+                  <div class="row" x-show="s.players.length">
+                    <span class="c" x-text="fRefText(s)"></span>
+                  </div>
                 </div>
-                <div class="fsqm">
-                  <span>target <b x-text="fp.result.basis==='points'
-                        ? Math.round(s.target_total)+' pts' : f2(s.target)"></b></span>
-                  <span>actual <b x-text="fp.result.basis==='points'
-                        ? Math.round(s.total)+' pts' : f2(s.average)"></b></span>
-                  <span :class="Math.abs(fDev(s))>0.12?'off':''"
-                        x-text="(fDev(s)>=0?'+':'−')+f2(Math.abs(fDev(s)))+' off'"></span>
-                  <span class="ref" x-text="fRefText(s)"></span>
-                </div>
-                <table class="fsqt">
-                  <template x-for="p in s.players" :key="p.person_id">
-                    <tr>
-                      <td x-text="p.given_name+' '+p.family_name"></td>
-                      <td class="num" x-text="p.age"></td>
-                      <td class="num"><b x-text="fp.result.basis==='points'
-                            ? (p.ppg==null?'—':(Math.round(p.ppg*10)/10).toFixed(1))
-                            : (p.rating==null?'—':f2(p.rating))"></b></td>
-                      <td><span class="c" x-show="p.locked">held</span></td>
-                    </tr>
+                <div class="cats">
+                  <template x-for="x in (s.players.length?s.shape:[])" :key="x.i">
+                    <div class="catr">
+                      <span class="nm2" x-text="x.label"></span>
+                      <span class="tr"><i></i>
+                        <b :class="x.dev<-0.35?'lo':''" :style="fBarStyle(x.dev)"></b></span>
+                      <span class="dv" x-text="(x.dev>=0?'+':'')+x.dev.toFixed(2)"></span>
+                    </div>
                   </template>
-                </table>
-                <div class="fsqs">
-                  <template x-for="c in s.shape" :key="c.i">
-                    <span :class="Math.abs(c.dev)>0.35?'off':''">
-                      <span x-text="c.label"></span>
-                      <b x-text="f2(c.got)"></b>
-                      <i x-text="(c.dev>=0?'+':'−')+f2(Math.abs(c.dev))"></i>
-                    </span>
-                  </template>
+                  <p class="note" style="margin:0" x-show="!s.players.length">
+                    Move the line above this team, or drop the team.</p>
                 </div>
+                <details class="nl" x-show="s.players.length">
+                  <summary x-text="s.players.length+' names'"></summary>
+                  <ul class="sqp">
+                    <template x-for="p in s.players" :key="p.person_id">
+                      <li><span x-text="p.given_name+' '+p.family_name"></span>
+                        <span class="r" x-text="p.age+' · '+fVfx(p.value)"></span></li>
+                    </template>
+                  </ul>
+                </details>
               </div>
             </template>
           </div>
 
-          <!-- NOBODY IS DROPPED SILENTLY. Everyone the engine could not place is
-               named here with the reason, never left out of the count. -->
+          <div class="warnbox">A team can sit exactly on its target and still be built entirely of
+            guards. The bars are each category against what a team at this level should look like —
+            a bar left of centre is a category this team is short in.</div>
+
+          <!-- NOBODY IS DROPPED SILENTLY. -->
           <div x-show="fp.result?.unplaced.length">
             <div class="cath">Not placed — and why</div>
             <table class="fbt">
@@ -1992,10 +2055,93 @@ values (
               </template>
             </table>
           </div>
+        </div>
 
-          <p class="note">Same plan, same teams, every time — the engine is a deterministic
-            solver, not a guess. <b>Build again</b> after moving a line will change the teams;
-            it will not shuffle them for no reason.</p>
+        <!-- ── THE COMPARISON BOARD ────────────────────────────────────────
+             Ming, 19 Aug 2026: "Once the generator confirm the proposal, enter
+             drag-drop team comparison phase, where coach can move players around
+             to balance like in the TMS." Confirming FREEZES the proposal — the
+             engine does not run again, and every team shows what a hand move
+             costs against the number its band set. ── -->
+        <div class="mbody" x-show="fp.phase==='compare' && fp.frozen">
+          <div class="cath">Move players between teams</div>
+          <p class="note" style="margin:0 0 8px" x-show="fMovedCount()">
+            <b x-text="fMovedCount()+' player'+(fMovedCount()===1?'':'s')+' moved by hand.'"></b>
+            Every move is on screen and against the proposal — the engine is not re-running, so
+            nothing you have decided gets undone.</p>
+          <p class="note" style="margin:0 0 8px" x-show="!fMovedCount()">
+            Drag a name from one team to another. The proposal is frozen: from here every change is
+            yours, and each team shows what it costs against the number its band set.</p>
+
+          <!-- THREE LENSES OVER ONE ROSTER, and they are sport-scoped. -->
+          <div class="lens">
+            <template x-for="l in fLensList()" :key="l.k">
+              <button class="lb" :class="l.k===(fLens()||{}).k?'on':''"
+                      @click="fSetLens(l.k)" x-text="l.t"></button>
+            </template>
+            <span class="c" x-text="fLensNote()"></span>
+            <span class="c">three separate questions — a stretch five is a Big who is a Shooter</span>
+          </div>
+
+          <div class="cmp">
+            <template x-for="col in fBoard()" :key="col.ci">
+              <div class="col" :class="(col.players.length>fp.cap||col.players.length<fp.min)?'warn':''"
+                   @dragover.prevent @drop.prevent="fDrop($event,col.ci)">
+                <div class="colh">
+                  <b x-text="fShortName(col.team)||fDivLabel(col.division_rank)"></b>
+                  <div class="mt">
+                    <span class="c grp" x-text="fDivLabel(col.division_rank)"></span>
+                    <span class="c" x-text="col.players.length+' players'"></span>
+                    <span class="c" :class="fColOff(col)?'wn':'ok'" x-text="fColVs(col)"></span>
+                    <template x-if="fColRef(col)">
+                      <span class="c"><span x-text="fColRef(col).label"></span>
+                        <b x-text="fColRef(col).text"></b></span>
+                    </template>
+                    <span class="c bad" x-show="col.players.length>fp.cap">over the cap</span>
+                    <span class="c wn" x-show="col.players.length && col.players.length<fp.min"
+                          x-text="'under '+fp.min"></span>
+                    <span class="c acc" x-show="col.moveIn||col.moveOut"
+                          x-text="(col.moveIn?'+'+col.moveIn:'')
+                                 +((col.moveIn&&col.moveOut)?' ':'')
+                                 +(col.moveOut?'−'+col.moveOut:'')+' by hand'"></span>
+                  </div>
+                </div>
+
+                <!-- the mix at a glance; every count is in the title text too -->
+                <div class="zbar" :title="col.title">
+                  <template x-for="z in col.slots" :key="z.k">
+                    <i :style="'width:'+z.w+'%;background:'+z.c"></i>
+                  </template>
+                </div>
+
+                <template x-for="z in col.slots" :key="z.k">
+                  <div class="zsec" @dragover.prevent @drop.prevent.stop="fDrop($event,col.ci,z.k)">
+                    <div class="zh"><i :style="'background:'+z.c"></i>
+                      <span x-text="z.t" style="margin-left:0"></span>
+                      <span x-text="z.n"></span></div>
+                    <ul class="pl">
+                      <template x-for="p in z.players" :key="p.person_id">
+                        <li draggable="true" @dragstart="fDragStartPlayer($event,p.person_id)">
+                          <button class="st" :class="fIsStar(col.ci,p.person_id)?'on':''"
+                                  @click.stop="fToggleStar(col.ci,p.person_id)" title="star">★</button>
+                          <span :class="fMoved(p.person_id)?'mvn':''"
+                                x-text="(p.given_name+' '+p.family_name).replace('DEMO_','')"></span>
+                          <span class="mk" x-show="fMoved(p.person_id)">MOVED</span>
+                          <span class="mk" style="color:var(--ok)" x-show="p.locked">LOCKED</span>
+                          <span class="mk" style="color:var(--ink3)" x-show="fCoarseNote(col.ci,p.person_id)"
+                                x-text="fCoarseNote(col.ci,p.person_id)"></span>
+                          <template x-for="t in fOtherAxes(col.ci,p.person_id)" :key="t">
+                            <span class="ax" x-text="t"></span></template>
+                          <span class="r" x-text="p.age+' · '+fVfx(p.value)"></span>
+                        </li>
+                      </template>
+                      <li class="ph" x-show="!z.n">—</li>
+                    </ul>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
         </div>
 
         <div class="mfoot">
@@ -2003,13 +2149,21 @@ values (
                   @click="fGenerate()" :disabled="fp.busy || !fp.teams.length">Build the rosters</button>
           <button class="btn" x-show="fp.phase==='setup'"
                   @click="fSavePlan()" :disabled="fp.busy">Save without building</button>
-          <button class="btn" x-show="fp.phase==='proposal'" @click="fp.phase='setup'">← Change the plan</button>
+          <button class="btn" x-show="fp.phase==='proposal'" @click="fBackToSetup()">← Change the plan</button>
           <button class="btn" x-show="fp.phase==='proposal'" @click="fGenerate()" :disabled="fp.busy">Build again</button>
+          <!-- CONFIRMING FREEZES IT. From here the engine does not run again. -->
+          <button class="btn pri" x-show="fp.phase==='proposal'"
+                  @click="fConfirmProposal()">Confirm this proposal</button>
+          <button class="btn" x-show="fp.phase==='compare'" @click="fp.phase='proposal'">← Back to the proposal</button>
+          <button class="btn" x-show="fp.phase==='compare'" @click="fRestoreProposal()"
+                  :disabled="!fMovedCount()">Restore the proposal</button>
           <button class="btn" @click="modal=''">Close</button>
           <span class="c" x-show="fp.busy">working…</span>
           <span class="note" style="margin:0;margin-left:auto" x-show="fp.err" x-text="fp.err"></span>
           <span class="note" style="margin:0;margin-left:auto" x-show="!fp.err && fp.phase==='proposal'">
-            Naming these teams and making the offers is the next step.</span>
+            Confirm to move players by hand. Writing the rosters and the offers is the next step.</span>
+          <span class="note" style="margin:0;margin-left:auto" x-show="!fp.err && fp.phase==='compare'">
+            The proposal is frozen — accepting these teams is the next step and is not wired yet.</span>
         </div>
       </div>
     </div>
@@ -2616,7 +2770,8 @@ function app(){ return {
   fp:{group:'', basis:'rating', teams:[], cuts:[], cap:10, min:8, lock:true,
       newdiv:1, err:'', busy:false, saved:'', plans:[], scoring:[], drag:null,
       phase:'setup', result:null,
-      naming:false, names:{}, pattern:'Div {n}', namesErr:''},
+      naming:false, names:{}, pattern:'Div {n}', namesErr:'',
+      lenses:[], lens:'', marks:{}, stars:{}, assign:{}, frozen:null, by:{}, moves:{}},
 
   async openFormation(){
     this.stage='formation'; this.fp.err='';
@@ -2637,6 +2792,15 @@ function app(){ return {
       ...ts, team_name:(this.teams.find(t=>t.id===ts.team_id)||{}).name || '(unnamed)' }));
     this.pool     = await q('v_player_pool',['season_id',this.seasonId]);
     this.fp.plans = await q('formation_plan',['season_id',this.seasonId]);
+    //  THE LENSES BELONG TO THE SPORT — defined once, read by every club,
+    //  authored by no tenant. The club's sport is on the organisation; if it is
+    //  not set, take whichever sport actually declares lenses rather than naming
+    //  one here.
+    const sports = await q('sport');
+    const mine = sports.find(x=>x.id===this.org?.primary_sport_id);
+    this.fp.lenses = ((mine&&mine.lenses&&mine.lenses.length ? mine
+                       : sports.find(x=>x.lenses&&x.lenses.length)) || {}).lenses || [];
+    if(!this.fp.lens) this.fp.lens=(this.fLensList()[0]||{}).k||'';
     //  Scoring is LAST season's, so take the most recent record per player from
     //  any season earlier than this one.
     const year = (this.seasons.find(s=>s.id===this.seasonId)||{}).year;
@@ -2863,6 +3027,7 @@ function app(){ return {
     this.fp.lock=p.lock_placed!==false;
     this.fp.teams=this.fTeamsOf(g).slice();
     this.fp.saved=''; this.fp.err=''; this.fp.phase='setup'; this.fp.result=null;
+    this.fp.frozen=null; this.fp.moves={}; this.fp.marks={}; this.fp.stars={}; this.fp.assign={};
     this.fp.cuts=(p.cuts||[]).map(Number);
     if(this.fp.cuts.length !== this.fBandsOf(this.fp.teams,[],g).length-1) this.fEvenCounts();
     this.modal='formation';
@@ -2953,16 +3118,242 @@ function app(){ return {
     if(data?.error){ this.fp.err=data.error; return; }
     this.fp.result=data; this.fp.phase='proposal';
   },
-  fSquadName(s){
-    return this.fDivLabel(s.division_rank) +
-      (this.fp.result.squads.filter(x=>x.division_rank===s.division_rank).length>1
-        ? ' · team '+s.ordinal : '');
+  // ═══ THE PROPOSAL, AND THE BOARD ═════════════════════════════════════════
+  //  Ported from prototype_formation_setup.html. Confirming FREEZES the
+  //  proposal: from then on the engine does not run again and every change is
+  //  the coach's, shown against the number its band set. ADR-001 made visible.
+
+  //  The lenses belong to the SPORT (migration 018). Colour is presentation and
+  //  is taken by position from one palette, so adding a sport never touches this
+  //  file and no basketball position is named here.
+  fLensPalette:['#3c7dc4','#1d9e75','#1F3864','#4d9ec4','#8fc7db','#7b96bd','#c9a227'],
+  fLensList(){
+    const used=this.clubCfg?.lenses_used||[];
+    const all=(this.fp.lenses||[]).map(l=>({...l,
+      slots:(l.slots||[]).map((z,i)=>({...z, c:this.fLensPalette[i%this.fLensPalette.length]}))}));
+    return used.length ? all.filter(l=>used.includes(l.k)) : all;
   },
-  fDev(s){ return s.average - s.target; },
+  fLens(){ const L=this.fLensList();
+    return L.find(l=>l.k===(this.fp.lens||(L[0]||{}).k)) || L[0] || null; },
+  fSetLens(k){ this.fp.lens=k; },
+  fOther(){ return {k:'', t:'', c:'#a9a69e'}; },
+  //  Where a stored value sits when seen through a given lens. Rolls UP, never
+  //  down: set somebody fine and the coarse view shows the coarse slot; set them
+  //  coarse and the fine view cannot invent which kind, so it says so.
+  fSlotIn(lens,stored){
+    if(!stored||!lens) return '';
+    if(lens.slots.some(x=>x.k===stored.k)) return stored.k;
+    const src=this.fLensList().find(l=>l.k===stored.lens);
+    const def=src&&src.slots.find(x=>x.k===stored.k);
+    if(def&&def.up&&lens.slots.some(x=>x.k===def.up)) return def.up;
+    return '';
+  },
+  //  Keyed on (TEAM, PLAYER), never on the person — the same child can be the
+  //  size in one squad and a skill player in another. `team_member.zone` does
+  //  exactly this in the schema.
+  fMarks(axis){ this.fp.marks=this.fp.marks||{};
+    return this.fp.marks[axis]=this.fp.marks[axis]||{}; },
+  fZKey(col,pid){ return col+'|'+pid; },
+  fSlotOf(col,pid){ const l=this.fLens();
+    return l ? this.fSlotIn(l, this.fMarks(l.axis)[this.fZKey(col,pid)]) : ''; },
+  fSetZone(pid,col,k){
+    const l=this.fLens(); if(!l) return;
+    const m=this.fMarks(l.axis), key=this.fZKey(col,pid);
+    if(k) m[key]={k:k,lens:l.k}; else delete m[key];
+    this.fp.marks={...this.fp.marks};
+  },
+  fCoarseNote(col,pid){
+    const l=this.fLens(); if(!l) return '';
+    const st=this.fMarks(l.axis)[this.fZKey(col,pid)];
+    if(!st||this.fSlotIn(l,st)) return '';
+    const src=this.fLensList().find(x=>x.k===st.lens);
+    const def=src&&src.slots.find(x=>x.k===st.k);
+    return def?def.t:'';
+  },
+  //  What this player is on the axes NOT currently on screen — three different
+  //  questions about the same child, so the answers to the other two travel
+  //  with them.
+  fOtherAxes(col,pid){
+    const cur=(this.fLens()||{}).axis, out=[];
+    this.fLensList().forEach(l=>{
+      if(l.axis===cur) return;
+      const st=this.fMarks(l.axis)[this.fZKey(col,pid)];
+      const slot=st&&l.slots.find(x=>x.k===st.k);
+      if(slot) out.push(slot.t);
+    });
+    return out;
+  },
+  fToggleStar(col,pid){ const key=this.fZKey(col,pid);
+    if(this.fp.stars[key]) delete this.fp.stars[key]; else this.fp.stars[key]=true;
+    this.fp.stars={...this.fp.stars}; },
+  fIsStar(col,pid){ return !!this.fp.stars[this.fZKey(col,pid)]; },
+  fSlotsWithOther(){ const l=this.fLens();
+    return l ? l.slots.concat([{...this.fOther(), t:l.empty||'Other'}]) : []; },
+  fInSlot(col,players,k){ return players.filter(p=>this.fSlotOf(col,p.person_id)===k); },
+
+  //  THE BOARD IS DERIVED ONCE, and the markup only walks what this returns.
+  //
+  //  It was built the obvious way first — an x-for over the columns, and each
+  //  slot's players recomputed inside it from the loop variable. On 19 Aug 2026
+  //  that rendered eleven names under a header reading ten: a hand move updated
+  //  the column header, which reads the loop variable directly, but not the
+  //  nested lists, which re-derive from it in a child scope Alpine had already
+  //  settled. Both were reading the same `col`; only one had been told it moved.
+  //
+  //  One derivation removes the whole class of bug: there is nothing left to go
+  //  out of step with, because there is only one thing.
+  fBoard(){
+    const slots=this.fSlotsWithOther();
+    return this.fLiveCols().map((col,ci)=>{
+      const n=col.players.length||1;
+      const buckets=slots.map(z=>{
+        const inz=col.players.filter(p=>this.fSlotOf(ci,p.person_id)===z.k);
+        return {...z, n:inz.length, w:100*inz.length/n, players:inz};
+      });
+      return {...col, ci, slots:buckets,
+        title:buckets.map(z=>z.n+' '+z.t).join(' · '),
+        moveIn:col.players.filter(p=>this.fp.moves[p.person_id]!=null).length,
+        moveOut:col.ids.filter(id=>this.fp.moves[id]!=null&&this.fp.moves[id]!==ci).length};
+    });
+  },
+
+  // ── naming: propose, never decide (ADR-008) ──────────────────────────────
+  //  The TMS prefix rule, unchanged: B / G / U plus the number.
+  fPrefix(g){
+    const t=String(g||'').toUpperCase();
+    const n=(t.match(/\d+/)||[''])[0];
+    return (t.includes('GIRL')?'G':t.includes('BOY')?'B':'U')+n;
+  },
+  //  The team that ran this division last season keeps it, then the nearest
+  //  division, then whatever else the club has. Never prevented, only flagged.
+  fProposeAssign(){
+    const g=this.fp.group, out={}, used={};
+    const known=(this.teamSeasons||[]).filter(t=>t.age_group===g)
+      .map(t=>({name:t.team_name, lastDiv:t.division_rank}));
+    (this.fp.result?.squads||[]).forEach(sq=>{
+      const key=sq.division_rank+'#'+sq.ordinal;
+      if(this.fp.assign[key]){ out[key]=this.fp.assign[key]; used[out[key]]=1; return; }
+      let best=null,d=1e9;
+      known.forEach(t=>{ if(used[t.name])return;
+        const gap=Math.abs((t.lastDiv==null?99:t.lastDiv)-(sq.division_rank==null?99:sq.division_rank));
+        if(gap<d){d=gap;best=t} });
+      if(best){ used[best.name]=1; out[key]=best.name; return; }
+      const free=(this.teams||[]).map(t=>t.name)
+        .filter(n=>!used[n] && !Object.values(out).includes(n));
+      out[key]= free[0] || (this.fPrefix(g)+' Team '+(Object.keys(out).length+1));
+      used[out[key]]=1;
+    });
+    return out;
+  },
+  fAssignTo(key,name){
+    if(!name) delete this.fp.assign[key]; else this.fp.assign[key]=name;
+    this.fp.assign={...this.fp.assign};
+  },
+  fTeamOptions(){
+    const named=(this.teams||[]).map(t=>t.name);
+    const inplay=Object.values(this.fProposeAssign()).filter(v=>!named.includes(v));
+    return named.concat([...new Set(inplay)]);
+  },
+  fAssignedName(sq){ return this.fProposeAssign()[sq.division_rank+'#'+sq.ordinal]||''; },
+  fAssignedTwice(sq){
+    const n=this.fAssignedName(sq), all=Object.values(this.fProposeAssign());
+    return n && all.filter(v=>v===n).length>1;
+  },
+  fLastDivNote(sq){
+    const n=this.fAssignedName(sq);
+    const t=(this.teamSeasons||[]).find(x=>x.team_name===n && x.age_group===this.fp.group);
+    if(!t||t.division_rank==null) return 'new team';
+    return t.division_rank===sq.division_rank ? 'same division as last season'
+      : 'was '+this.fDivLabel(t.division_rank)+' last season';
+  },
+  fShortName(n){ return String(n||'').replace(this.fPrefix(this.fp.group)+' ',''); },
+
+  // ── the frozen proposal, and what the coach does to it ───────────────────
+  fConfirmProposal(){
+    this.fp.frozen=(this.fp.result?.squads||[]).map(sq=>({
+      division_rank:sq.division_rank, ordinal:sq.ordinal,
+      target:sq.target, target_total:sq.target_total,
+      team:this.fAssignedName(sq),
+      ids:sq.players.map(p=>p.person_id) }));
+    this.fp.by={}; (this.fp.result?.squads||[]).forEach(sq=>sq.players
+      .forEach(p=>this.fp.by[p.person_id]=p));
+    this.fp.moves={}; this.fp.phase='compare';
+  },
+  fBackToSetup(){ this.fp.phase='setup'; },
+  fRestoreProposal(){ this.fp.moves={}; },
+  fMovePlayer(pid,to){
+    const home=this.fp.frozen.findIndex(s=>s.ids.includes(pid));
+    if(to===home) delete this.fp.moves[pid]; else this.fp.moves[pid]=to;
+    this.fp.moves={...this.fp.moves};
+  },
+  fMoved(pid){ return this.fp.moves[pid]!=null; },
+  //  Where everybody sits right now: the frozen proposal plus the coach's moves.
+  fLiveCols(){
+    const cols=(this.fp.frozen||[]).map(s=>({...s, players:[]}));
+    (this.fp.frozen||[]).forEach((s,i)=>s.ids.forEach(id=>{
+      const to=this.fp.moves[id]!=null?this.fp.moves[id]:i;
+      if(cols[to]&&this.fp.by[id]) cols[to].players.push(this.fp.by[id]);
+    }));
+    cols.forEach(c=>c.players.sort((a,b)=>(b.value||0)-(a.value||0)
+      || a.person_id.localeCompare(b.person_id)));
+    return cols;
+  },
+  fColNow(col){ const v=col.players.map(p=>p.value).filter(x=>x!=null);
+    return this.fp.basis==='points' ? v.reduce((a,x)=>a+x,0) : this.fMean(v); },
+  fColTgt(col){ return this.fp.basis==='points' ? col.target_total : col.target; },
+  fColOff(col){ const d=Math.abs(this.fColNow(col)-this.fColTgt(col));
+    return this.fp.basis==='points' ? d>2 : d>0.2; },
+  fColVs(col){ return this.fp.basis==='points'
+    ? Math.round(this.fColNow(col))+' vs '+Math.round(this.fColTgt(col))+' pts'
+    : this.f2(this.fColNow(col))+' vs '+this.f2(this.fColTgt(col)); },
+  fColIn(col,i){ return col.players.filter(p=>this.fp.moves[p.person_id]!=null).length; },
+  fColOut(col,i){ return col.ids.filter(id=>this.fp.moves[id]!=null&&this.fp.moves[id]!==i).length; },
+  fMovedCount(){ return Object.keys(this.fp.moves||{}).length; },
+  //  The reference basis travels with the column, and states its own coverage.
+  fColRef(col){
+    if(!col.players.length) return null;
+    if(this.fp.basis==='points'){
+      const r=col.players.map(p=>p.rating).filter(x=>x!=null);
+      return {label:'coach rating', text:this.f2(this.fMean(r)),
+              note:r.length===col.players.length?'':r.length+' of '+col.players.length+' on record'};
+    }
+    const have=col.players.filter(p=>p.ppg!=null);
+    return {label:'projects to score',
+      text: have.length?Math.round(have.reduce((a,p)=>a+p.ppg,0))+' pts/game':'—',
+      note: have.length===col.players.length?'':have.length+' of '+col.players.length+' on record'};
+  },
+  fVfx(v){ return v==null?'—':(this.fp.basis==='points'
+    ? (Math.round(v*10)/10).toFixed(1) : this.f2(v)); },
+  fLensNote(){ const a=(this.fLens()||{}).axis;
+    return {zone:'how the squad is built', role:'what a player does',
+            position:'where a player lines up'}[a] || ''; },
+
+  // ── drag and drop, one delegated set of handlers as the TMS does it ──────
+  fDragStartPlayer(ev,pid){ ev.dataTransfer.setData('text/plain',pid); },
+  //  Dropping ON a zone moves the player AND sets what they are in that team;
+  //  dropping on the team but not a zone is a plain move and leaves it alone.
+  fDrop(ev,col,zone){
+    const pid=ev.dataTransfer.getData('text/plain'); if(!pid) return;
+    this.fMovePlayer(pid,col);
+    if(zone!==undefined) this.fSetZone(pid,col,zone);
+  },
+
   fRefText(s){
     const r=s.reference; if(!r) return '';
     const v = r.label==='coach rating' ? this.f2(r.value) : Math.round(r.value)+' pts/game';
     return r.label+' '+v + (r.covered===r.of ? '' : ' ('+r.covered+' of '+r.of+' on record)');
+  },
+  fSqDev(s){ return s.average - s.target; },
+  fSqOff(s){ return this.fp.basis==='points'
+    ? Math.abs(s.total-s.target_total)>2 : Math.abs(this.fSqDev(s))>0.2; },
+  fSqVs(s){ return this.fp.basis==='points'
+    ? Math.round(s.total)+' vs '+Math.round(s.target_total)+' pts/game'
+    : this.f2(s.average)+' vs '+this.f2(s.target); },
+  //  A bar left of centre is a category this team is short in. Every value is
+  //  also written out — nothing here is encoded by colour alone.
+  fBarStyle(dev){
+    const d=Math.max(-1.5,Math.min(1.5,dev)), w=Math.abs(d)/1.5*50;
+    return d>=0 ? 'left:50%;width:'+w+'%' : 'left:'+(50-w)+'%;width:'+w+'%';
   },
 
   ageGroupsInSeason(){
