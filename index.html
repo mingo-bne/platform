@@ -296,6 +296,24 @@ border-radius:8px;background:#fff;cursor:pointer;width:100%;text-align:left;font
 margin-bottom:5px}
 .titem:hover{border-color:var(--navy)}
 .titem.on{background:var(--navy2);border-color:var(--navy)}
+/* THE AGE GROUP IS THE LEFT-HAND LIST. Ming, 19 Aug 2026: "Age group on the
+   left, teams on the right." Every group the club's own bracket rule produced
+   is listed, not only the ones with teams in them — you pick the group you are
+   entering FOR, then enter a team into it. */
+.agi{display:flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid var(--line);
+border-radius:8px;background:#fff;cursor:pointer;width:100%;text-align:left;font:inherit;
+margin-bottom:5px}
+.agi:hover{border-color:var(--navy)}
+.agi.on{background:var(--navy2);border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
+.agi .an{flex:1;min-width:0;font-size:12.5px;font-weight:600}
+.agi .c{flex:0 0 auto}
+/* a team, with the two things you can do to it side by side */
+.tcard{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:10px 12px;
+margin-bottom:8px}
+.tcard.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
+.tcard .th{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.tcard .th b{font-size:14.5px;color:var(--navy)}
+.tcard .ta{display:flex;gap:6px;margin-top:8px}
 .titem .tn{flex:1;min-width:0;font-size:12.5px;font-weight:600;white-space:nowrap;
 overflow:hidden;text-overflow:ellipsis}
 .rost{border:1px solid var(--line);border-radius:10px;background:#fff;min-height:120px}
@@ -874,29 +892,61 @@ word-break:break-all}
     </template>
 
     <!-- ══════════════════════ TEAMS ══════════════════════
-         Ming, 13 Aug 2026: team formation happens here, across age groups, in
-         a surface of its own — not as an output of one trial. The TMS shape:
-         teams down the left, one roster in front of you, and the club's whole
-         pool beneath the list. A player is placed from the pool, and the pool
-         can show every age group at once, which is how a player plays up.
+         Ming, 19 Aug 2026: "I want the screen to show Season selection tiles on
+         the top, Age group on the left, teams on the right, choose edit to edit
+         team information, choose roster to see team roster assigned for this
+         season."
 
-         The team NAME is club-level and outlives the season; what you are
-         editing is that team's roster FOR THE SELECTED SEASON. -->
+         WHY THE AGE GROUP MOVED TO THE LEFT. The old shape put every team in the
+         club down one column grouped by age group, which is the TMS shape and is
+         right for a club with fifteen teams. Thirteen age groups with three
+         teams each is forty rows in a 280px column. The age group is the thing a
+         club works one at a time — the same reason Formation is a list of age
+         groups (ADR-006) — so it becomes the index, and the teams IN it get the
+         room.
+
+         EDIT AND ROSTER ARE TWO DIFFERENT JOBS. What a team IS — its name, its
+         age group, its division — is entered once and rarely touched. Who is IN
+         it changes every week. They were one screen; now the card offers both
+         and the pane shows the one you asked for. The pool only loads into view
+         with the roster, which is also what stops a 400-player list rendering
+         behind a screen nobody is placing from. -->
     <template x-if="stage==='teams'">
     <div class="panel">
-      <div class="rhead" style="display:flex;align-items:flex-start;gap:10px">
-        <div style="flex:1">
-          <h2>Teams</h2>
-          <div class="sub">A team name carries across seasons. The roster belongs to the season
-            you are in.</div>
+      <div class="rhead">
+        <h2>Teams</h2>
+        <div class="sub">A team name carries across seasons. The roster belongs to the season
+          you are in.</div>
+      </div>
+
+      <!-- ── the season, on tiles ── the same control as the dashboard, because
+           it is the same decision and a club should not meet two of them. -->
+      <div class="pbody" style="padding-bottom:0">
+        <div class="cath" style="margin-top:0">Season</div>
+        <div class="dsh" style="margin-bottom:8px">
+          <template x-for="s in dashSeasons()" :key="s.id">
+            <button class="dsc" :class="s.id===seasonId?'on':''"
+                    @click="seasonId=s.id; onSeasonChange(); loadTeams(); tm.view='list'">
+              <b x-text="s.name"></b>
+              <span class="yr">age reckoned at <span x-text="s.year"></span></span>
+              <span class="mt">
+                <span class="c ok" x-show="s.is_current">current</span>
+                <span class="c" x-text="teamsInSeason(s.id)"></span>
+              </span>
+            </button>
+          </template>
         </div>
-        <div class="inline" style="margin:0">
-          <select x-model="seasonId" @change="onSeasonChange(); loadTeams()" style="width:auto">
-            <template x-for="s in seasonsForWork()" :key="s.id">
-              <option :value="s.id" x-text="seasonOptionLabel(s)"></option>
+        <div class="inline" style="margin:0 0 4px" x-show="dashOlder().length">
+          <label class="fl" style="margin:0">Earlier seasons</label>
+          <select style="width:auto"
+                  @change="if($event.target.value){seasonId=$event.target.value;
+                           onSeasonChange(); loadTeams(); tm.view='list'}">
+            <option value="">—</option>
+            <template x-for="s in dashOlder()" :key="s.id">
+              <option :value="s.id" :selected="s.id===seasonId"
+                      x-text="seasonOptionLabel(s)+(s.archived_at?' · archived':'')"></option>
             </template>
           </select>
-          <button class="btn" @click="tm.adding=true" :disabled="!seasonId">New team</button>
         </div>
       </div>
 
@@ -905,170 +955,132 @@ word-break:break-all}
         <div><b x-text="ageGroupsInSeason().length"></b>age groups</div>
         <div><b x-text="placedCount()"></b>placed</div>
         <div><b x-text="poolAll().length - placedPeople().size"></b>unplaced</div>
-        <div><b x-text="rosterAvg(tm.selected) || '—'"></b>this team</div>
       </div>
       <p x-show="tm.err" class="warnbar" style="display:flex;gap:10px;align-items:center">
         <span style="flex:1" x-text="tm.err"></span>
         <button class="lnk" style="color:var(--warn)" @click="tm.err=''">dismiss</button></p>
 
       <div class="pbody">
-        <!-- new team -->
-        <div x-show="tm.adding" class="srow" style="background:#fbfaf8">
-          <div class="row2">
-            <div class="field"><label class="fl">Team name — reused every season</label>
-              <input type="text" x-model="tm.name" placeholder="e.g. Gold"
-                     list="teamNames"></div>
-            <div class="field"><label class="fl">Age group this season</label>
-              <select x-model="tm.grp">
-                <option value="">—</option>
-                <template x-for="g in allAgeGroups()" :key="g">
-                  <option :value="g" x-text="g"></option></template>
-              </select></div>
-          </div>
-          <datalist id="teamNames">
-            <template x-for="t in teams" :key="t.id"><option :value="t.name"></option></template>
-          </datalist>
-          <div class="field"><label class="fl">Division (optional)</label>
-            <input type="text" x-model="tm.div" placeholder="e.g. Div 1"></div>
-          <p class="note" style="margin-bottom:8px">Reusing an existing name puts that team into
-            this season — it does not create a second team. The same name in <b>two different age
-            groups</b> is fine; twice in <b>one</b> age group is not, because they would be one team
-            on a team sheet.</p>
-          <!-- CASE IS NOT DATA. Shown rather than done quietly, so the club sees
-               what will be recorded before it is. -->
-          <p class="note" style="margin-bottom:8px" x-show="tmTidied()">
-            Will be recorded as <b x-text="tmTidied()"></b>.</p>
-          <!-- the prefix is PROPOSED, never imposed — naming is the club's (ADR-008) -->
-          <p class="note" style="margin-bottom:8px" x-show="tmProposed()">
-            Many clubs put the age group in front of the name.
-            <button class="lnk" @click="tmUsePrefix()">Enter it as <b x-text="tmProposed()"></b></button>
-          </p>
-          <div class="stop" x-show="tmNameStop()" style="margin-bottom:8px">
-            <b x-text="tmNameStop()?.t"></b>
-            <div class="how" x-text="tmNameStop()?.how"></div>
-          </div>
-          <div class="inline">
-            <button class="btn pri" @click="createTeam()"
-                    :disabled="!tm.name.trim() || tm.busy || !!tmNameStop()">Add team</button>
-            <button class="btn" @click="tm.adding=false">Cancel</button>
-          </div>
-        </div>
-
-        <template x-if="!teamSeasons.length && !tm.adding">
-          <div class="empty" x-text="'No teams in '+seasonName(seasonId)+' yet. Add one to start.'"></div>
-        </template>
-
-        <div class="tsplit" x-show="teamSeasons.length">
-          <!-- ── teams, grouped by age group ── -->
+        <div class="tsplit">
+          <!-- ── AGE GROUPS, LEFT ── every group the club's bracket rule
+               produced, not only the ones with teams: you pick the group you are
+               entering FOR, then enter a team into it. -->
           <div>
-            <template x-for="g in ageGroupsInSeason()" :key="g||'none'">
-              <div>
-                <div class="tgrp" x-text="g || 'No age group'"></div>
-                <template x-for="ts in teamSeasonsIn(g)" :key="ts.id">
-                  <button class="titem" :class="tm.selected===ts.id?'on':''"
-                          @click="selectTeam(ts.id)">
-                    <span class="tn" x-text="ts.team_name"></span>
-                    <span class="c" x-show="ts.division" x-text="ts.division"></span>
-                    <span class="c" x-text="rosterOf(ts.id).length"></span>
-                    <span class="c grp" x-text="rosterAvg(ts.id) || '–'"></span>
-                  </button>
-                </template>
-              </div>
+            <div class="cath" style="margin-top:0">Age group</div>
+            <template x-for="g in allAgeGroups()" :key="g">
+              <button class="agi" :class="tm.grpSel===g?'on':''"
+                      @click="selectGroup(g)">
+                <span class="an" x-text="g"></span>
+                <span class="c" x-show="teamSeasonsIn(g).length"
+                      x-text="teamSeasonsIn(g).length"></span>
+                <span class="c" x-show="!teamSeasonsIn(g).length"
+                      style="color:var(--ink3)">none</span>
+              </button>
+            </template>
+            <!-- a team entered before age groups existed still has to be findable -->
+            <template x-if="teamSeasonsIn(null).length">
+              <button class="agi" :class="tm.grpSel===''?'on':''" @click="selectGroup('')">
+                <span class="an">No age group</span>
+                <span class="c" x-text="teamSeasonsIn(null).length"></span>
+              </button>
+            </template>
+          </div>
+
+          <!-- ── TEAMS, RIGHT ── -->
+          <div>
+            <template x-if="!tm.grpSel && tm.grpSel!==''">
+              <div class="empty">Pick an age group on the left.</div>
             </template>
 
-            <!-- ── the pool ── -->
-            <div class="cath" style="margin-top:12px">Player pool</div>
-            <div class="inline" style="margin-top:0">
-              <input type="search" x-model="tm.q" placeholder="Search" style="flex:1;min-width:90px">
-              <select x-model="tm.scope" style="width:auto">
-                <option value="grp">This age group</option>
-                <option value="all">All age groups</option>
-              </select>
-            </div>
-            <label class="fl" style="margin:6px 0 4px">
-              <input type="checkbox" x-model="tm.hidePlaced" style="width:auto;margin-right:6px">
-              Hide anyone already placed in this age group</label>
-            <div class="pool">
-              <template x-for="p in poolShown()" :key="p.person_id">
-                <div class="pitem2" draggable="true"
-                     @dragstart="tm.drag=p.person_id"
-                     @dblclick="place(p.person_id)">
-                  <span class="pn" x-text="p.given_name+' '+p.family_name"></span>
-                  <span class="c" x-text="p.age!=null ? p.age : '?'"></span>
-                  <span class="pv" x-text="p.rating ?? '–'"></span>
-                  <span class="elig" :class="eligOf(p).k" x-text="eligOf(p).s"></span>
-                  <button class="btn sm" @click="place(p.person_id)"
-                          :disabled="!tm.selected || eligOf(p).k==='no'">+</button>
-                </div>
-              </template>
-              <template x-if="!poolShown().length">
-                <div class="empty" style="padding:16px 10px">Nobody left in this filter.</div>
-              </template>
-            </div>
-            <p class="note">Drag a name onto the roster, or use <b>+</b>. A player can be in one
-              team per age group and in as many age groups as you place them.</p>
-          </div>
-
-          <!-- ── the roster ── -->
-          <div>
-            <template x-if="!tm.selected">
-              <div class="empty">Pick a team on the left.</div>
-            </template>
-            <template x-if="tm.selected">
+            <!-- the list of teams in that group -->
+            <template x-if="(tm.grpSel || tm.grpSel==='') && tm.view==='list'">
               <div>
                 <div class="inline" style="margin:0 0 8px">
-                  <b style="font-size:15px" x-text="selTeam()?.team_name"></b>
-                  <span class="c grp" x-text="selTeam()?.age_group || 'no age group'"></span>
-                  <span class="c" x-show="selTeam()?.division" x-text="selTeam()?.division"></span>
-                  <span class="c" x-text="rosterOf(tm.selected).length + ' players'"></span>
-                  <span class="c" x-text="'avg ' + (rosterAvg(tm.selected) || '–')"></span>
+                  <b style="font-size:15px" x-text="tm.grpSel || 'No age group'"></b>
+                  <span class="c" x-text="teamSeasonsIn(tm.grpSel||null).length+' teams'"></span>
                   <span style="margin-left:auto"></span>
-                  <button class="btn sm" @click="removeTeamSeason()"
-                          :disabled="rosterOf(tm.selected).length>0">Remove from season</button>
+                  <button class="btn pri" @click="startTeam()" :disabled="!seasonId">New team</button>
                 </div>
 
-                <div class="rost" :class="tm.over?'over':''"
-                     @dragover.prevent="tm.over=true" @dragleave="tm.over=false"
-                     @drop.prevent="tm.over=false; if(tm.drag) place(tm.drag); tm.drag=null">
-                  <template x-for="r in rosterOf(tm.selected)" :key="r.id">
-                    <div class="rrow">
-                      <button class="star" :class="r.is_star?'on':''"
-                              @click="setStar(r, !r.is_star)"
-                              :title="r.is_star?'Starred':'Mark as a key player'">★</button>
-                      <span class="rn" x-text="r.given_name+' '+r.family_name"></span>
-                      <span class="c" x-text="r.age!=null ? r.age : '?'"></span>
-                      <span class="elig" :class="eligRow(r).k" x-text="eligRow(r).s"></span>
-                      <!-- ONE SELECT PER LENS THE CLUB USES, and each writes the
-                           column its axis names. The vocabulary is the sport's;
-                           what a player IS stays keyed to (team, player). -->
-                      <template x-for="l in clubLenses()" :key="l.k">
-                        <select @change="setSlot(r, l.axis, $event.target.value)">
-                          <option value="" :selected="!r[l.axis]" x-text="l.short+' —'"></option>
-                          <template x-for="z in l.slots" :key="z.k">
-                            <option :value="z.k" :selected="r[l.axis]===z.k" x-text="z.t"></option>
-                          </template>
-                        </select>
-                      </template>
-                      <span class="rv" x-text="r.rating ?? '–'"></span>
-                      <button class="btn sm" @click="unplace(r)">Remove</button>
+                <!-- NEW TEAM. Name and age group are what a team IS; a division
+                     is what an association happens to call the competition it
+                     was entered in, and a club often does not know it yet.
+                     Ming, 19 Aug 2026: "Name, Gender/Age Group by default,
+                     Division as Optional." -->
+                <div x-show="tm.adding" class="srow" style="background:#fbfaf8">
+                  <div class="row2">
+                    <div class="field"><label class="fl">Team name — reused every season</label>
+                      <input type="text" x-model="tm.name" placeholder="e.g. Gold"
+                             list="teamNames"></div>
+                    <div class="field"><label class="fl">Gender / age group</label>
+                      <select x-model="tm.grp">
+                        <template x-for="g in allAgeGroups()" :key="g">
+                          <option :value="g" x-text="g"></option></template>
+                      </select></div>
+                  </div>
+                  <datalist id="teamNames">
+                    <template x-for="t in teams" :key="t.id"><option :value="t.name"></option></template>
+                  </datalist>
+                  <div class="field"><label class="fl">Division
+                      <span style="color:var(--ink3);font-weight:400">— optional, and it can be
+                      added when the association confirms it</span></label>
+                    <input type="text" x-model="tm.div" placeholder="e.g. Div 1"></div>
+                  <p class="note" style="margin-bottom:8px">Reusing an existing name puts that team
+                    into this season — it does not create a second team. The same name in <b>two
+                    different age groups</b> is fine; twice in <b>one</b> age group is not, because
+                    they would be one team on a team sheet.</p>
+                  <p class="note" style="margin-bottom:8px" x-show="tmTidied()">
+                    Will be recorded as <b x-text="tmTidied()"></b>.</p>
+                  <p class="note" style="margin-bottom:8px" x-show="tmProposed()">
+                    Many clubs put the age group in front of the name.
+                    <button class="lnk" @click="tmUsePrefix()">Enter it as
+                      <b x-text="tmProposed()"></b></button>
+                  </p>
+                  <div class="stop" x-show="tmNameStop()" style="margin-bottom:8px">
+                    <b x-text="tmNameStop()?.t"></b>
+                    <div class="how" x-text="tmNameStop()?.how"></div>
+                  </div>
+                  <div class="inline">
+                    <button class="btn pri" @click="createTeam()"
+                            :disabled="!tm.name.trim() || !tm.grp || tm.busy || !!tmNameStop()">
+                      Add team</button>
+                    <button class="btn" @click="tm.adding=false">Cancel</button>
+                  </div>
+                </div>
+
+                <template x-for="ts in teamSeasonsIn(tm.grpSel||null)" :key="ts.id">
+                  <div class="tcard">
+                    <div class="th">
+                      <b x-text="ts.team_name"></b>
+                      <span class="c grp" x-show="ts.division_label || ts.division"
+                            x-text="ts.division_label || ts.division"></span>
+                      <span class="c" x-show="!(ts.division_label || ts.division)"
+                            style="color:var(--ink3)">no division</span>
+                      <span class="c" x-text="rosterOf(ts.id).length+' players'"></span>
+                      <span class="c" x-text="'avg '+(rosterAvg(ts.id) || '–')"></span>
                     </div>
-                  </template>
-                  <template x-if="!rosterOf(tm.selected).length">
-                    <div class="empty" style="padding:22px 10px">
-                      Empty. Drag a name from the pool, or press <b>+</b> beside one.</div>
-                  </template>
-                </div>
+                    <div class="ta">
+                      <button class="btn sm" @click="openTeamEdit(ts.id)">Edit</button>
+                      <button class="btn sm pri" @click="openTeamRoster(ts.id)">Roster</button>
+                    </div>
+                  </div>
+                </template>
+                <template x-if="!teamSeasonsIn(tm.grpSel||null).length && !tm.adding">
+                  <div class="empty">No teams in <span x-text="tm.grpSel || 'this group'"></span>
+                    for <span x-text="seasonName(seasonId)"></span> yet.</div>
+                </template>
 
-                <!-- balance across the age group, so a swap shows its cost -->
-                <template x-if="teamSeasonsIn(selTeam()?.age_group).length > 1">
+                <!-- the balance across the group is a property of the GROUP, so
+                     it belongs on the group's own screen rather than on one team -->
+                <template x-if="teamSeasonsIn(tm.grpSel||null).length > 1">
                   <div>
                     <div class="cath" style="margin-top:12px">Balance across
-                      <b x-text="selTeam()?.age_group"></b></div>
+                      <b x-text="tm.grpSel"></b></div>
                     <table class="vtab">
                       <thead><tr><th>Team</th><th class="r">Players</th>
                         <th class="r">Average</th></tr></thead>
                       <tbody>
-                        <template x-for="ts in teamSeasonsIn(selTeam()?.age_group)" :key="ts.id">
+                        <template x-for="ts in teamSeasonsIn(tm.grpSel||null)" :key="ts.id">
                           <tr>
                             <td x-text="ts.team_name"></td>
                             <td class="r v" x-text="rosterOf(ts.id).length"></td>
@@ -1081,6 +1093,135 @@ word-break:break-all}
                       meant to be visible, not silent.</p>
                   </div>
                 </template>
+              </div>
+            </template>
+
+            <!-- ── EDIT: what the team IS ── -->
+            <template x-if="tm.view==='edit' && selTeam()">
+              <div>
+                <div class="inline" style="margin:0 0 8px">
+                  <button class="btn sm" @click="tm.view='list'">← <span x-text="tm.grpSel"></span></button>
+                  <b style="font-size:15px" x-text="selTeam()?.team_name"></b>
+                  <span class="c grp" x-text="selTeam()?.age_group || 'no age group'"></span>
+                </div>
+                <div class="srow">
+                  <div class="row2">
+                    <div class="field"><label class="fl">Team name — club-wide, and it carries
+                      across seasons</label>
+                      <input type="text" x-model="tm.ename"></div>
+                    <div class="field"><label class="fl">Gender / age group this season</label>
+                      <select x-model="tm.egrp">
+                        <template x-for="g in allAgeGroups()" :key="g">
+                          <option :value="g" x-text="g"></option></template>
+                      </select></div>
+                  </div>
+                  <div class="field"><label class="fl">Division
+                      <span style="color:var(--ink3);font-weight:400">— optional</span></label>
+                    <input type="text" x-model="tm.ediv" placeholder="e.g. Div 1"></div>
+                  <p class="note" style="margin-bottom:8px">Renaming changes the team <b>everywhere,
+                    in every season</b> — it is the same team. Changing the age group moves this
+                    season's entry only.</p>
+                  <p class="note" style="margin-bottom:8px" x-show="tm.esaved" x-text="tm.esaved"></p>
+                  <div class="inline">
+                    <button class="btn pri" @click="saveTeam()"
+                            :disabled="!tm.ename.trim() || !tm.egrp || tm.busy">Save</button>
+                    <button class="btn" @click="tm.view='list'">Cancel</button>
+                    <span style="margin-left:auto"></span>
+                    <!-- a destructive control never sits on a row of a ledger -->
+                    <button class="btn sm" @click="removeTeamSeason()"
+                            :disabled="rosterOf(tm.selected).length>0">Remove from this season</button>
+                  </div>
+                  <p class="note" style="margin-top:6px" x-show="rosterOf(tm.selected).length">
+                    It still has <b x-text="rosterOf(tm.selected).length"></b> on its roster. Empty
+                    it first — removing a team with players in it would take the placements with it.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- ── ROSTER: who is IN it, this season ── -->
+            <template x-if="tm.view==='roster' && selTeam()">
+              <div>
+                <div class="inline" style="margin:0 0 8px">
+                  <button class="btn sm" @click="tm.view='list'">← <span x-text="tm.grpSel"></span></button>
+                  <b style="font-size:15px" x-text="selTeam()?.team_name"></b>
+                  <span class="c grp" x-text="selTeam()?.age_group || 'no age group'"></span>
+                  <span class="c" x-show="selTeam()?.division_label || selTeam()?.division"
+                        x-text="selTeam()?.division_label || selTeam()?.division"></span>
+                  <span class="c" x-text="rosterOf(tm.selected).length + ' players'"></span>
+                  <span class="c" x-text="'avg ' + (rosterAvg(tm.selected) || '–')"></span>
+                  <span style="margin-left:auto"></span>
+                  <button class="btn sm" @click="openTeamEdit(tm.selected)">Edit the team</button>
+                </div>
+
+                <div class="tsplit" style="grid-template-columns:1fr 280px">
+                  <div>
+                    <div class="rost" :class="tm.over?'over':''"
+                         @dragover.prevent="tm.over=true" @dragleave="tm.over=false"
+                         @drop.prevent="tm.over=false; if(tm.drag) place(tm.drag); tm.drag=null">
+                      <template x-for="r in rosterOf(tm.selected)" :key="r.id">
+                        <div class="rrow">
+                          <button class="star" :class="r.is_star?'on':''"
+                                  @click="setStar(r, !r.is_star)"
+                                  :title="r.is_star?'Starred':'Mark as a key player'">★</button>
+                          <span class="rn" x-text="r.given_name+' '+r.family_name"></span>
+                          <span class="c" x-text="r.age!=null ? r.age : '?'"></span>
+                          <span class="elig" :class="eligRow(r).k" x-text="eligRow(r).s"></span>
+                          <!-- ONE SELECT PER LENS THE CLUB USES, and each writes the
+                               column its axis names. The vocabulary is the sport's;
+                               what a player IS stays keyed to (team, player). -->
+                          <template x-for="l in clubLenses()" :key="l.k">
+                            <select @change="setSlot(r, l.axis, $event.target.value)">
+                              <option value="" :selected="!r[l.axis]" x-text="l.short+' —'"></option>
+                              <template x-for="z in l.slots" :key="z.k">
+                                <option :value="z.k" :selected="r[l.axis]===z.k" x-text="z.t"></option>
+                              </template>
+                            </select>
+                          </template>
+                          <span class="rv" x-text="r.rating ?? '–'"></span>
+                          <button class="btn sm" @click="unplace(r)">Remove</button>
+                        </div>
+                      </template>
+                      <template x-if="!rosterOf(tm.selected).length">
+                        <div class="empty" style="padding:22px 10px">
+                          Empty. Drag a name from the pool, or press <b>+</b> beside one.</div>
+                      </template>
+                    </div>
+                  </div>
+
+                  <!-- ── the pool, beside the roster it feeds ── -->
+                  <div>
+                    <div class="cath" style="margin-top:0">Player pool</div>
+                    <div class="inline" style="margin-top:0">
+                      <input type="search" x-model="tm.q" placeholder="Search" style="flex:1;min-width:90px">
+                      <select x-model="tm.scope" style="width:auto">
+                        <option value="grp">This age group</option>
+                        <option value="all">All age groups</option>
+                      </select>
+                    </div>
+                    <label class="fl" style="margin:6px 0 4px">
+                      <input type="checkbox" x-model="tm.hidePlaced" style="width:auto;margin-right:6px">
+                      Hide anyone already placed in this age group</label>
+                    <div class="pool">
+                      <template x-for="p in poolShown()" :key="p.person_id">
+                        <div class="pitem2" draggable="true"
+                             @dragstart="tm.drag=p.person_id"
+                             @dblclick="place(p.person_id)">
+                          <span class="pn" x-text="p.given_name+' '+p.family_name"></span>
+                          <span class="c" x-text="p.age!=null ? p.age : '?'"></span>
+                          <span class="pv" x-text="p.rating ?? '–'"></span>
+                          <span class="elig" :class="eligOf(p).k" x-text="eligOf(p).s"></span>
+                          <button class="btn sm" @click="place(p.person_id)"
+                                  :disabled="!tm.selected || eligOf(p).k==='no'">+</button>
+                        </div>
+                      </template>
+                      <template x-if="!poolShown().length">
+                        <div class="empty" style="padding:16px 10px">Nobody left in this filter.</div>
+                      </template>
+                    </div>
+                    <p class="note">Drag a name onto the roster, or use <b>+</b>. A player can be in
+                      one team per age group and in as many age groups as you place them.</p>
+                  </div>
+                </div>
               </div>
             </template>
           </div>
@@ -2991,7 +3132,13 @@ function app(){ return {
   pf:{q:'',show:'active',gender:'',age:null,year:new Date().getFullYear()},
   teams:[], teamSeasons:[], roster:[], pool:[], clubCfg:null,
   cfg2:{cutd:31,cutm:12,brackets:'',lenses:[],busy:false,err:'',msg:''},
-  tm:{selected:'',adding:false,name:'',grp:'',div:'',q:'',scope:'grp',hidePlaced:true,
+  //  grpSel is the age group being worked; view is which of the two jobs the
+  //  right-hand pane is doing — the list of teams, what a team IS, or who is in
+  //  it. ename/egrp/ediv are the edit form, kept separate from the create form
+  //  so opening one never half-fills the other.
+  tm:{selected:'',grpSel:null,view:'list',adding:false,name:'',grp:'',div:'',
+      ename:'',egrp:'',ediv:'',esaved:'',
+      q:'',scope:'grp',hidePlaced:true,
       drag:null,over:false,busy:false,err:''},
   qv:{open:false,note:'',busy:false,err:''},
   pe:{id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
@@ -3227,6 +3374,14 @@ function app(){ return {
   async openTeams(){
     this.stage='teams'; this.tm.err='';
     await this.loadTeams();
+    //  LAND ON A GROUP. An index with nothing chosen beside it reads as broken;
+    //  the first group that actually has teams is the one a club is working in,
+    //  and the first group overall if none has any yet.
+    if(this.tm.grpSel===null || !this.allAgeGroups().includes(this.tm.grpSel)){
+      const withTeams=this.allAgeGroups().find(g=>this.teamSeasonsIn(g).length);
+      this.tm.grpSel = withTeams || this.allAgeGroups()[0] || null;
+      this.tm.view='list';
+    }
   },
   async loadTeams(){
     if(!this.org) return;
@@ -4321,10 +4476,68 @@ function app(){ return {
         : error.message;
       return;
     }
-    this.tm={...this.tm, adding:false, name:'', grp:'', div:''};
+    this.tm={...this.tm, adding:false, name:'', div:''};
     await this.loadTeams();
   },
   selectTeam(id){ this.tm.selected=id; this.tm.err=''; },
+
+  // ── the age group is the index; a team is what you do inside one ──────────
+  //  Ming, 19 Aug 2026: "Age group on the left, teams on the right, choose edit
+  //  to edit team information, choose roster to see team roster."
+  selectGroup(g){
+    this.tm.grpSel = g; this.tm.view='list'; this.tm.adding=false;
+    this.tm.err=''; this.tm.selected='';
+  },
+  //  A NEW TEAM STARTS IN THE GROUP YOU ARE STANDING IN. The field is still
+  //  there and still changeable — the group is proposed, not imposed — but a
+  //  club entering four U14 teams should not pick U14 four times.
+  startTeam(){
+    this.tm = {...this.tm, adding:true, name:'', div:'',
+               grp:this.tm.grpSel || (this.allAgeGroups()[0]||'')};
+  },
+  openTeamEdit(id){
+    const ts=this.teamSeasons.find(x=>x.id===id); if(!ts) return;
+    this.tm = {...this.tm, selected:id, view:'edit', adding:false, err:'', esaved:'',
+               ename:ts.team_name||'', egrp:ts.age_group||'',
+               ediv:ts.division_label||ts.division||''};
+  },
+  openTeamRoster(id){
+    this.tm = {...this.tm, selected:id, view:'roster', adding:false, err:''};
+  },
+  //  TWO WRITES, AND THEY ARE DIFFERENT THINGS. The name is club-level and
+  //  changing it changes the team in every season it has ever run in; the age
+  //  group and the division belong to THIS season's entry. The screen says so.
+  async saveTeam(){
+    const ts=this.selTeam(); if(!ts) return;
+    this.tm.err=''; this.tm.esaved=''; this.tm.busy=true;
+    const name=this.tmTidy(this.tm.ename);
+    if(name && name.toLowerCase()!==String(ts.team_name||'').toLowerCase()){
+      const {error} = await this.sb.from('team').update({name}).eq('id', ts.team_id);
+      if(error){ this.tm.err=error.message; this.tm.busy=false; return; }
+    }
+    const divText=(this.tm.ediv||'').trim();
+    const divRank=divText ? (divText.match(/\d+/)||[null])[0] : null;
+    const {error} = await this.sb.from('team_season').update({
+      age_group:this.tm.egrp || null,
+      division:divText || null, division_label:divText || null,
+      division_rank:divRank!==null ? Number(divRank) : null}).eq('id', ts.id);
+    this.tm.busy=false;
+    if(error){
+      this.tm.err = /one_entry_per_age_group|already entered in/.test(error.message)
+        ? name+' is already entered in '+(this.tm.egrp||'that age group')+'.'
+        : error.message;
+      return;
+    }
+    this.tm.esaved='Saved.';
+    this.tm.grpSel = this.tm.egrp || '';
+    await this.loadTeams();
+  },
+  teamsInSeason(sid){
+    const n=(this.teamSeasons||[]).filter(ts=>ts.season_id===sid).length;
+    return sid===this.seasonId
+      ? n+(n===1?' team':' teams')
+      : (this.seasonRows.find(r=>r.id===sid)?.teams ?? 0)+' teams';
+  },
 
   async place(personId){
     if(!this.tm.selected) { this.tm.err='Pick a team first.'; return; }
@@ -4356,7 +4569,7 @@ function app(){ return {
     this.tm.err='';
     const {error} = await this.sb.from('team_season').delete().eq('id', this.tm.selected);
     if(error){ this.tm.err = error.message; return; }
-    this.tm.selected='';
+    this.tm.selected=''; this.tm.view='list';
     await this.loadTeams();
   },
 
