@@ -424,6 +424,23 @@ word-break:break-all}
 .sqp li .r{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink2)}
 .warnbox{background:var(--accbg);border:1px solid var(--accline);color:var(--acc);
  border-radius:9px;padding:8px 11px;font-size:12px;margin-top:10px}
+/* accepting — a ledger of what is about to be written, and a box per reason it
+   would be refused. No new visual language: .jt is the review table's own, and
+   .warnbox is already the caption used for anything the club must read. */
+.acct{width:100%;border-collapse:collapse;margin-top:8px}
+.acct th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;
+ color:var(--ink3);font-weight:600;padding:0 8px 5px 0;border-bottom:1px solid var(--line)}
+.acct td{padding:7px 8px 7px 0;border-bottom:1px solid var(--line);font-size:12.5px;
+ vertical-align:top}
+.acct td.r{text-align:right;font-variant-numeric:tabular-nums}
+.acct input{width:100%;font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line2);
+ border-radius:6px;background:#fff}
+.stop{background:var(--badbg);border:1px solid var(--badline);border-radius:9px;
+ padding:8px 11px;font-size:12.5px;color:var(--bad);margin-top:8px}
+.stop b{display:block;color:var(--bad)}
+.stop .how{color:var(--ink2);font-size:11.5px;margin-top:2px}
+.wrote{background:var(--okbg);border:1px solid var(--okline);border-radius:9px;
+ padding:10px 12px;font-size:13px;color:var(--ok);margin-top:8px}
 /* the comparison board */
 /* the rating shape on a comparison column — same picture as the TMS */
 .cshape{padding:6px 8px 2px;border-bottom:1px solid var(--line)}
@@ -2045,6 +2062,7 @@ values (
           <span class="c grp" x-show="fp.phase!=='setup'"
                 x-text="'graded on '+(fp.basis==='points'?'points per game':'coach rating')"></span>
           <span class="c" x-show="fp.phase==='compare'">proposal confirmed · the engine is not running</span>
+          <span class="c" x-show="fp.phase==='accept'">about to write the teams and the offers</span>
           <span class="c" x-show="fp.saved" x-text="fp.saved"></span>
           <button class="x" @click="modal=''" title="Close">×</button>
         </div>
@@ -2425,6 +2443,71 @@ values (
           </div>
         </div>
 
+        <!-- ══ ACCEPTING ═══════════════════════════════════════════════════
+             The only step in Formation that writes anything about a child, so
+             it says what it is about to do before it does it, and what it
+             cannot do and why. The database refuses all of the same things —
+             this is that answer EARLY, so a club fixes them in one pass. -->
+        <div class="mbody" x-show="fp.phase==='accept'">
+          <div class="cath">What accepting writes</div>
+          <p class="note" style="margin-top:0">
+            <b x-text="fAcceptRows().length + ' teams'"></b> entered in
+            <b x-text="seasonName(seasonId)"></b>, <b x-text="fAcceptCount()"></b> players on their
+            rosters, and a place offered to each of them. Families answer the offer; a decline takes
+            that player off the roster and leaves them training with the club.
+            <b>Nothing here re-runs the engine.</b></p>
+
+          <table class="acct">
+            <thead><tr><th>Team</th><th>Division</th><th class="r">Players</th>
+              <th x-text="fp.basis==='points'?'Projected':'Average'"></th>
+              <th>Over the cap — why</th></tr></thead>
+            <tbody>
+              <template x-for="r in fAcceptRows()" :key="r.ci">
+                <tr>
+                  <td><b x-text="r.name || '— not named —'"></b>
+                    <div class="how" style="color:var(--bad);font-size:11px" x-show="r.unver.length"
+                         x-text="'not verified: '+r.unver.join(', ')"></div></td>
+                  <td x-text="r.div"></td>
+                  <td class="r" x-text="r.n"></td>
+                  <td x-text="r.vs"></td>
+                  <td>
+                    <!-- the reason is required only where the cap is exceeded, and
+                         it is the same rule as an admin verification: the stated
+                         reason is the whole difference between an override and a
+                         bypass. -->
+                    <template x-if="r.over>0">
+                      <div><input type="text" :value="fp.acc.caps[r.ci]||''"
+                             @input="fp.acc.caps[r.ci]=$event.target.value; fp.acc.caps={...fp.acc.caps}"
+                             :placeholder="r.over+' over — say why'"></div>
+                    </template>
+                    <span class="c" x-show="r.over<=0" style="color:var(--ink3)">within the cap</span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+
+          <div class="field" style="margin-top:12px">
+            <label class="fl">A note on every offer <span style="color:var(--ink3)">— optional</span></label>
+            <input type="text" x-model="fp.acc.note"
+                   placeholder="e.g. Trials 12 March · training starts the week of the 24th">
+          </div>
+
+          <template x-for="st in fAcceptStops()" :key="st.k">
+            <div class="stop"><b x-text="st.t"></b><div class="how" x-text="st.how"></div></div>
+          </template>
+
+          <div class="warnbox" x-show="!fAcceptStops().length">
+            A place is binding at <b>registration</b>, not at acceptance. Accepting here enters the
+            teams and puts the offers out; nobody is registered by it.</div>
+
+          <div class="wrote" x-show="fp.acc.done">
+            <b x-text="(fp.acc.done?.teams_created||0)+' teams created, '
+                      +(fp.acc.done?.teams_reused||0)+' already had a name, '
+                      +(fp.acc.done?.placed||0)+' players placed.'"></b>
+            The offers are out. Answers are recorded on the player, and the rosters follow them.</div>
+        </div>
+
         <div class="mfoot">
           <button class="btn pri" x-show="fp.phase==='setup'"
                   @click="fGenerate()" :disabled="fp.busy || !fp.teams.length"
@@ -2437,14 +2520,23 @@ values (
           <button class="btn" x-show="fp.phase==='compare'" @click="fp.phase='setup'">← Back to the plan</button>
           <button class="btn" x-show="fp.phase==='compare'" @click="fRestoreProposal()"
                   :disabled="!fMovedCount()">Restore the proposal</button>
+          <button class="btn pri" x-show="fp.phase==='compare'"
+                  @click="fp.acc.err=''; fp.acc.done=null; fp.phase='accept'">Accept these teams…</button>
+          <button class="btn" x-show="fp.phase==='accept'" @click="fp.phase='compare'">← Back to the board</button>
+          <button class="btn pri" x-show="fp.phase==='accept' && !fp.acc.done"
+                  @click="fAccept()" :disabled="fp.acc.busy || fAcceptStops().length">
+            Enter the teams and send the offers</button>
+          <button class="btn pri" x-show="fp.phase==='accept' && fp.acc.done"
+                  @click="fAcceptToTeams()">Open the rosters →</button>
           <button class="btn" @click="modal=''">Close</button>
-          <span class="c" x-show="fp.busy">working…</span>
+          <span class="c" x-show="fp.busy || fp.acc.busy">working…</span>
           <span class="note" style="margin:0;margin-left:auto" x-show="fp.err" x-text="fp.err"></span>
+          <span class="note" style="margin:0;margin-left:auto" x-show="fp.acc.err" x-text="fp.acc.err"></span>
           <span class="note" style="margin:0;margin-left:auto"
                 x-show="!fp.err && fp.phase==='setup' && fp.result && !fp.stale">
-            Confirm to move players by hand. Writing the rosters and the offers is the next step.</span>
+            Confirm to move players by hand, then accept.</span>
           <span class="note" style="margin:0;margin-left:auto" x-show="!fp.err && fp.phase==='compare'">
-            The proposal is frozen — accepting these teams is the next step and is not wired yet.</span>
+            The proposal is frozen — move players by hand, then accept the teams.</span>
         </div>
       </div>
     </div>
@@ -3138,7 +3230,10 @@ function app(){ return {
       phase:'setup', result:null,
       naming:false, names:{}, pattern:'Div {n}', namesErr:'', gender:'', stale:false,
       /* dashboard state lives beside it */
-      lenses:[], lens:'', marks:{}, stars:{}, assign:{}, frozen:null, by:{}, moves:{}},
+      lenses:[], lens:'', marks:{}, stars:{}, assign:{}, frozen:null, by:{}, moves:{},
+      /* accepting: the note that goes on every offer, a cap reason per column,
+         and what the database said it wrote */
+      acc:{busy:false, err:'', note:'', caps:{}, done:null}},
 
   //  A dashboard row is a way INTO Formation, so it does what arriving at
   //  Formation does — loads it — and only then opens the age group.
@@ -3869,6 +3964,87 @@ function app(){ return {
   fColIn(col,i){ return col.players.filter(p=>this.fp.moves[p.person_id]!=null).length; },
   fColOut(col,i){ return col.ids.filter(id=>this.fp.moves[id]!=null&&this.fp.moves[id]!==i).length; },
   fMovedCount(){ return Object.keys(this.fp.moves||{}).length; },
+
+  // ═══ ACCEPTING ═══════════════════════════════════════════════════════════
+  //  The last step, and the only one in Formation that writes anything about a
+  //  child. Everything below it — the teams, the rosters, the offers — is ONE
+  //  call to `accept_formation`, which is one transaction. Four inserts from
+  //  here would leave a club with half a season if the third failed.
+  //
+  //  DERIVED ONCE, like the board. Nothing in the accept panel calls a method
+  //  from inside a nested scope; the row carries everything the row draws.
+  fAcceptRows(){
+    return this.fBoard().map(col=>{
+      const unver=col.players.filter(p=>{
+        const r=(this.pool||[]).find(x=>x.person_id===p.person_id);
+        return r && r.verification!=='verified'; })
+        .map(p=>(p.given_name+' '+p.family_name).replace('DEMO_',''));
+      return { ci:col.ci, name:col.team||'', div:this.fDivLabel(col.division_rank),
+        rank:col.division_rank, n:col.players.length,
+        over:Math.max(0,col.players.length-this.fp.cap),
+        note:this.fp.acc.caps[col.ci]||'', unver:unver,
+        vs:col.players.length?this.fColVs(col):'' };
+    });
+  },
+  //  WHAT WOULD BE REFUSED, SAID BEFORE THE CLUB PRESSES ANYTHING. The database
+  //  refuses all of this too and is the enforcement — this is the same answer,
+  //  early, so a club fixes everything in one pass instead of discovering it one
+  //  error at a time with a hundred and fifty children in front of them.
+  fAcceptStops(){
+    const rows=this.fAcceptRows(), out=[];
+    const unnamed=rows.filter(r=>!r.name.trim()).length;
+    if(unnamed) out.push({k:'name', t:unnamed+(unnamed===1?' team has':' teams have')+
+      ' no name yet', how:'Name them on the proposal, above.'});
+    const seen={}, twice=[];
+    rows.forEach(r=>{ const n=r.name.trim().toLowerCase(); if(!n) return;
+      if(seen[n]&&twice.indexOf(r.name)<0) twice.push(r.name); seen[n]=1; });
+    if(twice.length) out.push({k:'twice', t:twice.join(', ')+' is assigned to more than one roster',
+      how:'A team can only be entered once in a season.'});
+    const unver=[...new Set(rows.flatMap(r=>r.unver))];
+    if(unver.length) out.push({k:'unver', t:unver.length+
+      (unver.length===1?' record has':' records have')+' not been checked against the registration: '+
+      unver.join(', '), how:'Verify them under Players — the gate is on the offer, not on the rating.'});
+    const caps=rows.filter(r=>r.over>0 && !r.note.trim()).map(r=>r.name||('#'+(r.ci+1)));
+    if(caps.length) out.push({k:'cap', t:caps.join(', ')+
+      (caps.length===1?' is':' are')+' over the squad cap of '+this.fp.cap,
+      how:'Say why beside each of them, or move somebody.'});
+    return out;
+  },
+  fAcceptCount(){ return this.fAcceptRows().reduce((a,r)=>a+r.n,0); },
+  async fAccept(){
+    if(this.fAcceptStops().length) return;
+    this.fp.acc.busy=true; this.fp.acc.err=''; this.fp.acc.done=null;
+    const squads=this.fBoard().map(col=>({
+      name:(col.team||'').trim(),
+      division_rank:col.division_rank,
+      division_label:this.fDivLabel(col.division_rank),
+      target_value:this.fColTgt(col)==null?null:Number(this.fColTgt(col)),
+      target_basis:this.fp.basis,
+      cap_note:(this.fp.acc.caps[col.ci]||'').trim()||null,
+      players:col.players.map(pl=>({
+        person_id:pl.person_id,
+        zone:(this.fMarks('zone')[this.fZKey(col.ci,pl.person_id)]||{}).k||null,
+        role:(this.fMarks('role')[this.fZKey(col.ci,pl.person_id)]||{}).k||null,
+        position:(this.fMarks('position')[this.fZKey(col.ci,pl.person_id)]||{}).k||null,
+        star:!!this.fp.stars[this.fZKey(col.ci,pl.person_id)] }))
+    }));
+    const {data,error}=await this.sb.rpc('accept_formation',{
+      p_season:this.seasonId, p_age_group:this.fp.group,
+      p_squads:squads, p_note:(this.fp.acc.note||'').trim()||null});
+    this.fp.acc.busy=false;
+    if(error){ this.fp.acc.err=error.message; return; }
+    this.fp.acc.done=data;
+    //  the Teams stage reads team_season and the roster, so both have to be
+    //  refetched or the club goes looking for teams that are already there
+    await this.loadFormation();
+    if(this.stage==='teams') await this.loadTeams();
+  },
+  //  Straight to the rosters that were just written — the club's next move is
+  //  always to look at them.
+  async fAcceptToTeams(){
+    this.modal=''; this.fp.phase='setup'; this.fp.acc.done=null;
+    await this.openTeams();
+  },
   //  The reference basis travels with the column, and states its own coverage.
   fColRef(col){
     if(!col.players.length) return null;
