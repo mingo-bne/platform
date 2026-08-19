@@ -331,6 +331,18 @@ word-break:break-all}
 /* ── the Formation stage. One row per age group; open one and you get that
       group alone. Ming, 19 Aug 2026: a page of every age group's every division
       was "too overwhelming". See DECISIONS.md ADR-006/007/008/009. ────────── */
+/* the season is chosen on cards, not out of a dropdown — a club runs and plans
+   for a handful at a time and this is the first decision on the screen */
+.dsn{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:2px}
+.dsc{flex:1 1 210px;max-width:340px;text-align:left;font:inherit;cursor:pointer;
+ border:1px solid var(--line2);border-radius:11px;background:#fff;padding:12px 14px;
+ display:flex;flex-direction:column;gap:3px}
+.dsc:hover{border-color:var(--navy);background:#fbfaf8}
+.dsc.on{border-color:var(--navy);background:var(--navy2);box-shadow:0 0 0 1px var(--navy)}
+.dsc b{font-size:15px;color:var(--navy);line-height:1.2}
+.dsc .yr{font-size:11px;color:var(--ink3)}
+.dsc .mt{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
+
 /* the dashboard: a number, what it counts, and the section it opens */
 .dsh{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:2px}
 .dc{display:flex;flex-direction:column;gap:1px;align-items:flex-start;min-width:104px;
@@ -932,22 +944,45 @@ word-break:break-all}
          decides nothing, writes nothing, and is not a place to work. ── -->
     <template x-if="stage==='dash'">
     <div class="panel">
-      <div class="rhead" style="display:flex;align-items:flex-start;gap:10px">
-        <div style="flex:1">
-          <h2>Dashboard</h2>
-          <div class="sub">Where this season stands, and what is waiting on you.</div>
-        </div>
-        <div class="inline" style="margin:0">
-          <select x-model="seasonId" @change="onSeasonChange(); openDash()" style="width:auto">
-            <template x-for="s in seasons" :key="s.id">
-              <option :value="s.id" x-text="seasonOptionLabel(s)" :selected="s.id===seasonId"></option>
-            </template>
-          </select>
-        </div>
+      <div class="rhead">
+        <h2>Dashboard</h2>
+        <div class="sub">Where this season stands, and what is waiting on you.</div>
       </div>
 
       <div class="pbody">
       <p x-show="dash.err" x-text="dash.err" class="err" style="margin-top:0"></p>
+
+      <!-- THE SEASON IS A SCOPE, AND ON THIS SCREEN IT IS THE FIRST DECISION.
+           Ming, 19 Aug 2026: "a club will compete in less than 3 competitions and
+           will plan for less than 3." So the live ones are cards you can read and
+           press, not a line in a dropdown. Seasons ACCUMULATE, though — five
+           years in there are ten of them — so only the most recent few are cards
+           and everything older sits behind one control. -->
+      <div class="cath">Season</div>
+      <div class="dsn">
+        <template x-for="s in dashSeasons()" :key="s.id">
+          <button class="dsc" :class="s.id===seasonId?'on':''"
+                  @click="seasonId=s.id; onSeasonChange(); openDash()">
+            <b x-text="s.name"></b>
+            <span class="yr">age reckoned at <span x-text="s.year"></span></span>
+            <span class="mt">
+              <span class="c ok" x-show="s.is_current">current</span>
+              <span class="c" x-text="dashSeasonSub(s)"></span>
+            </span>
+          </button>
+        </template>
+      </div>
+      <div class="inline" style="margin:6px 0 0" x-show="dashOlder().length">
+        <label class="fl" style="margin:0">Earlier seasons</label>
+        <select style="width:auto"
+                @change="if($event.target.value){seasonId=$event.target.value; onSeasonChange(); openDash()}">
+          <option value="">—</option>
+          <template x-for="s in dashOlder()" :key="s.id">
+            <option :value="s.id" x-text="seasonOptionLabel(s)" :selected="s.id===seasonId"></option>
+          </template>
+        </select>
+      </div>
+      <p class="note" x-show="!seasons.length">No season yet. Add one from Rating.</p>
 
       <template x-if="!seasonId">
         <div class="empty">Choose a season — everything here is read through one.</div>
@@ -955,7 +990,7 @@ word-break:break-all}
 
       <template x-if="seasonId">
         <div>
-          <div class="cath">The pool</div>
+          <div class="cath">Talent pool</div>
           <div class="dsh">
             <button class="dc" @click="openPlayersStage()">
               <b x-text="dash.pool.length"></b><span>in the pool</span></button>
@@ -981,7 +1016,7 @@ word-break:break-all}
             past its own closing date is a signal, not a lock — coaches still enter ratings from a
             clipboard days later.</p>
 
-          <div class="cath">Places</div>
+          <div class="cath">Player placement</div>
           <div class="dsh">
             <button class="dc" @click="openTeams()">
               <b x-text="dash.ts.length"></b><span>teams entered</span></button>
@@ -3032,7 +3067,7 @@ function app(){ return {
   //  off the band they cut. That is the whole of ADR-007: a number typed at a
   //  cohort can be unreachable, a number read off it never is.
   setupTab:'club',
-  dash:{busy:false, err:'', pipe:[], queue:[], pool:[], plans:[], ts:[]},
+  dash:{busy:false, err:'', pipe:[], queue:[], pool:[], plans:[], ts:[], summary:[]},
 
   fp:{group:'', basis:'rating', teams:[], cuts:[], cap:10, min:8, lock:true,
       newdiv:1, err:'', busy:false, saved:'', plans:[], scoring:[], drag:null,
@@ -3067,22 +3102,54 @@ function app(){ return {
   //  into the section that would do it. It decides nothing and writes nothing.
   async openDash(){
     this.stage='dash'; this.dash.err='';
-    if(!this.org || !this.seasonId) return;
+    if(!this.org) return;
     this.dash.busy=true;
+    //  The season cards are the first decision on this screen, so what is in
+    //  each season loads whether or not one has been chosen yet.
+    if(!this.seasonId){
+      const {data} = await this.sb.from('v_season_summary').select('*');
+      this.dash={...this.dash, busy:false, summary:data||[]};
+      return;
+    }
     const q = async (t,f) => { let r=this.sb.from(t).select('*');
       if(f) r=r.eq(f[0],f[1]);
       const {data,error}=await r;
       if(error){ this.dash.err=t+': '+error.message; return []; }
       return data||[]; };
-    const [pipe,queue,pool,plans,ts] = await Promise.all([
+    const [pipe,queue,pool,plans,ts,summary] = await Promise.all([
       q('v_season_pipeline',['season_id',this.seasonId]),
       q('v_session_queue'),
       q('v_player_pool',['season_id',this.seasonId]),
       q('formation_plan',['season_id',this.seasonId]),
       q('team_season',['season_id',this.seasonId]),
+      q('v_season_summary'),          // every season, so the cards can say what is in each
     ]);
-    this.dash={...this.dash, busy:false, pipe, queue, pool, plans, ts};
+    this.dash={...this.dash, busy:false, pipe, queue, pool, plans, ts, summary};
   },
+  //  A club runs and plans for a handful of seasons at a time, but it
+  //  ACCUMULATES them — so the most recent few are cards and the rest sit
+  //  behind one control. Ordered by the year age is reckoned at, newest first,
+  //  with the current season pulled to the front of its year.
+  dashSeasonOrder(){
+    return (this.seasons||[]).slice().sort((a,b) =>
+      (b.year||0) - (a.year||0)
+      || (b.is_current?1:0) - (a.is_current?1:0)
+      || String(a.name).localeCompare(String(b.name)));
+  },
+  dashSeasons(){ return this.dashSeasonOrder().slice(0, 4); },
+  dashOlder(){ return this.dashSeasonOrder().slice(4); },
+  //  What is actually in a season, so a card is worth pressing rather than just
+  //  a name. Read from v_season_summary, which already counts these.
+  dashSeasonSub(s){
+    const r = (this.dash.summary||[]).find(x => x.id === s.id);
+    if(!r) return 'nothing in it yet';
+    const bits = [];
+    if(+r.players) bits.push(r.players + ' player' + (+r.players===1?'':'s'));
+    if(+r.teams)   bits.push(r.teams + ' team' + (+r.teams===1?'':'s'));
+    if(+r.sessions) bits.push(r.sessions + ' trial' + (+r.sessions===1?'':'s'));
+    return bits.length ? bits.join(' · ') : 'nothing in it yet';
+  },
+
   dashRated(){ return this.dash.pool.filter(p=>p.rating!=null).length; },
   dashUnrated(){ return this.dash.pool.filter(p=>p.rating==null).length; },
   dashUnverified(){ return this.dash.pool.filter(p=>p.verification!=='verified').length; },
