@@ -1606,15 +1606,22 @@ word-break:break-all}
                 <td class="num" x-text="r.rated"></td>
                 <td class="num" x-text="r.teams||'—'"></td>
                 <td class="num" x-text="r.named||'—'"></td>
-                <td><span class="c" :class="r.state==='teams named'?'ok'
-                          :(r.state==='no plan yet'?'':'wn')" x-text="r.state"></span></td>
+                <!-- THE RUNG AND WHAT IS OUTSTANDING ON IT. A state on its own
+                     says where you are; the count beside it says what to do,
+                     and that is the only reason to look at this table. -->
+                <td><span class="c" :class="dashGroupClass(r)" x-text="r.state"></span>
+                    <span class="note" style="margin:0 0 0 6px" x-show="r.todo"
+                          x-text="r.todo"></span></td>
               </tr>
             </template>
           </table>
           <p class="note" x-show="!dashGroups().length">No player has a date of birth and a rating
             in this season yet, so there is nothing to band.</p>
-          <p class="note" style="margin-bottom:0" x-show="dashGroups().length">A row opens that
-            age group in Formation.</p>
+          <p class="note" style="margin-bottom:0" x-show="dashGroups().length">
+            An age group runs <b>no plan → planned → named → offered → responded → confirmed</b>.
+            A row opens that age group in Formation. <b>Confirmed</b> means every accepted place is
+            registered — the only rung with nothing outstanding, because a place is binding at
+            registration and not at acceptance.</p>
         </div>
       </template>
       </div>
@@ -1709,6 +1716,13 @@ word-break:break-all}
                   <span class="c" x-text="fPlan(g).basis==='points'?'points':'rating'"></span>
                   <template x-if="fThin(g)">
                     <span class="c wn" x-text="fThin(g)+' too small'"></span>
+                  </template>
+                  <!-- A BOARD LEFT PART-WORKED IS VISIBLE FROM THE LIST, not
+                       only once you have opened the group. Otherwise the only
+                       way to discover unfinished work is to remember it. -->
+                  <template x-if="fBoardWorth(fBoardFor(g))">
+                    <span class="c wn" x-text="'board saved · '
+                      +fBoardFor(g).moved+' moved'"></span>
                   </template>
                 </span>
               </button>
@@ -2857,9 +2871,27 @@ values (
           <span class="c" x-show="fp.phase==='draft'">draft board · nothing written yet · the engine is not running</span>
           <span class="c" x-show="fp.phase==='accept'">about to write the teams and the offers</span>
           <span class="c" x-show="fp.saved" x-text="fp.saved"></span>
+          <span class="c ok" x-show="fbd.at && !fbd.err && !fbd.saving">saved</span>
+          <span class="c" x-show="fbd.saving">saving…</span>
+          <span class="c wn" x-show="fbd.err">not saved</span>
           <button class="x" @click="modal=''" title="Close">×</button>
         </div>
         <div class="mbody" x-show="fp.phase==='setup'">
+
+          <!-- A BOARD LEFT BEHIND IS OFFERED, NEVER LOADED SILENTLY. Ming,
+               20 Aug 2026, after losing an hour of hand moves to a refresh, and
+               asked how it should come back: "ask me first". The banner states
+               what it is holding — when, who, how many moved — so the choice is
+               made on facts and not on hope. Saying no DELETES the row: saying
+               no once should mean no. -->
+          <div class="warnbar" x-show="fbd.offer"
+               style="margin:0 0 12px;border-radius:8px;border:1px solid var(--warnline);
+                      display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="flex:1;min-width:240px" x-text="fBoardOfferText()"></span>
+            <button class="btn pri" :disabled="fbd.busy" @click="fBoardRestore()">Restore it</button>
+            <button class="btn" :disabled="fbd.busy" @click="fBoardDiscard()">Start fresh</button>
+          </div>
+          <p class="err" x-show="fbd.err" x-text="fbd.err" style="margin-top:0"></p>
 
           <div class="cath">What the teams are graded on</div>
           <div class="fbasis">
@@ -3126,13 +3158,24 @@ values (
                what a head coach does to a rating session, and it cannot be undone.
                Nothing on this surface writes anything; Accept does. -->
           <div class="cath">Draft board — move players between teams</div>
-          <!-- Says what it is and what it is not. A board kept in the page is
-               not a saved board, and a screen that implied it was would cost
-               somebody a whole afternoon exactly once. -->
+          <!-- Says what it is. Until 20 Aug it had to say what it was NOT — a
+               board held in the page only — because a screen that implied
+               durability it did not have would cost somebody an afternoon
+               exactly once. It is saved now, so the caption says that instead,
+               and it says WHEN rather than just "saved": a save that silently
+               stopped working reads identically to one that never runs. -->
+          <p class="note" style="margin:0 0 8px" x-show="fp.resumed && !fbd.err">
+            Picked up where you left it.</p>
+          <p class="note" style="margin:0 0 8px" x-show="fbd.at && !fbd.err">
+            This board is saved as you work — <span x-text="'last written '+fBoardAgo(fbd.at)"></span>.
+            Closing the tab no longer loses it. Accept when you are done with it.</p>
+          <!-- A SAVE THAT FAILED SAYS SO, ON THE BOARD, AND DOES NOT STOP THE
+               WORK. The coach can keep dragging; what they cannot do is find
+               out afterwards that none of it was being written. -->
           <p class="warnbar" style="margin:0 0 8px;border-radius:8px;border:1px solid var(--warnline)"
-             x-show="fp.resumed">
-            Picked up where you left it. This board is held on this page only — it survives leaving
-            Formation, but <b>not a reload</b>. Accept when you are done with it.</p>
+             x-show="fbd.err">
+            <b>This board is not being saved.</b> <span x-text="fbd.err"></span> Your work is still
+            on screen and still accepts normally — but a reload would lose it, so finish here.</p>
           <!-- THE BUILD IS ON THE RECORD, AND IT SAYS SO. Or it says it is not:
                an audit row that quietly failed to write is worse than none. -->
           <p class="note" style="margin:0 0 6px" x-show="fp.run">
@@ -4372,6 +4415,21 @@ function app(){ return {
       disappears when it is. The UI suite caught exactly that. */
   fvfy:{busy:'', err:'', open:'', note:''},
 
+  /*  THE BOARD SURVIVES A RELOAD. Ming, 20 Aug 2026, having lost an hour of
+      hand moves to a refresh, and asked what should happen: "save hand moves
+      too, restore the board exactly", and "ask me first".
+      `rows`   — v_formation_board for this season: what is part-worked, WITHOUT
+                 the state blob. Loaded with everything else, so the age-group
+                 list can mark a group without a second round trip.
+      `offer`  — the row the restore banner is currently offering. Null unless a
+                 board was found for the group being opened. NOTHING LOADS UNTIL
+                 THE COACH SAYS YES; a silent restore can bury work in progress.
+      `at`     — when this board was last written, straight from the database, so
+                 the caption states a fact rather than a hope.
+      TOP LEVEL, BESIDE `qv` AND `fvfy`, NOT INSIDE `fp` — same rule, same
+      reason: nested sub-state disappears when its parent is reassigned. */
+  fbd:{rows:[], offer:null, at:null, err:'', saving:false, busy:false},
+
   //  A dashboard row is a way INTO Formation, so it does what arriving at
   //  Formation does — loads it — and only then opens the age group.
   async fFromDash(g){
@@ -4739,7 +4797,27 @@ function app(){ return {
   dashSessionsOpen(){ return this.dash.queue.filter(s=>s.status==='open').length; },
   dashSessionsToSettle(){ return this.dash.queue.reduce((a,s)=>a+(+s.to_settle||0),0); },
   dashSessionsLate(){ return this.dash.queue.filter(s=>s.outside_window).length; },
-  //  One row per age group: is there a plan, and does it describe the cohort?
+  //  ONE ROW PER AGE GROUP, AND IT RUNS THE WHOLE ARC. Ming, 20 Aug 2026:
+  //  "no plan, planned, named, offered, responded, confirmed."
+  //
+  //  It used to stop at `named`, which is the last thing a PLAN can tell you —
+  //  so an age group with 45 offers out and 37 families yet to answer read
+  //  identically to one where somebody typed six team names and went home. The
+  //  club-wide totals were on the same screen; what was missing was WHICH AGE
+  //  GROUP they belonged to, which is the only form in which anybody can act on
+  //  them.
+  //
+  //  THE LADDER ONLY EVER GOES FORWARD, and each rung is the answer to "what is
+  //  outstanding": a plan, teams, offers, answers, registrations. `confirmed` is
+  //  the only rung with nothing outstanding, and it is the only green one.
+  //
+  //  OFFERS ARE KEYED ON THE TEAM'S AGE GROUP, not the player's. A child playing
+  //  up is offered a place in the older group, and that offer belongs to the
+  //  formation that made it. The pool count on the left still counts them in
+  //  their own age group — two different questions, deliberately.
+  dashGroupRows(g){
+    return (this.dash.pipe||[]).filter(r => (r.team_age_group||r.age_group)===g);
+  },
   dashGroups(){
     const gs=[...new Set(this.dash.pool.map(p=>p.age_group).filter(Boolean))]
       .sort((a,b)=>this.fByAge(a,b));
@@ -4747,14 +4825,32 @@ function app(){ return {
       const ps=this.dash.pool.filter(p=>p.age_group===g);
       const plan=this.dash.plans.find(x=>x.age_group===g);
       const named=this.dash.ts.filter(t=>t.age_group===g).length;
-      return { g, n:ps.length,
-        rated:ps.filter(p=>p.rating!=null).length,
-        teams:(plan&&plan.teams&&plan.teams.length)||0,
-        named,
-        state: !plan||!plan.teams||!plan.teams.length ? 'no plan yet'
-             : named>=plan.teams.length ? 'teams named'
-             : 'planned, not named' };
+      const teams=(plan&&plan.teams&&plan.teams.length)||0;
+      const rows=this.dashGroupRows(g);
+      const off=rows.filter(r=>r.offer_id);
+      const pend=off.filter(r=>r.offer_response==='pending').length;
+      const acc=off.filter(r=>r.offer_response==='accepted');
+      const dec=off.filter(r=>r.offer_response==='declined').length;
+      const reg=acc.filter(r=>r.registered).length;
+      let state, todo='';
+      if(!teams){ state='no plan'; }
+      else if(named<teams){ state='planned'; todo=(teams-named)+' still to name'; }
+      else if(!off.length){ state='named'; todo='no offer has gone out'; }
+      else if(pend){ state='offered'; todo=pend+' waiting on a family'; }
+      else if(acc.length && reg<acc.length){
+        state='responded'; todo=(acc.length-reg)+' to register'; }
+      else if(!acc.length){ state='responded'; todo='every place was declined'; }
+      else { state='confirmed'; todo=reg+' registered'; }
+      return { g, n:ps.length, rated:ps.filter(p=>p.rating!=null).length,
+               teams, named, state, todo,
+               offers:off.length, pending:pend, accepted:acc.length,
+               declined:dec, registered:reg };
     });
+  },
+  //  Only `confirmed` is green. Everything before it has something outstanding,
+  //  and `no plan` is not a warning — it is a club that has not started.
+  dashGroupClass(r){
+    return r.state==='confirmed' ? 'ok' : (r.state==='no plan' ? '' : 'wn');
   },
 
   async openFormation(){
@@ -4776,6 +4872,10 @@ function app(){ return {
       ...ts, team_name:(this.teams.find(t=>t.id===ts.team_id)||{}).name || '(unnamed)' }));
     this.pool     = await q('v_player_pool',['season_id',this.seasonId]);
     this.fp.plans = await q('formation_plan',['season_id',this.seasonId]);
+    //  what is part-worked in this season — the view WITHOUT the state blob, so
+    //  the age-group list can mark a group and the restore banner can describe
+    //  a board without either of them loading one
+    this.fbd.rows = await q('v_formation_board',['season_id',this.seasonId]);
     //  THE LENSES BELONG TO THE SPORT — defined once, read by every club,
     //  authored by no tenant. The club's sport is on the organisation; if it is
     //  not set, take whichever sport actually declares lenses rather than naming
@@ -5035,13 +5135,20 @@ function app(){ return {
     //  method cleared it on the way in — so stepping out to check one record
     //  and coming back cost an hour of dragging. Resume only where there is
     //  something to resume: the same age group, a board already frozen, and
-    //  past the setup phase. It survives leaving the section; it does NOT
-    //  survive a page reload — that is `formation_run`, still to be built, and
-    //  the caption says so rather than implying a durability it does not have.
+    //  past the setup phase. This is the IN-PAGE resume and it is still the
+    //  cheapest path — no round trip, nothing to confirm. A board that did not
+    //  survive the page is offered by `fbd.offer` below instead, and that one
+    //  asks first.
     if(this.fp.group===g && this.fp.result && this.fp.phase!=='setup'){
       this.fp.err=''; this.fp.resumed=true; this.modal='formation'; return;
     }
     this.fp.resumed=false; this.fvfy={busy:'',err:'',open:'',note:''};
+    //  A BOARD LEFT ON DISK IS OFFERED, NOT LOADED. Ming, 20 Aug 2026: ask me
+    //  first. Nothing below is skipped — the group opens clean and the banner
+    //  sits on top of it, so saying no costs one click and no state.
+    const saved=this.fBoardFor(g);
+    this.fbd.offer = this.fBoardWorth(saved) ? saved : null;
+    this.fbd.at=null; this.fbd.err='';
     const p=this.fPlan(g);
     this.fp.group=g; this.fp.basis=p.basis||'rating';
     this.fp.cap=p.squad_cap||this.fCfg().cap; this.fp.min=p.min_field||8;
@@ -5200,6 +5307,7 @@ function app(){ return {
     const m=this.fMarks(l.axis), key=this.fZKey(col,pid);
     if(k) m[key]={k:k,lens:l.k}; else delete m[key];
     this.fp.marks={...this.fp.marks};
+    this.fBoardTouch();
   },
   fCoarseNote(col,pid){
     const l=this.fLens(); if(!l) return '';
@@ -5224,7 +5332,7 @@ function app(){ return {
   },
   fToggleStar(col,pid){ const key=this.fZKey(col,pid);
     if(this.fp.stars[key]) delete this.fp.stars[key]; else this.fp.stars[key]=true;
-    this.fp.stars={...this.fp.stars}; },
+    this.fp.stars={...this.fp.stars}; this.fBoardTouch(); },
   fIsStar(col,pid){ return !!this.fp.stars[this.fZKey(col,pid)]; },
   fSlotsWithOther(){ const l=this.fLens();
     return l ? l.slots.concat([{...this.fOther(), t:l.empty||'Other'}]) : []; },
@@ -5350,6 +5458,7 @@ function app(){ return {
   fLinkTo(ci, tsId){
     this.fp.link = {...(this.fp.link||{})};
     if(!tsId) delete this.fp.link[ci]; else this.fp.link[ci]=tsId;
+    this.fBoardTouch();
   },
   fLinkedTeam(ci){
     const id=(this.fp.link||{})[ci]; if(!id) return null;
@@ -5433,6 +5542,9 @@ function app(){ return {
       .forEach(p=>this.fp.by[p.person_id]=p));
     this.fp.moves={}; this.fp.phase='draft';
     await this.fSaveRun();
+    //  and the board itself, immediately rather than on the debounce — the
+    //  first thing a coach does after freezing is sometimes close the laptop
+    await this.fBoardSave();
   },
   async fSaveRun(){
     this.fp.runErr='';
@@ -5451,12 +5563,139 @@ function app(){ return {
     if(error){ this.fp.runErr=error.message; this.fp.run=null; return; }
     this.fp.run=data||null;
   },
-  fBackToSetup(){ this.fp.phase='setup'; },
-  fRestoreProposal(){ this.fp.moves={}; },
+
+  // ═══ THE BOARD SURVIVES A RELOAD ═════════════════════════════════════════
+  //  Migration 031 records what the ENGINE produced, once, at the freeze. This
+  //  records what the COACH IS DOING, over and over, as they do it — two
+  //  different lifespans, two different tables, and this one is thrown away the
+  //  moment the teams are accepted.
+  //
+  //  THE WHOLE BOARD GOES IN ONE BLOB. Restoring is then exact by construction
+  //  rather than by a mapping that drifts from the screen every time a field is
+  //  added to `fp`. The database cannot read inside it and no rule is enforced
+  //  on it — acceptable ONLY because nothing else ever reads this row.
+  //
+  //  IT NEVER BLOCKS THE BOARD. A failed save shows a quiet note and the coach
+  //  keeps working; refusing to let somebody drag a player because a save did
+  //  not land would be the tail wagging the dog.
+  fBoardState(){
+    const f=this.fp;
+    return {v:1, group:f.group, basis:f.basis,
+      teams:(f.teams||[]).slice(), cuts:(f.cuts||[]).slice(),
+      cap:f.cap, min:f.min, lock:!!f.lock, gender:f.gender||'',
+      phase:f.phase, result:f.result, frozen:f.frozen,
+      moves:f.moves||{}, marks:f.marks||{}, stars:f.stars||{},
+      link:f.link||{}, names:f.names||{}, pattern:f.pattern||'Div {n}',
+      run:f.run||null};
+  },
+  //  DEBOUNCED, because this fires on every drag. 700ms is long enough that a
+  //  run of moves is one write and short enough that closing the laptop right
+  //  after a move does not lose it.
+  fBoardTouch(){
+    if(!this.fp.result) return;           //  nothing to save before a proposal
+    clearTimeout(this._boardTimer);
+    this._boardTimer=setTimeout(()=>this.fBoardSave(), 700);
+  },
+  async fBoardSave(){
+    //  A DEBOUNCED SAVE CAN LAND AFTER THE CLIENT HAS GONE — a sign-out, a
+    //  reload, a season change. No client, no save, and no exception either:
+    //  this is the one write in the product allowed to give up silently,
+    //  because the coach did not ask for it and cannot act on it.
+    if(!this.sb || typeof this.sb.rpc !== 'function') return;
+    if(!this.seasonId || !this.fp.group || !this.fp.result) return;
+    if((this.seasons.find(s=>s.id===this.seasonId)||{}).archived_at) return;
+    this.fbd.saving=true;
+    const {data,error}=await this.sb.rpc('save_formation_board',{
+      p_season:this.seasonId, p_age_group:this.fp.group, p_phase:this.fp.phase,
+      p_state:this.fBoardState(),
+      p_placed:Object.keys(this.fp.by||{}).length,
+      p_moved:Object.keys(this.fp.moves||{}).length,
+      p_run:this.fp.run||null});
+    this.fbd.saving=false;
+    if(error){ this.fbd.err=error.message; this.fbd.at=null; return; }
+    this.fbd.err=''; this.fbd.at=data||null;
+  },
+  //  What is part-worked in this season, from the view that deliberately does
+  //  not carry the blob. A banner describes a board; loading one is a second
+  //  read made only when the coach says yes.
+  fBoardFor(g){ return (this.fbd.rows||[]).find(r=>r.age_group===g) || null; },
+  fBoardWorth(r){ return !!r && (r.moved>0 || r.phase!=='setup'); },
+  fBoardAgo(iso){
+    if(!iso) return '';
+    const s=Math.max(0,(Date.now()-new Date(iso).getTime())/1000);
+    if(s<90) return 'a moment ago';
+    if(s<5400) return Math.round(s/60)+' minutes ago';
+    if(s<172800) return Math.round(s/3600)+' hours ago';
+    return this.plDay ? this.plDay(iso) : new Date(iso).toLocaleDateString();
+  },
+  fBoardOfferText(){
+    const r=this.fbd.offer; if(!r) return '';
+    const who=r.updated_by_name ? ' by '+r.updated_by_name : '';
+    return 'You left a board here '+this.fBoardAgo(r.updated_at)+who+' — '
+      + r.placed + ' player' + (r.placed===1?'':'s') + ', '
+      + (r.moved ? r.moved+' moved by hand' : 'no hand moves yet') + '.';
+  },
+  //  RESTORING IS ASKED FOR, NEVER ASSUMED. A silent restore on reopen would
+  //  bury a fresh start under yesterday's board, and the coach would not know
+  //  which one they were looking at.
+  async fBoardRestore(){
+    const r=this.fbd.offer; if(!r) return;
+    this.fbd.busy=true; this.fbd.err='';
+    const {data,error}=await this.sb.from('formation_board')
+      .select('state,run_id,phase,updated_at')
+      .eq('season_id',this.seasonId).eq('age_group',r.age_group).maybeSingle();
+    this.fbd.busy=false;
+    if(error){ this.fbd.err=error.message; return; }
+    const s=(data&&data.state)||null;
+    if(!s || !s.result){ this.fbd.err='That board could not be read back.'; return; }
+    const f=this.fp;
+    f.group=s.group||r.age_group; f.basis=s.basis||'rating';
+    f.teams=(s.teams||[]).slice(); f.cuts=(s.cuts||[]).map(Number);
+    f.cap=s.cap; f.min=s.min; f.lock=s.lock!==false; f.gender=s.gender||'';
+    f.result=s.result; f.frozen=s.frozen||null;
+    f.moves={...(s.moves||{})}; f.marks={...(s.marks||{})};
+    f.stars={...(s.stars||{})}; f.link={...(s.link||{})};
+    f.names={...(s.names||{})}; f.pattern=s.pattern||'Div {n}';
+    f.run=s.run||data.run_id||null;
+    //  `by` is derived, never stored — one copy of a player, out of the result
+    f.by={}; (s.result.squads||[]).forEach(sq=>(sq.players||[])
+      .forEach(p=>f.by[p.person_id]=p));
+    f.phase=s.phase||data.phase||'draft';
+    f.err=''; f.stale=false; f.resumed=true;
+    this.fbd.offer=null; this.fbd.at=data.updated_at||null;
+  },
+  //  "Start fresh" throws the row away rather than leaving it to be offered
+  //  again on the next open. Saying no once should mean no.
+  async fBoardDiscard(){
+    const r=this.fbd.offer; if(!r){ return; }
+    this.fbd.busy=true; this.fbd.err='';
+    const {error}=await this.sb.rpc('clear_formation_board',
+      {p_season:this.seasonId, p_age_group:r.age_group});
+    this.fbd.busy=false;
+    if(error){ this.fbd.err=error.message; return; }
+    this.fbd.offer=null; this.fbd.at=null;
+    this.fbd.rows=(this.fbd.rows||[]).filter(x=>x.age_group!==r.age_group);
+  },
+  //  Once the teams and the offers are written the board has become the thing
+  //  it was describing. Leaving it behind would offer to restore a build that
+  //  has already happened.
+  async fBoardDone(g){
+    clearTimeout(this._boardTimer);
+    const {error}=await this.sb.rpc('clear_formation_board',
+      {p_season:this.seasonId, p_age_group:g});
+    if(!error){
+      this.fbd.rows=(this.fbd.rows||[]).filter(x=>x.age_group!==g);
+      this.fbd.at=null; this.fbd.offer=null;
+    }
+  },
+
+  fBackToSetup(){ this.fp.phase='setup'; this.fBoardTouch(); },
+  fRestoreProposal(){ this.fp.moves={}; this.fBoardTouch(); },
   fMovePlayer(pid,to){
     const home=this.fp.frozen.findIndex(s=>s.ids.includes(pid));
     if(to===home) delete this.fp.moves[pid]; else this.fp.moves[pid]=to;
     this.fp.moves={...this.fp.moves};
+    this.fBoardTouch();
   },
   fMoved(pid){ return this.fp.moves[pid]!=null; },
   //  Where everybody sits right now: the frozen proposal plus the coach's moves.
@@ -5627,6 +5866,9 @@ function app(){ return {
     this.fp.acc.busy=false;
     if(error){ this.fp.acc.err=error.message; return; }
     this.fp.acc.done=data;
+    //  the working board has become the teams it was describing — throw it away
+    //  rather than offer to restore a build that has already happened
+    await this.fBoardDone(this.fp.group);
     //  the Teams stage reads team_season and the roster, so both have to be
     //  refetched or the club goes looking for teams that are already there
     await this.loadFormation();
