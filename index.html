@@ -108,6 +108,8 @@ label.fl{display:block;font-size:11px;color:var(--ink2);margin:0 0 3px}
 .field{margin-bottom:10px}
 .field input,.field select,.field textarea{width:100%}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:760px){.row3{grid-template-columns:1fr}}
 .btn{border:1px solid var(--line2);background:#fff;border-radius:6px;padding:6px 12px;
 cursor:pointer;font-size:12.5px;color:var(--ink)}
 .btn:hover{background:#fbfaf8}
@@ -1233,7 +1235,21 @@ word-break:break-all}
                               style="color:var(--ink3)">no division</span>
                         <span class="c" x-text="rosterOf(ts.id).length+' players'"></span>
                         <span class="c" x-text="'avg '+(rosterAvg(ts.id) || '–')"></span>
+                        <!-- TOP AND BOTTOM AGE. Ming, 20 Aug 2026. Age at this
+                             season's cut-off, not the age group: two children in
+                             one bracket can be eleven months apart, and that gap
+                             is what a coach is looking for. A squad carrying
+                             somebody up or down says so on the tile, because the
+                             average above it has already been adjusted for them. -->
+                        <span class="c" x-show="tAges(ts.id)"
+                              x-text="'ages '+(tAges(ts.id)||{}).text"></span>
+                        <span class="c wn" x-show="(tAges(ts.id)||{}).up"
+                              x-text="(tAges(ts.id)||{}).up+' up'"></span>
+                        <span class="c wn" x-show="(tAges(ts.id)||{}).down"
+                              x-text="(tAges(ts.id)||{}).down+' down'"></span>
                       </div>
+                      <p class="note" style="margin:4px 0 0" x-show="tAgeNote(ts.id)"
+                         x-text="tAgeNote(ts.id)"></p>
                       <!-- THE SHAPE ON THE TILE. Ming, 20 Aug 2026: "I want to see
                            the rating shape on the team tile so that I can quickly
                            go through those teams." Same picture as the card and
@@ -1347,6 +1363,10 @@ word-break:break-all}
                   <div :class="tCard().outside.length?'wn':''">
                     <b x-text="tCard().outside.length"></b>outside bracket</div>
                   <div><b x-text="tCard().avgAge"></b>avg age</div>
+                  <!-- TOP AND BOTTOM. Two squads averaging 12.6 are not the same
+                       squad when one runs 12–13 and the other runs 11–15. -->
+                  <div :class="(tCard().ages?.up || tCard().ages?.down)?'wn':''">
+                    <b x-text="tCard().ageSpan"></b>ages, top to bottom</div>
                   <div><b x-text="tCard().accepted"></b>accepted</div>
                   <div><b x-text="tCard().registered"></b>registered</div>
                   <div><b x-text="tCard().stars"></b>star players</div>
@@ -1362,6 +1382,17 @@ word-break:break-all}
                       <div class="cath" style="margin-top:0">Rating shape</div>
                       <p class="note" style="margin:0 0 6px">
                         <span x-text="tCard().ratedLine"></span></p>
+                      <!-- THE SHIFT IS NEVER SILENT. The TMS says the same thing
+                           in the same place: who is playing up, and by how much
+                           the adjusted measures count here. Character measures
+                           are untouched — they travel with the child. -->
+                      <p class="note" style="margin:0 0 6px;color:var(--warn)"
+                         x-show="tCard().ageNote" x-text="tCard().ageNote"></p>
+                      <p class="note" style="margin:0 0 6px"
+                         x-show="tCard().ageNote && tCard().overallRaw
+                                 && tCard().overallRaw!==tCard().overall">
+                        Unadjusted, this squad would read
+                        <b x-text="tCard().overallRaw"></b>.</p>
                       <div class="cskey" style="margin-bottom:6px">
                         <span class="lg"><i style="border-top:2px solid #1F3864"></i>this squad —
                           <b x-text="tCard().overall"></b></span>
@@ -1442,6 +1473,12 @@ word-break:break-all}
                               <span class="c" x-show="c.age" x-text="c.age"></span>
                               <span class="c stat" x-show="c.stats" x-text="c.stats"></span>
                               <span class="c rt" x-show="c.rating" x-text="c.rating"></span>
+                              <!-- WHAT IT COUNTS FOR THIS TEAM, when that is not
+                                   the same number. A rating is given at the
+                                   child's own age group; a bracket up, the same
+                                   defending is not worth as much. Shown beside
+                                   the real one, never instead of it. -->
+                              <span class="c wn" x-show="c.shifted" x-text="c.shifted"></span>
                             </div>
                             <!-- ONE SELECT: the lens on screen. The other axes are
                                  not lost — they are on the card as chips, because
@@ -1981,24 +2018,43 @@ word-break:break-all}
                 <option value="inactive">Inactive</option>
                 <option value="all">Everyone</option>
               </select>
-              <select x-model="pf.gender" style="width:auto">
-                <option value="">Any gender</option>
-                <option value="F">F</option><option value="M">M</option><option value="X">X</option>
-              </select>
               <select x-model.number="pf.year" style="width:auto">
                 <template x-for="y in ageYears()" :key="y">
                   <option :value="y" x-text="'age at 31 Dec '+y"></option>
                 </template>
               </select>
             </div>
-            <div class="fchips" x-show="pm.returnTo!=='review'">
-              <button class="fc" :class="pf.age===null?'on':''" @click="pf.age=null">All ages</button>
-              <template x-for="g in ageGroups()" :key="g.age">
-                <button class="fc" :class="pf.age===g.age?'on':''" @click="pf.age=g.age">
-                  <b x-text="g.age"></b><span x-text="' · '+g.n"></span></button>
+
+            <!-- ── GENDER FIRST, THEN THE AGE GROUP ────────────────────────────
+                 Ming, 20 Aug 2026: "I don't want all ages listed out, I want
+                 tile selection with gender and then age group listed."
+                 A raw age is arithmetic — useful once, on one child, on their
+                 card. A club does not work in single years; it works in the
+                 brackets its association runs, and it works one gender at a
+                 time. The list of ages was fourteen chips that answered a
+                 question nobody asks. -->
+            <div class="fchips" x-show="pm.returnTo!=='review'" style="margin-top:6px">
+              <button class="fc" :class="pf.gender===''?'on':''"
+                      @click="pf.gender=''; pf.grp=null">Everyone</button>
+              <template x-for="g in pGenders()" :key="g.k">
+                <button class="fc" :class="pf.gender===g.k?'on':''"
+                        @click="pf.gender=g.k; pf.grp=null">
+                  <b x-text="g.t"></b><span x-text="' · '+g.n"></span></button>
               </template>
-              <span class="c" x-show="!ageGroups().length">no dates of birth recorded</span>
             </div>
+            <div class="fchips" x-show="pm.returnTo!=='review'">
+              <button class="fc" :class="pf.grp===null?'on':''" @click="pf.grp=null">All
+                age groups</button>
+              <template x-for="g in pGroups()" :key="g.g">
+                <button class="fc" :class="pf.grp===g.g?'on':''" @click="pf.grp=g.g">
+                  <b x-text="g.g"></b><span x-text="' · '+g.n"></span></button>
+              </template>
+              <span class="c" x-show="!pGroups().length">no dates of birth recorded</span>
+            </div>
+            <p class="note" style="margin:4px 0 0">Age groups come from this club's own brackets in
+              <b>Setup</b> — a player is in the first group whose number is above their age at
+              31 December. <b>A player's age is on their card</b>, where it belongs to one child
+              rather than to a filter.</p>
 
             <div class="psplit" style="margin-top:10px">
               <div>
@@ -2010,9 +2066,17 @@ word-break:break-all}
                             title="not verified"></span>
                       <span class="bd">
                         <span class="n2" x-text="p.given_name+' '+p.family_name"></span>
+                        <!-- THE GROUP, AND THE DIVISION THEY ARE GRADED IN.
+                             Ming, 20 Aug 2026: age off the list, division on it.
+                             The division shown is the one in their PRIMARY age
+                             group — the bracket their own age puts them in. A
+                             player also on a squad a bracket up is marked, but
+                             that team's division is not what this row is about. -->
                         <span class="m2">
-                          <span x-text="p.dob ? ageAt(p.dob, pf.year)+' in '+pf.year : 'no DOB'"></span>
-                          <span x-show="p.gender" x-text="' · '+p.gender"></span>
+                          <span x-text="pGroupOf(p) || 'no DOB'"></span>
+                          <span x-show="pDivOf(p)" x-text="' · '+pDivOf(p)"></span>
+                          <span class="wn" x-show="pAlsoUp(p)"
+                                x-text="' · also '+pAlsoUp(p)"></span>
                           <span x-show="p.status==='inactive'"> · inactive</span>
                           <span x-show="ratedCount(p.id)" x-text="' · '+ratedCount(p.id)+' rated'"></span>
                         </span>
@@ -3522,8 +3586,134 @@ values (
                   @click="setupTab='club'">This club</button>
           <button class="lb" :class="setupTab==='rubrics'?'on':''"
                   @click="setupTab='rubrics'">Rubrics</button>
+          <button class="lb" :class="setupTab==='import'?'on':''"
+                  @click="setupTab='import'">Import</button>
           <span class="c" x-show="setupTab==='rubrics'">locked · scale 1–5</span>
           <button class="x" @click="modal=''" title="Close">×</button></div>
+
+        <!-- ══ IMPORT — BASKETBALL CONNECT STATISTICS ═══════════════════════
+             Backlog E3, part one. Ming, 20 Aug 2026: "I want the BC data import
+             function." This reads the three STATS exports and nothing else.
+             THE REGISTRATION EXPORT HAS NO DOOR HERE and the screen says why:
+             it carries emails, phone numbers, addresses, medical conditions and
+             a children's-check number, and consent basis S3 is unsettled. Two
+             different risks must not share one control. -->
+        <div class="mbody" x-show="setupTab==='import'">
+          <p class="note" style="margin-top:0">Load a <b>Basketball Connect statistics</b> export
+            into the season selected above. Nothing is written until you have read what it found —
+            and <b>identity is the Basketball Connect User Id, never a name</b>. A name match is
+            offered as a proposal, applied only if you confirm it, and once confirmed the id is what
+            is stored, so it is never proposed again.</p>
+
+          <p class="warnbar" style="margin:0 0 10px;border-radius:8px;border:1px solid var(--warnline)">
+            <b>The registration export cannot be loaded here, on purpose.</b> It carries contact
+            details, addresses, medical conditions and a children's-check number. That is the
+            consent question (S3), not an import question, and it needs an answer before a door is
+            built for it.</p>
+
+          <div class="cath">The file</div>
+          <div class="inline" style="margin-top:0">
+            <input type="file" accept=".csv,text/csv" @change="bcPick($event)">
+            <span class="c grp" x-show="bc.kind" x-text="bcKindLabel()"></span>
+            <span class="c" x-show="bc.rows.length" x-text="bc.rows.length+' rows'"></span>
+          </div>
+          <p class="err" x-show="bc.err" x-text="bc.err"></p>
+          <p class="note" x-show="!bc.kind" style="margin-top:6px">
+            Three kinds are recognised, by their own column headings —
+            <b>play time</b> (Play Time · Player's Current Team), <b>scoring</b> (PTS · FG · 2P · 3P
+            · FT) and <b>fouls</b> (PF · TF · DF · UF). Each writes only its own figures, so they
+            load in any order and loading one twice never doubles a point.</p>
+
+          <template x-if="bc.report">
+            <div>
+              <div class="cath">What it found</div>
+              <div class="statrow">
+                <div><b x-text="bc.report.players"></b>players in the file</div>
+                <div><b x-text="bc.report.matched_by_id"></b>matched on their id</div>
+                <div :class="bc.report.proposed_by_name?'wn':''">
+                  <b x-text="bc.report.proposed_by_name"></b>proposed by name</div>
+                <div :class="bc.report.ambiguous?'wn':''">
+                  <b x-text="bc.report.ambiguous"></b>same name as somebody else</div>
+                <div :class="bc.report.unknown?'wn':''">
+                  <b x-text="bc.report.unknown"></b>not in this club</div>
+              </div>
+
+              <!-- A PROPOSAL IS TICKED, ONE AT A TIME. Ticking everything by
+                   default would make the name path the quiet default, and the
+                   whole rule is that it is not. -->
+              <template x-if="bcProposals().length">
+                <div>
+                  <div class="cath">Matched by name — confirm each one</div>
+                  <p class="note" style="margin-top:0">These have no Basketball Connect id on file
+                    yet. Confirming one records the id, so this is the last time you will be asked
+                    about that player.</p>
+                  <div class="fopts">
+                    <template x-for="p in bcProposals()" :key="p.ext">
+                      <label class="fopt" :class="bc.ok.includes(p.ext)?'on':''">
+                        <input type="checkbox" :checked="bc.ok.includes(p.ext)"
+                               @change="bcToggle(p.ext)">
+                        <span><b x-text="p.name"></b>
+                          <span class="c" x-text="'BC '+p.ext"></span></span>
+                      </label>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <template x-if="(bc.report.misses||[]).length">
+                <div>
+                  <div class="cath">Left out, and why</div>
+                  <p class="note" style="margin-top:0">Nothing here is written. A player this club
+                    has never heard of is not created by a statistics file — that is what the roster
+                    import is for.</p>
+                  <div class="chips">
+                    <template x-for="m in (bc.report.misses||[]).slice(0,40)" :key="m.ext+m.name">
+                      <span class="c wn" x-text="m.name+' — '+m.why"></span>
+                    </template>
+                  </div>
+                  <p class="note" x-show="(bc.report.misses||[]).length>40"
+                     x-text="'and '+((bc.report.misses||[]).length-40)+' more'"></p>
+                </div>
+              </template>
+
+              <div class="inline" style="margin-top:10px">
+                <button class="btn pri" @click="bcApply()"
+                        :disabled="bc.busy || !seasonId || !bcWillWrite()">
+                  <span x-text="'Load '+bcWillWrite()+' players into '+seasonName(seasonId)"></span>
+                </button>
+                <button class="btn" @click="bcReset()" :disabled="bc.busy">Clear</button>
+                <span class="note" style="margin:0" x-show="!seasonId">Choose a season first —
+                  a statistics record belongs to one.</span>
+              </div>
+              <p class="err" x-show="bc.applyErr" x-text="bc.applyErr"></p>
+            </div>
+          </template>
+
+          <template x-if="bc.done">
+            <div>
+              <p class="okbar" style="margin:10px 0 0;border-radius:8px"
+                 x-text="bcDoneLine()"></p>
+              <p class="warnbar" style="margin:8px 0 0;border-radius:8px;border:1px solid var(--warnline)"
+                 x-show="bc.done.no_own_team"
+                 x-text="bc.done.no_own_team+' of these had no own-team on file when this ran, so '
+                   +'their figures were counted as own-team. Load the play-time file first and run '
+                   +'this again to split them properly.'"></p>
+            </div>
+          </template>
+
+          <div class="cath">Loaded so far</div>
+          <table class="fbt" x-show="bc.hist.length">
+            <tr><th>File</th><th>What</th><th class="num">Players</th><th>When</th><th>By</th></tr>
+            <template x-for="h in bc.hist" :key="h.id">
+              <tr><td x-text="h.filename || '—'"></td>
+                  <td x-text="(h.row_counts||{}).kind || h.source_system"></td>
+                  <td class="num" x-text="(h.row_counts||{}).players ?? '—'"></td>
+                  <td x-text="plDay(h.imported_at)"></td>
+                  <td x-text="h.imported_by_name || '—'"></td></tr>
+            </template>
+          </table>
+          <p class="note" x-show="!bc.hist.length">Nothing has been loaded into this club yet.</p>
+        </div>
 
         <div class="mbody" x-show="setupTab==='rubrics'">
           <p class="note" style="margin-top:0">Identical for every club in the sport. Every club
@@ -3568,6 +3758,103 @@ values (
             <span class="mono">8*, 10, 12…</span> gives U8 Mixed, then U10 Boys / U10 Girls and so
             on. A player is in the first group whose number is above their age.</p>
 
+          <!-- ══ PLAYING UP AND PLAYING DOWN ══════════════════════════════════
+               Ming, 20 Aug 2026: "each club has its own way of setup. Use TMS
+               data as default." Every number below is the club's convention, and
+               every default is what THIS club's own history actually measured —
+               the TMS setup panel carries the same figures and the same
+               provenance. Where a number came from is written beside it, because
+               a default nobody can trace is a number nobody can argue with. -->
+          <div class="cath">Playing up and playing down</div>
+          <p class="note" style="margin-top:0">A rating is given at the player's <b>own</b> age
+            group. A 4 for defence means a 4 among the U12s — ask that child to play in the U14s and
+            the same defending is not a 4 any more. These decide what a bracket is worth when a
+            rating is counted <b>towards a team</b>. <b>A player's own record never moves</b>, and
+            neither does what their family sees.</p>
+          <div class="row2">
+            <div class="field"><label class="fl">Playing up an age group takes this off
+              each adjusted rating</label>
+              <input type="number" step="0.1" min="0" max="5" x-model.number="cfg2.up"
+                     style="width:90px">
+              <p class="note" style="margin:4px 0 0">Counted per bracket above their own.
+                <b>TMS default 1.0.</b></p></div>
+            <div class="field"><label class="fl">Playing down adds this onto
+              each adjusted rating</label>
+              <input type="number" step="0.1" min="0" max="5" x-model.number="cfg2.down"
+                     style="width:90px">
+              <p class="note" style="margin:4px 0 0"><b>It starts at 0, deliberately.</b> Four
+                players in three seasons have moved down here — far too few to say what it is worth,
+                and it is usually done for a reason that means the child is <i>not</i> above the
+                younger group.</p></div>
+          </div>
+
+          <!-- THE EXEMPTION. Which measures are relative to the company a player
+               keeps, and which travel with the child. The SPORT answers this
+               first; a club overrides only if its own coaches read a measure
+               differently. -->
+          <div class="cath">Which ratings move with the age group</div>
+          <p class="note" style="margin-top:0">Shooting, size and defence are relative to the company
+            a player keeps, so they move. <b>Toughness, resilience and coachability are character —
+            they travel with the child</b>, so they are left alone. The sport has already answered
+            this for every measure; untick one only if your coaches read it differently.</p>
+          <div class="fopts" data-t="ageshift">
+            <template x-for="m in shiftMeasures()" :key="m.id">
+              <label class="fopt" :class="cfgMoves(m)?'on':''">
+                <input type="checkbox" :checked="cfgMoves(m)" @change="toggleFixed(m)">
+                <span><b x-text="m.label"></b>
+                  <span class="c" x-text="cfgMoves(m)?'moves':'travels with the child'"></span>
+                  <span class="note" style="margin:2px 0 0"
+                        x-text="m.age_relative===false
+                          ? 'the sport says this is character'
+                          : 'the sport says this is relative to the age group'"></span></span>
+              </label>
+            </template>
+          </div>
+          <p class="note" x-show="!shiftMeasures().length">No rubric is loaded for this sport yet.</p>
+
+          <!-- ══ WHAT LAST SEASON'S SCORING IS WORTH THIS SEASON ══════════════
+               These four have been on `org_profile` since migration 019 with no
+               way to change them — the points basis has been reading a club's
+               constants that the club could not see, let alone set. -->
+          <div class="cath">Last season's scoring, brought forward</div>
+          <p class="note" style="margin-top:0">Only used when an age group is graded on
+            <b>points per game</b>. A scoring record is a year old: a player staying in their bracket
+            is a year stronger, and one who has moved up meets older opposition.</p>
+          <div class="row3">
+            <div class="field"><label class="fl">Staying in the same age group</label>
+              <div class="inline" style="margin-top:0">
+                <input type="number" step="1" min="0" max="400" x-model.number="cfg2.growth"
+                       style="width:80px"><span class="note" style="margin:0">%</span></div>
+              <p class="note" style="margin:4px 0 0">100 means no change. <b>134</b> is what actually
+                happened to 238 players who stayed in their bracket.</p></div>
+            <div class="field"><label class="fl">Each division down the ladder</label>
+              <div class="inline" style="margin-top:0">
+                <input type="number" step="1" min="0" max="90" x-model.number="cfg2.step"
+                       style="width:80px"><span class="note" style="margin:0">%</span></div>
+              <p class="note" style="margin:4px 0 0">Taken off the target per division.</p></div>
+            <div class="field"><label class="fl">Moving up an age group counts as</label>
+              <div class="inline" style="margin-top:0">
+                <input type="number" step="1" min="0" max="6" x-model.number="cfg2.div"
+                       style="width:80px"><span class="note" style="margin:0">divisions down</span></div>
+              <p class="note" style="margin:4px 0 0">Your rule. Measured at about 22% in this club's
+                own history; two divisions is 28%.</p></div>
+          </div>
+          <label class="fopt" :class="cfg2.compound?'on':''" style="margin-top:6px">
+            <input type="checkbox" x-model="cfg2.compound">
+            <span><b>A player who moves up gets both</b>
+              <span class="note" style="margin:2px 0 0">A year's growth <i>and</i> the step for
+                harder opposition. Untick to apply only the step.</span></span>
+          </label>
+
+          <div class="cath">Squads</div>
+          <div class="field" style="max-width:320px">
+            <label class="fl">Most players in a squad, unless a reason is given</label>
+            <input type="number" step="1" min="1" max="30" x-model.number="cfg2.cap"
+                   style="width:90px">
+            <p class="note" style="margin:4px 0 0">The starting point on every formation. Going over
+              it is refused unless the club says why, and the reason is stored on the team.</p>
+          </div>
+
           <!-- A CLUB CHOOSES WHICH LENSES IT USES; THE SPORT SAYS WHAT THEY ARE.
                This replaced two free-text lists — "Size, Skill" and "Guard,
                Forward, Center, Utility" — that asked a club to retype vocabulary
@@ -3583,7 +3870,7 @@ values (
             regroups. Tick the ones your club uses. The slots inside each are the sport's, the same
             for every club: you are choosing which questions your coaches are asked, not inventing
             the answers.</p>
-          <div class="fopts">
+          <div class="fopts" data-t="lenses">
             <template x-for="l in sportLenses()" :key="l.k">
               <label class="fopt" :class="cfg2.lenses.includes(l.k)?'on':''">
                 <input type="checkbox" :checked="cfg2.lenses.includes(l.k)"
@@ -3818,7 +4105,7 @@ function app(){ return {
   userId:'', userEmail:'',
   orgs:[], org:null, me:null, members:[], people:[], measures:[], rubrics:[], sessions:[],
   allSessions:[],
-  pf:{q:'',show:'active',gender:'',age:null,year:new Date().getFullYear()},
+  pf:{q:'',show:'active',gender:'',age:null,grp:null,year:new Date().getFullYear()},
   teams:[], teamSeasons:[], roster:[], pool:[], clubCfg:null,
   cfg2:{cutd:31,cutm:12,brackets:'',lenses:[],busy:false,err:'',msg:''},
   //  grpSel is the age group being worked; view is which of the two jobs the
@@ -4127,6 +4414,10 @@ function app(){ return {
   },
 
   // ── club settings ──────────────────────────────────────────────────────
+  //  EVERY CLUB CONVENTION IN ONE PANEL, and every default is what this club's
+  //  own history measured. `growth` and `step` are stored as fractions and shown
+  //  as percentages, because a club thinks in "134%" and the maths wants 1.34 —
+  //  one conversion, in one place, both ways.
   openClubCfg(){
     const c = this.clubCfg || {};
     this.cfg2 = {
@@ -4134,22 +4425,58 @@ function app(){ return {
       cutm: c.age_cutoff?.m ?? 12,
       brackets: (c.age_brackets || []).map(b => b.u + (b.mixed ? '*' : '')).join(', '),
       lenses: [...(c.lenses_used || [])],
+      up:   c.age_up_drop   == null ? 1    : +c.age_up_drop,
+      down: c.age_down_lift == null ? 0    : +c.age_down_lift,
+      growth: Math.round((c.age_growth == null ? 1.34 : +c.age_growth) * 100),
+      step:   Math.round((c.age_step   == null ? 0.15 : +c.age_step) * 100),
+      div:  c.age_div == null ? 2 : +c.age_div,
+      compound: c.age_shift_compound !== false,
+      cap:  c.squad_cap_default == null ? 10 : +c.squad_cap_default,
+      fixed: [...(c.age_fixed_measures || [])],
       busy:false, err:'', msg:''};
+  },
+  //  Every measure a rating can be given on, core first. The exemption is a
+  //  property of the MEASURE, so the list comes from the rubric and never from
+  //  a club typing attribute names.
+  shiftMeasures(){
+    return (this.measures || []).slice()
+      .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  },
+  //  The SPORT's answer unless this club has overridden it. An id in `fixed`
+  //  means the club has pinned it as character whatever the sport says.
+  cfgMoves(m){
+    if((this.cfg2.fixed||[]).includes(m.id)) return false;
+    return m.age_relative !== false;
+  },
+  toggleFixed(m){
+    const cur = this.cfg2.fixed || [];
+    //  Ticking a measure the SPORT already calls character has to record that
+    //  too, or the club's answer is indistinguishable from silence.
+    this.cfg2.fixed = this.cfgMoves(m) ? [...cur, m.id] : cur.filter(x => x !== m.id);
   },
   async saveClubCfg(){
     this.cfg2.err=''; this.cfg2.msg=''; this.cfg2.busy=true;
     const brackets = this.cfg2.brackets.split(',').map(x=>x.trim()).filter(Boolean)
       .map(x => ({u: parseInt(x,10), mixed: x.includes('*')}))
       .filter(b => !isNaN(b.u)).sort((a,b)=>a.u-b.u);
-    const list = s => s.split(',').map(x=>x.trim()).filter(Boolean);
+    const num=(v,d)=>{ const n=Number(v); return isNaN(n)?d:n; };
     const {error} = await this.sb.from('org_profile').update({
       age_cutoff: {d:Number(this.cfg2.cutd), m:Number(this.cfg2.cutm)},
       age_brackets: brackets,
-      lenses_used: this.cfg2.lenses
+      lenses_used: this.cfg2.lenses,
+      age_up_drop: num(this.cfg2.up, 1),
+      age_down_lift: num(this.cfg2.down, 0),
+      age_growth: num(this.cfg2.growth, 134) / 100,
+      age_step: num(this.cfg2.step, 15) / 100,
+      age_div: Math.round(num(this.cfg2.div, 2)),
+      age_shift_compound: !!this.cfg2.compound,
+      squad_cap_default: Math.round(num(this.cfg2.cap, 10)),
+      age_fixed_measures: this.cfg2.fixed || []
     }).eq('org_id', this.org.id);
     this.cfg2.busy=false;
     if(error){ this.cfg2.err = error.message; return; }
-    this.cfg2.msg = 'Saved. Age groups are recomputed from this for every player.';
+    this.cfg2.msg = 'Saved. Age groups are recomputed from this for every player, '
+                  + 'and every team average is re-read with the new shift.';
     await this.loadTeams();
   },
 
@@ -4222,7 +4549,7 @@ function app(){ return {
     const grp=ts?.age_group||'';
     const outside=roster.filter(r=>this.eligRow(r).k!=='on2');
     const ages=roster.map(r=>r.age).filter(n=>n!=null);
-    const rated=roster.filter(r=>r.rating!=null);
+    const rated=roster.filter(r=>r.rating_at!=null);
     const ids=new Set(roster.map(r=>r.person_id));
     const offers=(this.tm.offers||[]).filter(o=>ids.has(o.person_id));
     const regs=(this.tm.regs||[]).filter(x=>ids.has(x.person_id) && x.registered_at);
@@ -4230,7 +4557,7 @@ function app(){ return {
     const z=this.tZones();
     const shape=this.tShapeRows();
     const mean=a=>a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
-    const ov=mean(rated.map(r=>+r.rating));
+    const ov=mean(rated.map(r=>+r.rating_at));
     const gov=mean(shape.map(m=>m.group).filter(v=>v!=null));
     return {
       n:roster.length,
@@ -4240,6 +4567,12 @@ function app(){ return {
         ? '1 player is outside '+grp+' for '+this.seasonYear()+'.'
         : outside.length+' players are outside '+grp+' for '+this.seasonYear()+'.',
       avgAge: ages.length ? (ages.reduce((a,b)=>a+b,0)/ages.length).toFixed(1) : '—',
+      //  TOP AND BOTTOM, not only the mean. Two squads averaging 12.6 are not
+      //  the same squad when one runs 12–13 and the other runs 11–15.
+      ages: this.tAges(this.tm.selected),
+      ageSpan: this.tAges(this.tm.selected)?.text || '—',
+      ageNote: this.tAgeNote(this.tm.selected),
+      overallRaw: this.rosterAvgRaw(this.tm.selected) || '',
       accepted: offers.filter(o=>o.response==='accepted').length,
       registered: regs.length,
       stars: roster.filter(r=>r.is_star).length,
@@ -4300,7 +4633,17 @@ function app(){ return {
       gender:r.gender==='M'?'Male':(r.gender==='F'?'Female':''),
       age: r.age!=null && yr ? (r.age+' in '+yr) : (r.age!=null?String(r.age):''),
       elig:e, star:!!r.is_star, stats,
-      rating: r.rating!=null ? 'rated '+Number(r.rating).toFixed(1) : ''};
+      //  BOTH FIGURES, AND ONLY WHERE THEY DIFFER. The raw rating is what the
+      //  child was actually given and is what a family sees; the adjusted one is
+      //  what it counts for THIS team. Showing only the adjusted figure leaves a
+      //  card that cannot explain itself to a parent; showing only the raw one
+      //  is the defect. A player in their own age group has one number, because
+      //  for them the two are the same.
+      rating: r.rating!=null ? 'rated '+Number(r.rating).toFixed(1) : '',
+      shifted: (r.rating_at!=null && r.rating!=null
+                && Number(r.rating_at)!==Number(r.rating))
+        ? 'counts '+Number(r.rating_at).toFixed(1)+' here' : '',
+      steps: Number(r.age_steps)||0};
   },
   //  The shape comes from `v_team_shape` (migration 029) — the team's average on
   //  every measure beside the age group's own average for the same measure. The
@@ -4380,10 +4723,50 @@ function app(){ return {
     await this.loadTeams();
   },
 
+  //  A TEAM IS AVERAGED ON WHAT ITS PLAYERS COUNT FOR *IT*, not on their own
+  //  records. `rating_at` is the raw rating with the age shift applied per
+  //  measure (migration 034); `rating` is what the child was actually rated and
+  //  is what a family sees. Reading the wrong one here is the defect N5e names:
+  //  a U12 in a U14 team counted at their U12 rating overstates that team.
   rosterAvg(tsId){
+    const v = this.rosterOf(tsId).map(r=>Number(r.rating_at)).filter(n=>!isNaN(n));
+    return v.length ? (v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : '';
+  },
+  //  What the same team would average WITHOUT the shift — shown only where it
+  //  differs, so the adjustment is never silent.
+  rosterAvgRaw(tsId){
     const v = this.rosterOf(tsId).map(r=>Number(r.rating)).filter(n=>!isNaN(n));
     return v.length ? (v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : '';
   },
+  //  ── HOW OLD THIS SQUAD IS, TOP AND BOTTOM ────────────────────────────────
+  //  Ming, 20 Aug 2026: "I also want the top age bottom age display in the
+  //  teams. Note players might play up or down or in multiple teams."
+  //  The BC export proves the point on real data — one player appears in a B14
+  //  squad and a B16 squad in the same season, with play time in each.
+  //  AGE IS THE CHILD'S AGE AT THIS SEASON'S CUT-OFF, not their age group: two
+  //  children in one bracket can be eleven months apart, and that gap is the
+  //  thing a coach is actually looking for.
+  tAges(tsId){
+    const rows=this.rosterOf(tsId);
+    const a=rows.map(r=>r.age).filter(n=>n!=null).map(Number);
+    if(!a.length) return null;
+    const lo=Math.min(...a), hi=Math.max(...a);
+    return { lo, hi, span:hi-lo,
+             text: lo===hi ? ('all '+lo) : (lo+'–'+hi),
+             up:   rows.filter(r=>Number(r.age_steps)>0).length,
+             down: rows.filter(r=>Number(r.age_steps)<0).length };
+  },
+  //  One line, in words, for the tile and the card. Says the adjustment out
+  //  loud: a squad carrying three players up is not the squad its raw average
+  //  says it is, and the coach should not have to work that out.
+  tAgeNote(tsId){
+    const a=this.tAges(tsId); if(!a) return '';
+    const d=this.fCfg().up, bits=[];
+    if(a.up)   bits.push(a.up+' playing up, counting '+this.f1(d)+' lower on the adjusted measures');
+    if(a.down) bits.push(a.down+' playing down, counting '+this.f1(this.fCfg().down)+' higher');
+    return bits.join(' · ');
+  },
+  f1(v){ return (Math.round((+v||0)*10)/10).toFixed(1).replace(/\.0$/,''); },
 
   // ══ FORMATION ══════════════════════════════════════════════════════════════
   //  The club moves LINES on the cohort's distribution; a team's target is read
@@ -4430,6 +4813,17 @@ function app(){ return {
       reason: nested sub-state disappears when its parent is reassigned. */
   fbd:{rows:[], offer:null, at:null, err:'', saving:false, busy:false},
 
+  /*  THE BASKETBALL CONNECT STATS INTAKE (backlog E3, part one).
+      Top level, beside `qv` and `fvfy`, same rule and same reason.
+      `rows`   — the parsed file, already reduced to what the database needs:
+                 an id, a team, a division, an own-team where the file knows one,
+                 and ONE number. Nothing else off the file is sent anywhere.
+      `ok`     — the BC ids whose NAME match the human has confirmed. Empty by
+                 default: ticking them all would make the name path the quiet
+                 default, and the whole rule is that it is not. */
+  bc:{kind:'', file:'', rows:[], report:null, ok:[], busy:false,
+      err:'', applyErr:'', done:null, hist:[]},
+
   //  A dashboard row is a way INTO Formation, so it does what arriving at
   //  Formation does — loads it — and only then opens the age group.
   async fFromDash(g){
@@ -4447,8 +4841,174 @@ function app(){ return {
     //  review row it stays scoped to that session, so clear the scope here.
     this.stage='players'; this.modal='';
     this.pm.returnTo=''; this.pm.editing=false;
+    //  The directory now prints the division a player is graded in, which lives
+    //  on the roster — so the roster has to be here. Loading it is idempotent
+    //  and cheap; a list that silently omits a column because nobody fetched it
+    //  is the disease migration 030 was written to cure.
+    if(this.seasonId && !(this.roster||[]).length) this.loadTeams();
   },
-  openSetup(){ this.openClubCfg(); this.modal='setup'; },
+  openSetup(){ this.openClubCfg(); this.bcHistory(); this.modal='setup'; },
+
+  // ══ BASKETBALL CONNECT — THE STATISTICS INTAKE ═══════════════════════════
+  //  Backlog E3, part one. THREE STATS FILES AND NOTHING ELSE; the registration
+  //  export is a different risk and has no door here until S3 is settled.
+  //
+  //  The file is parsed IN THE BROWSER and reduced to five fields per row before
+  //  anything leaves the page. Every other column Basketball Connect ships —
+  //  membership product, registration status, expiry — is dropped at the door
+  //  rather than sent and ignored. **The cheapest way not to hold data is not to
+  //  receive it.**
+  //
+  //  A MINIMAL CSV READER, on purpose. Basketball Connect quotes fields that
+  //  contain commas ("Citipointe Christian College (SDBA)") and nothing more
+  //  exotic; a parser that handles quotes, doubled quotes and CRLF is the whole
+  //  requirement, and pulling a library in for it would break the
+  //  no-build-pipeline rule for eleven lines of code.
+  bcParse(text){
+    const rows=[]; let row=[], cell='', q=false;
+    const s=String(text||'').replace(/^﻿/,'');
+    for(let i=0;i<s.length;i++){
+      const c=s[i];
+      if(q){
+        if(c==='"'){ if(s[i+1]==='"'){ cell+='"'; i++; } else q=false; }
+        else cell+=c;
+      } else if(c==='"'){ q=true; }
+      else if(c===','){ row.push(cell); cell=''; }
+      else if(c==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+      else if(c!=='\r'){ cell+=c; }
+    }
+    if(cell.length||row.length){ row.push(cell); rows.push(row); }
+    if(!rows.length) return [];
+    const head=rows[0].map(h=>String(h).trim());
+    return rows.slice(1).filter(r=>r.length>1 && r.join('').trim())
+      .map(r=>{ const o={}; head.forEach((h,i)=>o[h]=(r[i]??'').trim()); return o; });
+  },
+  //  SNIFFED FROM THE COLUMN HEADINGS, never from the file name. Basketball
+  //  Connect ships these as filecsv.csv, filecsv-2.csv, filecsv-9.csv — the name
+  //  says nothing at all about what is inside.
+  bcSniff(o){
+    if(!o) return '';
+    if('Play Time' in o && 'DIV' in o && 'User ID' in o) return 'playtime';
+    if('PTS' in o && 'User ID' in o) return 'scoring';
+    if('PF' in o && 'TF' in o && 'User ID' in o) return 'fouls';
+    if('DOB' in o || 'Emergency First Name' in o || 'Mobile Number' in o) return 'registration';
+    return '';
+  },
+  bcKindLabel(){
+    return {playtime:'play time — games', scoring:'scoring — points',
+            fouls:'fouls'}[this.bc.kind] || '';
+  },
+  //  ONE NUMBER PER ROW. Which one depends on the kind, and the fouls file is
+  //  four columns that are all fouls — a personal, technical, disqualifying or
+  //  unsportsmanlike foul is a foul, and the platform holds one figure because
+  //  that is what grading uses.
+  bcValue(o, kind){
+    const n=v=>{ const x=parseInt(String(v??'').replace(/[^0-9-]/g,''),10);
+                 return isNaN(x)?0:x; };
+    if(kind==='playtime') return n(o['Play Time']);
+    if(kind==='scoring')  return n(o['PTS']);
+    return n(o['PF'])+n(o['TF'])+n(o['DF'])+n(o['UF']);
+  },
+  async bcPick(ev){
+    const f=ev.target.files && ev.target.files[0];
+    this.bcReset();
+    if(!f) return;
+    this.bc.file=f.name; this.bc.busy=true;
+    let objs=[];
+    try{ objs=this.bcParse(await f.text()); }
+    catch(e){ this.bc.busy=false; this.bc.err='That file could not be read: '+e.message; return; }
+    const kind=this.bcSniff(objs[0]);
+    if(kind==='registration'){
+      this.bc.busy=false;
+      this.bc.err='That is the registration export. It carries contact details, addresses, '
+        +'medical conditions and a children’s-check number, and it has no path into this '
+        +'database until the consent question is settled. Load a statistics file instead.';
+      return;
+    }
+    if(!kind){
+      this.bc.busy=false;
+      this.bc.err='That does not look like a Basketball Connect statistics export — no Play Time, '
+        +'PTS or PF column was found.';
+      return;
+    }
+    this.bc.kind=kind;
+    //  reduced HERE, at the door
+    this.bc.rows=objs.map(o=>({
+      ext:String(o['User ID']||'').trim(),
+      given:String(o['First Name']||'').trim(),
+      family:String(o['Last Name']||'').trim(),
+      team:String(o['Team']||'').trim(),
+      division:String(o['Division']||o['DIV']||'').trim(),
+      own_team:kind==='playtime' ? String(o["Player's Current Team"]||'').trim() : null,
+      value:this.bcValue(o,kind)
+    })).filter(r=>r.ext);
+    if(!this.bc.rows.length){
+      this.bc.busy=false; this.bc.err='Every row in that file is missing a User ID.'; return;
+    }
+    await this.bcPreview();
+  },
+  async bcPreview(){
+    if(!this.seasonId){ this.bc.busy=false;
+      this.bc.err='Choose a season on any section first — a statistics record belongs to one.';
+      return; }
+    this.bc.busy=true; this.bc.err='';
+    const {data,error}=await this.sb.rpc('bc_stats_preview',{
+      p_season:this.seasonId, p_kind:this.bc.kind, p_rows:this.bc.rows});
+    this.bc.busy=false;
+    if(error){ this.bc.err=error.message; return; }
+    this.bc.report=data||null; this.bc.ok=[];
+  },
+  bcProposals(){
+    return ((this.bc.report&&this.bc.report.people)||[]).filter(p=>p.how==='name');
+  },
+  bcToggle(ext){
+    const cur=this.bc.ok||[];
+    this.bc.ok = cur.includes(ext) ? cur.filter(x=>x!==ext) : [...cur, ext];
+  },
+  //  What pressing the button would actually write: everybody already matched on
+  //  their id, plus the name proposals ticked. Never the whole file.
+  bcWillWrite(){
+    const r=this.bc.report; if(!r) return 0;
+    return (r.matched_by_id||0) + (this.bc.ok||[]).length;
+  },
+  async bcApply(){
+    this.bc.busy=true; this.bc.applyErr=''; this.bc.done=null;
+    const links=this.bcProposals().filter(p=>this.bc.ok.includes(p.ext))
+      .map(p=>({ext:p.ext, person_id:p.person_id}));
+    const {data,error}=await this.sb.rpc('bc_stats_apply',{
+      p_season:this.seasonId, p_kind:this.bc.kind, p_rows:this.bc.rows,
+      p_links:links, p_filename:this.bc.file});
+    this.bc.busy=false;
+    if(error){ this.bc.applyErr=error.message; return; }
+    this.bc.done=data||null;
+    await this.bcHistory();
+    //  the Teams stage and the formation pool both read scoring, so both are
+    //  stale the moment this lands
+    if(this.stage==='teams') await this.loadTeams();
+  },
+  bcDoneLine(){
+    const d=this.bc.done; if(!d) return '';
+    return d.players+' player'+(d.players===1?'':'s')+' loaded from '+d.rows+' rows'
+      + (d.linked ? ', '+d.linked+' matched to a Basketball Connect id for the first time' : '')
+      + (d.skipped ? ', '+d.skipped+' rows skipped for a player this club does not have' : '')
+      + '.';
+  },
+  bcReset(){
+    this.bc={kind:'', file:'', rows:[], report:null, ok:[], busy:false,
+             err:'', applyErr:'', done:null, hist:this.bc.hist||[]};
+  },
+  //  A HISTORY LIST THAT CANNOT LOAD IS NOT WORTH AN ERROR. It is a convenience
+  //  read beside the thing that matters; failing it loudly would stop Setup from
+  //  opening, which is a far worse outcome than an empty table.
+  async bcHistory(){
+    if(!this.org) return;
+    try{
+      const {data,error}=await this.sb.from('v_import_batch').select('*')
+        .order('imported_at',{ascending:false}).limit(20);
+      if(!error) this.bc.hist=data||[];
+    }catch(e){ /* leave the list as it was */ }
+  },
+
   //  WHICH STAGES ARE WORKING SURFACES. 1,020px is the reading width — right for
   //  the dashboard, a season, a player card. Teams is an index, a roster and a
   //  pool side by side, and Placement is an index and a ledger; both were being
@@ -4897,9 +5457,15 @@ function app(){ return {
   },
 
   // ── the club's own numbers, never constants in here ──────────────────────
+  //  Every one of these is the CLUB's convention, defaulted to what this club's
+  //  own history actually measured (the TMS setup panel carries the same
+  //  numbers and the same provenance). `up` and `down` are the rating shift —
+  //  down starts at 0 on purpose; see the Setup panel and ADR-040.
   fCfg(){ const c=this.clubCfg||{};
     return {growth:+c.age_growth||1.34, step:+c.age_step||0.15, div:+c.age_div||2,
-            compound:c.age_shift_compound!==false, cap:+c.squad_cap_default||10}; },
+            compound:c.age_shift_compound!==false, cap:+c.squad_cap_default||10,
+            up:  c.age_up_drop==null   ? 1 : +c.age_up_drop,
+            down:c.age_down_lift==null ? 0 : +c.age_down_lift}; },
 
   fByAge(a,b){ return (parseInt(String(a).replace(/\D/g,''))||999)
                     - (parseInt(String(b).replace(/\D/g,''))||999); },
@@ -6919,6 +7485,10 @@ function app(){ return {
       if(this.pf.show==='inactive'   && p.status!=='inactive') return false;
       if(this.pf.show==='unverified' && p.verification==='verified') return false;
       if(this.pf.gender && p.gender !== this.pf.gender) return false;
+      //  THE AGE GROUP, NOT THE AGE. `pf.age` is kept for the review scope and
+      //  for anything that still filters by a single year; the directory itself
+      //  filters on the club's own bracket.
+      if(this.pf.grp && this.pGroupOf(p) !== this.pf.grp) return false;
       if(this.pf.age !== null && this.ageAt(p.dob, this.pf.year) !== this.pf.age) return false;
       if(!q) return true;
       return (p.given_name+' '+p.family_name).toLowerCase().includes(q);
@@ -6936,6 +7506,68 @@ function app(){ return {
   ageYears(){
     const y = new Date().getFullYear();
     return [y-1, y, y+1, y+2];
+  },
+  // ── THE DIRECTORY IS FILTERED THE WAY A CLUB THINKS ─────────────────────
+  //  Gender, then the age group its association actually runs. Both derived
+  //  from what is in the pool and from the club's own brackets — nothing here
+  //  names U12 or "Boys", because those words belong to the club.
+  //  The age-group name is computed the SAME WAY the database computes it
+  //  (`age_group_of`): first bracket whose number is above the player's age,
+  //  with the club's own mixed flag deciding whether it is split by gender.
+  pGroupOf(p){
+    const a = this.ageAt(p.dob, this.pf.year);
+    if(a === null) return '';
+    const br = (this.clubCfg?.age_brackets || []);
+    for(const b of br){
+      if(a < +b.u){
+        return 'U' + b.u + (b.mixed ? ' Mixed'
+          : p.gender === 'M' ? ' Boys' : p.gender === 'F' ? ' Girls' : '');
+      }
+    }
+    return br.length ? 'Over U' + br[br.length-1].u : '';
+  },
+  pInScope(p){
+    if(this.pf.show==='active'   && p.status==='inactive') return false;
+    if(this.pf.show==='inactive' && p.status!=='inactive') return false;
+    if(this.pf.show==='unverified' && p.verification==='verified') return false;
+    return true;
+  },
+  pGenders(){
+    const seen={};
+    this.people.forEach(p=>{ if(!this.pInScope(p) || !p.gender) return;
+      seen[p.gender]=(seen[p.gender]||0)+1; });
+    const t={M:'Boys', F:'Girls', X:'Other'};
+    return Object.keys(seen).sort().map(k=>({k, t:t[k]||k, n:seen[k]}));
+  },
+  pGroups(){
+    const seen={};
+    this.people.forEach(p=>{
+      if(!this.pInScope(p)) return;
+      if(this.pf.gender && p.gender !== this.pf.gender) return;
+      const g=this.pGroupOf(p); if(!g) return;
+      seen[g]=(seen[g]||0)+1;
+    });
+    return Object.keys(seen).sort((a,b)=>this.fByAge(a,b)).map(g=>({g, n:seen[g]}));
+  },
+  //  Every squad this player is on in the season being looked at. A player CAN
+  //  be on more than one — the BC export shows exactly that, one child with play
+  //  time in a B14 squad and a B16 squad in the same season.
+  pTeamsOf(p){
+    return (this.roster||[]).filter(r => r.person_id === p.id
+      && r.season_id === this.seasonId);
+  },
+  //  THE DIVISION IN THEIR PRIMARY AGE GROUP — the bracket their own age puts
+  //  them in. That is the grading that describes the player; a squad a bracket
+  //  up is a separate fact and gets its own mark.
+  pDivOf(p){
+    const g=this.pGroupOf(p);
+    const r=this.pTeamsOf(p).find(x => x.age_group === g);
+    return r ? (this.tsDiv(r) || '') : '';
+  },
+  pAlsoUp(p){
+    const g=this.pGroupOf(p);
+    const other=this.pTeamsOf(p).filter(x => x.age_group !== g);
+    return other.length ? other.map(x=>x.age_group).join(', ') : '';
   },
   ageGroups(){
     const seen = {};
