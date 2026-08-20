@@ -41,6 +41,13 @@ padding:6px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
 #shell{padding-top:var(--hh)}
 .stage{max-width:1020px;margin:18px auto 60px;padding:0 16px}
 .stage.narrow{max-width:520px;margin-top:60px}
+/* A WORKING SURFACE IS AS WIDE AS THE WORK. Ming, 20 Aug 2026: "the page is not
+   readable, check it yourself." Teams is index + roster + pool — three columns
+   that demand about 1,230px — inside a stage capped at 1,020, so 252px of it
+   was simply clipped off the right on a 1,710px screen with room to spare.
+   1,020 is the READING width and stays the default; the stages that carry an
+   index beside a working column get the room. */
+.stage.wide{max-width:1400px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;
 margin-bottom:14px}
 .rhead{padding:14px 18px;border-bottom:1px solid var(--line);background:#fbfaf8}
@@ -297,6 +304,10 @@ color:var(--ink2);cursor:pointer;font:inherit;font-size:11px}
       front of you, across age groups. ── */
 .tsplit{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start}
 @media (max-width:900px){.tsplit{grid-template-columns:1fr}}
+/* the roster and the pool beside it. Below 1,150px of stage the pool goes full
+   width UNDERNEATH — a clipped column is worse than a stacked one */
+.rsplit{display:grid;grid-template-columns:1fr 280px;gap:14px;align-items:start}
+@media (max-width:1150px){.rsplit{grid-template-columns:1fr}}
 .tgrp{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
 color:var(--ink3);padding:9px 2px 4px}
 .titem{display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid var(--line);
@@ -701,7 +712,7 @@ word-break:break-all}
     <button class="hb" @click="modal='more'">More…</button>
   </header>
 
-  <div id="shell"><div class="stage">
+  <div id="shell"><div class="stage" :class="wideStage()?'wide':''">
 
     <!-- ══════════════════ COURTSIDE — the coach's own device ══════════════════
          Same app, same tokens, phone-shaped. A coach sees only the sessions they
@@ -1207,7 +1218,11 @@ word-break:break-all}
                   <button class="btn sm" @click="openTeamEdit(tm.selected)">Edit the team</button>
                 </div>
 
-                <div class="tsplit" style="grid-template-columns:1fr 280px">
+                <!-- ROSTER LEFT, POOL RIGHT — and the POOL DROPS BENEATH the
+                     roster when there is not room for both, rather than being
+                     clipped. `BACKLOG` N5c asked for exactly this at 400
+                     players; the narrow window is the same problem earlier. -->
+                <div class="rsplit">
                   <div>
                     <div class="rost" :class="tm.over?'over':''"
                          @dragover.prevent="tm.over=true" @dragleave="tm.over=false"
@@ -1231,7 +1246,7 @@ word-break:break-all}
                               </template>
                             </select>
                           </template>
-                          <span class="rv" x-text="r.rating ?? '–'"></span>
+                          <span class="rv" x-text="rate2(r.rating)"></span>
                           <button class="btn sm" @click="unplace(r)">Remove</button>
                         </div>
                       </template>
@@ -1262,7 +1277,7 @@ word-break:break-all}
                              @dblclick="place(p.person_id)">
                           <span class="pn" x-text="p.given_name+' '+p.family_name"></span>
                           <span class="c" x-text="p.age!=null ? p.age : '?'"></span>
-                          <span class="pv" x-text="p.rating ?? '–'"></span>
+                          <span class="pv" x-text="rate2(p.rating)"></span>
                           <span class="elig" :class="eligOf(p).k" x-text="eligOf(p).s"></span>
                           <button class="btn sm" @click="place(p.person_id)"
                                   :disabled="!tm.selected || eligOf(p).k==='no'">+</button>
@@ -3870,6 +3885,11 @@ function app(){ return {
       .sort((a,b)=> (b.rating||0)-(a.rating||0)
         || (a.family_name+a.given_name).localeCompare(b.family_name+b.given_name));
   },
+  //  A RATING IS PRINTED, NEVER PASSED THROUGH RAW. `3.9 - 0.2` is
+  //  3.6999999999999997 in IEEE 754, and a roster that shows that once is a
+  //  roster nobody trusts the rest of. Two decimals, and a dash where there is
+  //  no rating at all — the same shape the rest of the product uses.
+  rate2(v){ return (v===null||v===undefined||v==='') ? '–' : Number(v).toFixed(2); },
   rosterAvg(tsId){
     const v = this.rosterOf(tsId).map(r=>Number(r.rating)).filter(n=>!isNaN(n));
     return v.length ? (v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : '';
@@ -3924,6 +3944,11 @@ function app(){ return {
     this.pm.returnTo=''; this.pm.editing=false;
   },
   openSetup(){ this.openClubCfg(); this.modal='setup'; },
+  //  WHICH STAGES ARE WORKING SURFACES. 1,020px is the reading width — right for
+  //  the dashboard, a season, a player card. Teams is an index, a roster and a
+  //  pool side by side, and Placement is an index and a ledger; both were being
+  //  clipped inside the reading width on a screen with 700px to spare.
+  wideStage(){ return this.stage==='teams' || this.stage==='placement'; },
 
   // ══ PLACEMENT ══════════════════════════════════════════════════════════════
   //  N6 — the season pipeline made visible. Nothing here is a new rule: the two
@@ -4091,11 +4116,20 @@ function app(){ return {
     if(error){ this.pl.err = error.message; return; }
     await this.loadPlacement();
   },
-  //  A place that has come back is filled on the Teams stage, where the age
-  //  group's balance table shows what the replacement costs.
+  //  A place that has come back is filled on the Teams stage — ON THE TEAM THAT
+  //  LOST IT. Ming, 20 Aug 2026: "it doesn't open the team the place was
+  //  offered, only to the team management page." Landing a coach in the right
+  //  age group and making them find the team again is most of the trip, not the
+  //  end of it. The offer carries `team_season_id`, so the roster is one hop.
   async plToTeams(r){
     await this.openTeams();
-    if(r && r.team_age_group) this.selectGroup(r.team_age_group);
+    if(!r) return;
+    if(r.team_age_group) this.selectGroup(r.team_age_group);
+    //  selectGroup clears the selection, so the team is chosen after it
+    if(r.team_season_id && (this.teamSeasons||[]).some(t=>t.id===r.team_season_id)){
+      this.tm.selected = r.team_season_id;
+      this.tm.view = 'roster';
+    }
   },
 
 
