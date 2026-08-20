@@ -1224,7 +1224,7 @@ word-break:break-all}
                      teams into it; a tile you can read at a glance beats a
                      stacked row, and it is the same control the seasons use. -->
                 <div class="ttiles">
-                  <template x-for="ts in teamSeasonsIn(tm.grpSel||null)" :key="ts.id">
+                  <template x-for="ts in tsSorted(tm.grpSel||null)" :key="ts.id">
                     <div class="ttile" :class="tm.selected===ts.id?'on':''">
                       <b x-text="ts.team_name"></b>
                       <div class="mt">
@@ -3133,6 +3133,15 @@ values (
              x-show="fp.resumed">
             Picked up where you left it. This board is held on this page only — it survives leaving
             Formation, but <b>not a reload</b>. Accept when you are done with it.</p>
+          <!-- THE BUILD IS ON THE RECORD, AND IT SAYS SO. Or it says it is not:
+               an audit row that quietly failed to write is worse than none. -->
+          <p class="note" style="margin:0 0 6px" x-show="fp.run">
+            This build is recorded. Every offer accepted from it will name it.</p>
+          <p class="warnbar" style="margin:0 0 6px;border-radius:8px;border:1px solid var(--warnline)"
+             x-show="fp.runErr">
+            <b>This build was not recorded.</b> You can carry on and accept it — the teams and the
+            offers are unaffected — but the offers will not be able to name the build they came
+            from. <span x-text="fp.runErr"></span></p>
           <p class="note" style="margin:0 0 8px" x-show="fMovedCount()">
             <b x-text="fMovedCount()+' player'+(fMovedCount()===1?'':'s')+' moved by hand.'"></b>
             Every move is on screen and against the proposal — the engine is not re-running, so
@@ -4132,6 +4141,22 @@ function app(){ return {
   //  `tZones()`, so a number in the header can never disagree with the list
   //  beneath it. Same rule the comparison board is built on.
   seasonYear(){ return (this.seasons.find(s=>s.id===this.seasonId)||{}).year || ''; },
+  //  THE TILES READ TOP DOWN: DIVISION FIRST, THEN THE STRONGER SQUAD. Ming,
+  //  20 Aug 2026. A club reads its entry as a ladder — Div 1 before Div 3 — and
+  //  inside one division the question is which of the two is ahead, so the
+  //  average orders them. A team with no division yet sorts LAST rather than
+  //  first: it has not been entered anywhere, and putting it above Div 1 would
+  //  read as the top of the ladder.
+  //  Ordered on the RANK, never on the printed label — text puts "Div 10" above
+  //  "Div 2", which is the whole reason the rank exists.
+  tsSorted(g){
+    const rank=ts=>ts.division_rank==null ? 9999 : Number(ts.division_rank);
+    const avg =ts=>{ const v=this.rosterAvg(ts.id); return v==='' ? -1 : Number(v); };
+    return this.teamSeasonsIn(g).slice().sort((a,b) =>
+         rank(a)-rank(b)
+      || avg(b)-avg(a)
+      || String(a.team_name||'').localeCompare(String(b.team_name||'')));
+  },
   //  THE DIVISION A TEAM IS ENTERED IN, PRINTED FROM ITS RANK. Ming, 20 Aug
   //  2026: the division linked in Formation must carry across to Teams — and it
   //  DOES: `accept_formation` writes `division_rank`. What did not carry was the
@@ -4326,7 +4351,7 @@ function app(){ return {
 
   fp:{group:'', basis:'rating', teams:[], cuts:[], cap:10, min:8, lock:true,
       newdiv:1, err:'', busy:false, saved:'', plans:[], scoring:[], drag:null,
-      phase:'setup', result:null, resumed:false,
+      phase:'setup', result:null, resumed:false, run:null, runErr:'',
       naming:false, names:{}, pattern:'Div {n}', namesErr:'', gender:'', stale:false,
       /* dashboard state lives beside it */
       lenses:[], lens:'', marks:{}, stars:{}, frozen:null, by:{}, moves:{},
@@ -4671,7 +4696,7 @@ function app(){ return {
   //  A season change invalidates a proposal built from another season's players.
   fReset(){
     this.fp.result = null; this.fp.frozen = null; this.fp.moves = {};
-    this.fp.resumed = false;
+    this.fp.resumed = false; this.fp.run = null; this.fp.runErr = '';
     this.fp.link = {}; this.fNewTeamClose(); this.fp.phase = 'setup'; this.fp.group = '';
     this.fvfy = {busy:'', err:'', open:'', note:''};
   },
@@ -5106,6 +5131,7 @@ function app(){ return {
   //  written, and so a proposal can always be explained by a stored plan.
   async fGenerate(){
     this.fp.err=''; this.fp.result=null; this.fp.busy=true; this.fp.resumed=false;
+    this.fp.run=null; this.fp.runErr='';
     const ok = await this.fSavePlan();
     if(!ok){ this.fp.busy=false; return; }
     this.fp.busy=true;
@@ -5387,7 +5413,18 @@ function app(){ return {
   },
 
   // ── the draft board: the frozen proposal, and what the coach does to it ──
-  fOpenDraft(){
+  //  OPENING THE DRAFT BOARD FREEZES THE ENGINE — AND NOW WRITES THE BUILD DOWN.
+  //  N7. Until today a run existed only in this page: a reload lost it, and an
+  //  offer could never name the build it came from a year later. `formation_run`
+  //  and `formation_proposal` have had their policies since migration 011 and no
+  //  writer at all.
+  //  Freezing is the right moment — it is the point the engine stops and the
+  //  coach's own decisions begin, so the run records what the ENGINE produced,
+  //  before a single hand move. What the coach does next is the accept.
+  //  IT DOES NOT BLOCK THE BOARD. If the write fails the board still opens and
+  //  says the build was not recorded; refusing to let a coach work because an
+  //  audit row did not land would be the tail wagging the dog.
+  async fOpenDraft(){
     this.fp.frozen=(this.fp.result?.squads||[]).map(sq=>({
       division_rank:sq.division_rank, ordinal:sq.ordinal,
       target:sq.target, target_total:sq.target_total,
@@ -5395,6 +5432,24 @@ function app(){ return {
     this.fp.by={}; (this.fp.result?.squads||[]).forEach(sq=>sq.players
       .forEach(p=>this.fp.by[p.person_id]=p));
     this.fp.moves={}; this.fp.phase='draft';
+    await this.fSaveRun();
+  },
+  async fSaveRun(){
+    this.fp.runErr='';
+    const squads=(this.fp.result?.squads||[]).map((sq,i)=>({
+      name:this.fSqLabel(i), team_season_id:null,
+      players:(sq.players||[]).map(p=>({person_id:p.person_id}))}));
+    if(!squads.length) return;
+    const {data,error}=await this.sb.rpc('save_formation_run',{
+      p_season:this.seasonId, p_age_group:this.fp.group, p_basis:this.fp.basis,
+      //  the parameters that produced it — the lines, the cap, the teams entered
+      //  — so a build can be read back and understood without the screen
+      p_params:{cuts:this.fp.cuts, teams:this.fp.teams, cap:this.fp.cap,
+                min_field:this.fp.min, lock_placed:!!this.fp.lock,
+                unplaced:(this.fp.result?.unplaced||[]).length},
+      p_squads:squads});
+    if(error){ this.fp.runErr=error.message; this.fp.run=null; return; }
+    this.fp.run=data||null;
   },
   fBackToSetup(){ this.fp.phase='setup'; },
   fRestoreProposal(){ this.fp.moves={}; },
@@ -5565,7 +5620,10 @@ function app(){ return {
     }));
     const {data,error}=await this.sb.rpc('accept_formation',{
       p_season:this.seasonId, p_age_group:this.fp.group,
-      p_squads:squads, p_note:(this.fp.acc.note||'').trim()||null});
+      p_squads:squads, p_note:(this.fp.acc.note||'').trim()||null,
+      //  the build these offers came out of. Every offer carries it, so a
+      //  placement can be explained a year later without anybody's memory.
+      p_run:this.fp.run||null});
     this.fp.acc.busy=false;
     if(error){ this.fp.acc.err=error.message; return; }
     this.fp.acc.done=data;
