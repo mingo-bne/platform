@@ -2532,22 +2532,15 @@ values (
             <template x-for="(s,si) in (fp.result?.squads||[])" :key="si">
               <div class="sqc" :class="s.over_cap?'short':''">
                 <div class="sqh">
-                  <!-- EVERY standing team is offered on EVERY roster; assigning one
-                       twice is flagged, never prevented (ADR-008). -->
-                  <div class="asg">
-                    <!-- :selected per option, not :value on the select — the options
-                         come from a template and do not exist when :value binds, so
-                         the select showed "name it later" over a proposed name. -->
-                    <select @change="fAssignTo(s.division_rank+'#'+s.ordinal, $event.target.value)">
-                      <template x-for="n in fTeamOptions()" :key="n">
-                        <option :value="n" :selected="n===fAssignedName(s)" x-text="n"></option>
-                      </template>
-                      <option value="" :selected="!fAssignedName(s)">— name it later —</option>
-                    </select>
-                  </div>
+                  <!-- A PROPOSAL HAS NO NAMES. Ming, 20 Aug 2026: "I only want to
+                       see them as team 1, team 2, team 3 etc shown." The engine
+                       produced a BAND, not a club's team — naming it here invited
+                       the club to read last season's Gold into a band drawn from
+                       this season's players. Linking happens on the draft board,
+                       against teams that actually exist in this season. -->
+                  <div class="asg"><b x-text="fSqLabel(si)"></b></div>
                   <div class="row">
                     <span class="c grp" x-text="fDivLabel(s.division_rank)"></span>
-                    <span class="c" x-text="fLastDivNote(s)"></span>
                   </div>
                   <div class="row">
                     <span x-text="s.players.length+' players'"></span>
@@ -2556,7 +2549,6 @@ values (
                     <span class="c bad" x-show="!s.players.length">nobody in this band</span>
                     <span class="c bad" x-show="s.over_cap"
                           x-text="(s.players.length-fp.result.cap)+' over the cap of '+fp.result.cap"></span>
-                    <span class="c bad" x-show="fAssignedTwice(s)">this team is assigned twice</span>
                     <span class="c acc" x-show="s.from_rating"
                           x-text="s.from_rating+' by rating'"></span>
                   </div>
@@ -2646,7 +2638,11 @@ values (
               <div class="col" :class="col.players.length>fp.cap?'warn':''"
                    @dragover.prevent @drop.prevent="fDrop($event,col.ci)">
                 <div class="colh">
-                  <b x-text="fShortName(col.team)||fDivLabel(col.division_rank)"></b>
+                  <!-- THE COLUMN IS "Team 1" UNTIL IT IS LINKED. The label is
+                       the band's position, not a name; the name arrives only when
+                       the club points this column at a team that exists in this
+                       season and age group. -->
+                  <b x-text="col.ref_team ? col.ref_team.team_name : fSqLabel(col.ci)"></b>
                   <div class="mt">
                     <span class="c grp" x-text="fDivLabel(col.division_rank)"></span>
                     <span class="c" x-text="col.players.length+' players'"></span>
@@ -2659,6 +2655,49 @@ values (
                                  +((col.moveIn&&col.moveOut)?' ':'')
                                  +(col.moveOut?'−'+col.moveOut:'')+' by hand'"></span>
                   </div>
+
+                  <!-- ── LINK THIS BAND TO A TEAM ── only teams already entered
+                       in this season and age group are offered. Nothing is
+                       remembered from last season and nothing is inferred. -->
+                  <div class="asg" style="margin-top:6px">
+                    <select @change="fLinkTo(col.ci, $event.target.value)">
+                      <option value="" :selected="!col.ref_team">— link a team —</option>
+                      <template x-for="t in fLinkable(col.ci)" :key="t.id">
+                        <option :value="t.id" :disabled="t.used"
+                                :selected="col.ref_team && col.ref_team.id===t.id"
+                                x-text="t.name+(t.div?' · '+t.div:'')+(t.used?' — already linked':'')"></option>
+                      </template>
+                    </select>
+                    <button class="lnk" style="margin-top:4px"
+                            @click="fNewTeamOpen(col.ci)">or create a new team…</button>
+                  </div>
+
+                  <!-- creating one, without leaving the draft -->
+                  <template x-if="fNewTeamOpenOn(col.ci)">
+                    <div class="srow" style="margin-top:6px;padding:8px">
+                      <div class="field" style="margin-bottom:6px">
+                        <label class="fl">Team name</label>
+                        <input type="text" x-model="fp.nt.name" placeholder="e.g. Gold"></div>
+                      <div class="field" style="margin-bottom:6px">
+                        <label class="fl">Division
+                          <span style="color:var(--ink3);font-weight:400">— optional</span></label>
+                        <input type="text" x-model="fp.nt.div"
+                               :placeholder="fDivLabel(col.division_rank)"></div>
+                      <p class="note" style="margin:0 0 6px" x-show="fNewTeamTidy()
+                            && fNewTeamTidy()!==(fp.nt.name||'').trim()">
+                        Will be recorded as <b x-text="fNewTeamTidy()"></b>.</p>
+                      <p class="note" style="margin:0 0 6px"
+                         x-text="'It is entered in '+fp.group+', '+seasonName(seasonId)
+                                 +' — the same as creating it on the Teams stage.'"></p>
+                      <div class="stop" x-show="fp.nt.err" style="margin-bottom:6px">
+                        <b x-text="fp.nt.err"></b></div>
+                      <div class="inline" style="margin:0">
+                        <button class="btn sm pri" @click="fNewTeamSave()"
+                                :disabled="!fp.nt.name.trim() || fp.nt.busy">Create and link</button>
+                        <button class="btn sm" @click="fNewTeamClose()">Cancel</button>
+                      </div>
+                    </div>
+                  </template>
                 </div>
 
                 <!-- THE RATING SHAPE, as in the TMS. Solid is this team; dashed
@@ -2748,7 +2787,8 @@ values (
             <tbody>
               <template x-for="r in fAcceptRows()" :key="r.ci">
                 <tr>
-                  <td><b x-text="r.name || '— not named —'"></b>
+                  <td><b x-text="r.name || '— not linked —'"></b>
+                    <div class="how" style="font-size:11px;color:var(--ink3)" x-text="r.band"></div>
                     <div class="how" style="color:var(--bad);font-size:11px" x-show="r.unver.length"
                          x-text="'not verified: '+r.unver.join(', ')"></div></td>
                   <td x-text="r.div"></td>
@@ -3469,7 +3509,10 @@ function app(){ return {
       phase:'setup', result:null,
       naming:false, names:{}, pattern:'Div {n}', namesErr:'', gender:'', stale:false,
       /* dashboard state lives beside it */
-      lenses:[], lens:'', marks:{}, stars:{}, assign:{}, frozen:null, by:{}, moves:{},
+      lenses:[], lens:'', marks:{}, stars:{}, frozen:null, by:{}, moves:{},
+      /* which team_season each column is linked to, and the inline create form.
+         NOT remembered between builds — a link is to a team in THIS season. */
+      link:{}, nt:{ci:null,name:'',div:'',err:'',busy:false},
       /* accepting: the note that goes on every offer, a cap reason per column,
          and what the database said it wrote */
       acc:{busy:false, err:'', note:'', caps:{}, done:null}},
@@ -3865,7 +3908,8 @@ function app(){ return {
     this.fp.lock=p.lock_placed!==false;
     this.fp.teams=this.fTeamsOf(g).slice();
     this.fp.saved=''; this.fp.err=''; this.fp.phase='setup'; this.fp.result=null;
-    this.fp.frozen=null; this.fp.moves={}; this.fp.marks={}; this.fp.stars={}; this.fp.assign={};
+    this.fp.frozen=null; this.fp.moves={}; this.fp.marks={}; this.fp.stars={};
+    this.fp.link={}; this.fp.nt={ci:null,name:'',div:'',err:'',busy:false};
     this.fp.cuts=(p.cuts||[]).map(Number);
     if(this.fp.cuts.length !== this.fBandsOf(this.fp.teams,[],g).length-1) this.fEvenCounts();
     this.modal='formation';
@@ -4108,6 +4152,9 @@ function app(){ return {
         return {...z, n:inz.length, w:100*inz.length/n, players:inz};
       });
       return {...col, ci, slots:buckets,
+      //  DERIVED HERE, NOT IN THE MARKUP — same rule as `ref`. The header, the
+      //  link control and the accept panel all read one value.
+      ref_team:this.fLinkedTeam(ci),
         title:buckets.map(z=>z.n+' '+z.t).join(' · '),
         //  DERIVED HERE, NOT IN THE MARKUP. Called from inside an x-if in the
         //  column header it was captured in a child scope Alpine had already
@@ -4127,56 +4174,96 @@ function app(){ return {
     const n=(t.match(/\d+/)||[''])[0];
     return (t.includes('GIRL')?'G':t.includes('BOY')?'B':'U')+n;
   },
-  //  The team that ran this division last season keeps it, then the nearest
-  //  division, then whatever else the club has. Never prevented, only flagged.
-  fProposeAssign(){
-    const g=this.fp.group, out={}, used={};
-    const known=(this.teamSeasons||[]).filter(t=>t.age_group===g)
-      .map(t=>({name:t.team_name, lastDiv:t.division_rank}));
-    (this.fp.result?.squads||[]).forEach(sq=>{
-      const key=sq.division_rank+'#'+sq.ordinal;
-      if(this.fp.assign[key]){ out[key]=this.fp.assign[key]; used[out[key]]=1; return; }
-      let best=null,d=1e9;
-      known.forEach(t=>{ if(used[t.name])return;
-        const gap=Math.abs((t.lastDiv==null?99:t.lastDiv)-(sq.division_rank==null?99:sq.division_rank));
-        if(gap<d){d=gap;best=t} });
-      if(best){ used[best.name]=1; out[key]=best.name; return; }
-      const free=(this.teams||[]).map(t=>t.name)
-        .filter(n=>!used[n] && !Object.values(out).includes(n));
-      out[key]= free[0] || (this.fPrefix(g)+' Team '+(Object.keys(out).length+1));
-      used[out[key]]=1;
-    });
-    return out;
+  // ── A PROPOSAL IS ANONYMOUS; THE DRAFT BOARD LINKS IT ────────────────────
+  //  Ming, 20 Aug 2026: "I only want to see them as team 1, team 2, team 3 etc
+  //  shown. Then, in the draft board, I want to be able to select and link team
+  //  names for that age group for that season, should they have been created,
+  //  or, if not already created, be able to jump to team creation and create new
+  //  ones. I don't want team names to be cached, I just want to use what has
+  //  been created in the same season already or create new ones."
+  //
+  //  This REPLACES the proposal-from-last-season rule in ADR-008, on Ming's
+  //  instruction. What it was doing: matching each band to the team that ran the
+  //  nearest division last year, then falling back to any spare club name, then
+  //  inventing "B14 Team 3". Three layers of guessing, and the top one is the
+  //  dangerous one — it reads LAST season's Gold onto a band drawn from THIS
+  //  season's players, which is precisely the assumption the whole rating
+  //  exercise exists to avoid.
+  //
+  //  The only names offered now are `team_season` rows already entered in this
+  //  (season, age group). Nothing is remembered, nothing is inferred, and a name
+  //  that does not exist yet is CREATED — explicitly, by the club, in the season
+  //  it belongs to.
+  fSqLabel(i){ return 'Team '+(i+1); },
+  //  The teams entered in this age group this season, with the one already
+  //  linked to another column marked so it cannot be linked twice.
+  fLinkable(ci){
+    const g=this.fp.group, taken=this.fp.link||{};
+    return (this.teamSeasons||[])
+      .filter(ts=>ts.season_id===this.seasonId && (ts.age_group||'')===(g||''))
+      .map(ts=>({id:ts.id, name:ts.team_name,
+                 div:ts.division_label||ts.division||'',
+                 used:Object.keys(taken).some(k=>+k!==+ci && taken[k]===ts.id)}))
+      .sort((a,b)=>a.name.localeCompare(b.name));
   },
-  fAssignTo(key,name){
-    if(!name) delete this.fp.assign[key]; else this.fp.assign[key]=name;
-    this.fp.assign={...this.fp.assign};
+  fLinkTo(ci, tsId){
+    this.fp.link = {...(this.fp.link||{})};
+    if(!tsId) delete this.fp.link[ci]; else this.fp.link[ci]=tsId;
   },
-  fTeamOptions(){
-    const named=(this.teams||[]).map(t=>t.name);
-    const inplay=Object.values(this.fProposeAssign()).filter(v=>!named.includes(v));
-    return named.concat([...new Set(inplay)]);
+  fLinkedTeam(ci){
+    const id=(this.fp.link||{})[ci]; if(!id) return null;
+    return (this.teamSeasons||[]).find(ts=>ts.id===id) || null;
   },
-  fAssignedName(sq){ return this.fProposeAssign()[sq.division_rank+'#'+sq.ordinal]||''; },
-  fAssignedTwice(sq){
-    const n=this.fAssignedName(sq), all=Object.values(this.fProposeAssign());
-    return n && all.filter(v=>v===n).length>1;
+  fUnlinked(){ return this.fBoard().filter(c=>!this.fLinkedTeam(c.ci)).length; },
+  //  JUMP TO TEAM CREATION — without leaving the draft. Navigating to the Teams
+  //  stage would throw away every hand move made so far, so the same act happens
+  //  here: it writes a real `team` and a real `team_season` in THIS season and
+  //  age group, under the same rules the Teams stage uses, and links it.
+  //  ALWAYS AN OBJECT, never null — `x-model` cannot bind through a null, and
+  //  Alpine evaluates a template's bindings once more as it tears the block
+  //  down, so nulling it throws on the way out. `ci` says which column it is
+  //  open on, and null means closed.
+  fNewTeamOpen(ci){
+    this.fp.nt = {ci, name:'', div:'', err:'', busy:false};
   },
-  fLastDivNote(sq){
-    const n=this.fAssignedName(sq);
-    const t=(this.teamSeasons||[]).find(x=>x.team_name===n && x.age_group===this.fp.group);
-    if(!t||t.division_rank==null) return 'new team';
-    return t.division_rank===sq.division_rank ? 'same division as last season'
-      : 'was '+this.fDivLabel(t.division_rank)+' last season';
+  fNewTeamClose(){ this.fp.nt = {ci:null, name:'', div:'', err:'', busy:false}; },
+  fNewTeamTidy(){ return this.tmTidy(this.fp.nt?.name||''); },
+  fNewTeamOpenOn(ci){ return this.fp.nt && this.fp.nt.ci===ci; },
+  async fNewTeamSave(){
+    const nt=this.fp.nt; if(!nt || nt.ci===null) return;
+    const name=this.tmTidy(nt.name);
+    if(!name){ this.fp.nt.err='A team needs a name.'; return; }
+    this.fp.nt.busy=true; this.fp.nt.err='';
+    let team=(this.teams||[]).find(t=>t.name.toLowerCase()===name.toLowerCase());
+    if(!team){
+      const {data,error}=await this.sb.from('team')
+        .insert({org_id:this.org.id, name}).select().single();
+      if(error){ this.fp.nt.err=error.message; this.fp.nt.busy=false; return; }
+      team=data;
+    }
+    const divText=(nt.div||'').trim();
+    const divRank=divText ? (divText.match(/\d+/)||[null])[0] : null;
+    const {data:ts,error}=await this.sb.from('team_season').insert({
+      org_id:this.org.id, season_id:this.seasonId, team_id:team.id,
+      age_group:this.fp.group, division:divText||null, division_label:divText||null,
+      division_rank:divRank!==null ? Number(divRank) : null}).select().single();
+    this.fp.nt.busy=false;
+    if(error){
+      this.fp.nt.err = /one_entry_per_age_group|already entered in/.test(error.message)
+        ? name+' is already entered in '+this.fp.group+'. Pick it from the list instead.'
+        : error.message;
+      return;
+    }
+    await this.loadFormation();
+    this.fLinkTo(nt.ci, ts.id);
+    this.fNewTeamClose();
   },
-  fShortName(n){ return String(n||'').replace(this.fPrefix(this.fp.group)+' ',''); },
 
   // ── the draft board: the frozen proposal, and what the coach does to it ──
   fOpenDraft(){
     this.fp.frozen=(this.fp.result?.squads||[]).map(sq=>({
       division_rank:sq.division_rank, ordinal:sq.ordinal,
       target:sq.target, target_total:sq.target_total,
-      team:this.fAssignedName(sq),
       ids:sq.players.map(p=>p.person_id) }));
     this.fp.by={}; (this.fp.result?.squads||[]).forEach(sq=>sq.players
       .forEach(p=>this.fp.by[p.person_id]=p));
@@ -4227,7 +4314,9 @@ function app(){ return {
         const r=(this.pool||[]).find(x=>x.person_id===p.person_id);
         return r && r.verification!=='verified'; })
         .map(p=>(p.given_name+' '+p.family_name).replace('DEMO_',''));
-      return { ci:col.ci, name:col.team||'', div:this.fDivLabel(col.division_rank),
+      return { ci:col.ci, band:this.fSqLabel(col.ci),
+        team:col.ref_team||null, name:col.ref_team?col.ref_team.team_name:'',
+        div:this.fDivLabel(col.division_rank),
         rank:col.division_rank, n:col.players.length,
         over:Math.max(0,col.players.length-this.fp.cap),
         note:this.fp.acc.caps[col.ci]||'', unver:unver,
@@ -4240,20 +4329,21 @@ function app(){ return {
   //  error at a time with a hundred and fifty children in front of them.
   fAcceptStops(){
     const rows=this.fAcceptRows(), out=[];
-    const unnamed=rows.filter(r=>!r.name.trim()).length;
-    if(unnamed) out.push({k:'name', t:unnamed+(unnamed===1?' team has':' teams have')+
-      ' no name yet', how:'Name them on the proposal, above.'});
+    //  EVERY BAND MUST BE LINKED TO A TEAM THAT EXISTS. Ming, 20 Aug 2026: the
+    //  proposal is anonymous, so this is where the mapping is checked.
+    const loose=rows.filter(r=>!r.team).map(r=>r.band);
+    if(loose.length) out.push({k:'link', t:loose.join(', ')+
+      (loose.length===1?' is not linked to a team':' are not linked to a team'),
+      how:'Link each one on the draft board, or create the team there.'});
+    //  Two bands pointed at one team would be one roster written twice. The
+    //  select already marks a linked team as taken; this is the guard behind it.
     const seen={}, twice=[];
-    rows.forEach(r=>{ const n=r.name.trim().toLowerCase(); if(!n) return;
-      if(seen[n]&&twice.indexOf(r.name)<0) twice.push(r.name); seen[n]=1; });
+    rows.forEach(r=>{ if(!r.team) return;
+      if(seen[r.team.id] && twice.indexOf(r.name)<0) twice.push(r.name);
+      seen[r.team.id]=1; });
     if(twice.length) out.push({k:'twice',
-      t:twice.join(', ')+(twice.length===1?' is':' are')+' on more than one roster in this age group',
-      how:'Two squads of one name are one team on a team sheet. Rename one of them.'});
-    //  A NAME IN ANOTHER AGE GROUP IS NOT A CLASH. Ming, 19 Aug 2026: "the only
-    //  ban of same name would be within a same age group in the same season."
-    //  Gold in U14 and Gold in U16 are two entries against one club-level name.
-    //  The clash that matters is inside THIS age group, which is the `twice`
-    //  rule above — and it is case-blind for the same reason the database is.
+      t:twice.join(', ')+(twice.length===1?' is':' are')+' linked to more than one band',
+      how:'One team can only take one roster. Link the others to a different team.'});
     const unver=[...new Set(rows.flatMap(r=>r.unver))];
     if(unver.length) out.push({k:'unver', t:unver.length+
       (unver.length===1?' record has':' records have')+' not been checked against the registration: '+
@@ -4269,7 +4359,11 @@ function app(){ return {
     if(this.fAcceptStops().length) return;
     this.fp.acc.busy=true; this.fp.acc.err=''; this.fp.acc.done=null;
     const squads=this.fBoard().map(col=>({
-      name:(col.team||'').trim(),
+      //  THE LINKED ENTRY, BY ID. The club chose a team that already exists in
+      //  this season and age group, so accepting points at it rather than
+      //  creating anything by name.
+      team_season_id:col.ref_team ? col.ref_team.id : null,
+      name:col.ref_team ? col.ref_team.team_name : '',
       division_rank:col.division_rank,
       division_label:this.fDivLabel(col.division_rank),
       target_value:this.fColTgt(col)==null?null:Number(this.fColTgt(col)),
