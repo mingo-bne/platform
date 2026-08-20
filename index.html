@@ -469,6 +469,19 @@ word-break:break-all}
  padding:8px 11px;font-size:12.5px;color:var(--bad);margin-top:8px}
 .stop b{display:block;color:var(--bad)}
 .stop .how{color:var(--ink2);font-size:11.5px;margin-top:2px}
+/* clearing a stop where it is raised — one record per row, never a bulk tick */
+.vfy{margin-top:8px;background:#fff;border:1px solid var(--badline);border-radius:8px;
+ padding:6px 9px}
+.vfy .how{margin:2px 0 6px}
+.vfyr{display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+ padding:5px 0;border-top:1px solid var(--line)}
+.vfy>div:first-of-type .vfyr{border-top:0}
+.vfyr .who{flex:1 1 auto;min-width:150px;color:var(--ink)}
+.vfyr .who b{display:block;color:var(--ink)}
+.vfyr .who span{font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.vfyn{display:flex;gap:6px;align-items:center;padding:0 0 7px}
+.vfyn input{flex:1 1 auto;font:inherit;font-size:12px;padding:4px 6px;
+ border:1px solid var(--line2);border-radius:6px;background:#fff}
 .wrote{background:var(--okbg);border:1px solid var(--okline);border-radius:9px;
  padding:10px 12px;font-size:13px;color:var(--ok);margin-top:8px}
 /* the comparison board */
@@ -2662,6 +2675,13 @@ values (
                what a head coach does to a rating session, and it cannot be undone.
                Nothing on this surface writes anything; Accept does. -->
           <div class="cath">Draft board — move players between teams</div>
+          <!-- Says what it is and what it is not. A board kept in the page is
+               not a saved board, and a screen that implied it was would cost
+               somebody a whole afternoon exactly once. -->
+          <p class="warnbar" style="margin:0 0 8px;border-radius:8px;border:1px solid var(--warnline)"
+             x-show="fp.resumed">
+            Picked up where you left it. This board is held on this page only — it survives leaving
+            Formation, but <b>not a reload</b>. Accept when you are done with it.</p>
           <p class="note" style="margin:0 0 8px" x-show="fMovedCount()">
             <b x-text="fMovedCount()+' player'+(fMovedCount()===1?'':'s')+' moved by hand.'"></b>
             Every move is on screen and against the proposal — the engine is not re-running, so
@@ -2853,7 +2873,7 @@ values (
                   <td><b x-text="r.name || '— not linked —'"></b>
                     <div class="how" style="font-size:11px;color:var(--ink3)" x-text="r.band"></div>
                     <div class="how" style="color:var(--bad);font-size:11px" x-show="r.unver.length"
-                         x-text="'not verified: '+r.unver.join(', ')"></div></td>
+                         x-text="'not verified: '+r.unverT"></div></td>
                   <td x-text="r.div"></td>
                   <td class="r" x-text="r.n"></td>
                   <td x-text="r.vs"></td>
@@ -2881,7 +2901,47 @@ values (
           </div>
 
           <template x-for="st in fAcceptStops()" :key="st.k">
-            <div class="stop"><b x-text="st.t"></b><div class="how" x-text="st.how"></div></div>
+            <div class="stop">
+              <b x-text="st.t"></b><div class="how" x-text="st.how"></div>
+              <!-- CLEARED WHERE IT IS RAISED. The run is live-only until it is
+                   persisted, so sending a coach to Players to tick eight records
+                   costs them the board. The same three acts as the player card,
+                   in the same order, one record at a time — never a bulk tick,
+                   because a gate that clears for everybody at once is not one.
+                   The three fields the association's registration is matched
+                   against are on the row, so the check is made here. -->
+              <template x-if="st.k==='unver'">
+                <div class="vfy">
+                  <p class="how" x-text="fVerifyWhy()"></p>
+                  <template x-for="u in st.people" :key="u.id">
+                    <div>
+                      <div class="vfyr">
+                        <span class="who"><b x-text="u.name"></b>
+                          <span x-text="u.dob+' · '+u.gender+' · '+u.grp"></span></span>
+                        <button class="btn sm" :disabled="fp.acc.vfy.busy===u.id"
+                                @click="fVerify(u.id,'association')">Matched the registration</button>
+                        <button class="btn sm" :disabled="fp.acc.vfy.busy===u.id"
+                                @click="fVerify(u.id,'attested')">Parent attested</button>
+                        <button class="btn sm" :class="fp.acc.vfy.open===u.id?'pri':''"
+                                @click="fp.acc.vfy.note=''; fp.acc.vfy.err='';
+                                        fp.acc.vfy.open = fp.acc.vfy.open===u.id?'':u.id">My own authority…</button>
+                      </div>
+                      <!-- the stated reason is the whole difference between an
+                           override and a bypass, so it is required here exactly
+                           as it is on the card -->
+                      <div class="vfyn" x-show="fp.acc.vfy.open===u.id">
+                        <input type="text" x-model="fp.acc.vfy.note"
+                               placeholder="Why you are standing behind this record — e.g. registration not yet transferred, birth certificate sighted">
+                        <button class="btn sm pri" :disabled="fp.acc.vfy.busy===u.id"
+                                @click="fVerify(u.id,'admin')">Record it</button>
+                      </div>
+                    </div>
+                  </template>
+                  <p class="note" style="margin:6px 0 0" x-show="fp.acc.vfy.err"
+                     x-text="fp.acc.vfy.err"></p>
+                </div>
+              </template>
+            </div>
           </template>
 
           <div class="warnbox" x-show="!fAcceptStops().length">
@@ -3569,7 +3629,7 @@ function app(){ return {
 
   fp:{group:'', basis:'rating', teams:[], cuts:[], cap:10, min:8, lock:true,
       newdiv:1, err:'', busy:false, saved:'', plans:[], scoring:[], drag:null,
-      phase:'setup', result:null,
+      phase:'setup', result:null, resumed:false,
       naming:false, names:{}, pattern:'Div {n}', namesErr:'', gender:'', stale:false,
       /* dashboard state lives beside it */
       lenses:[], lens:'', marks:{}, stars:{}, frozen:null, by:{}, moves:{},
@@ -3578,7 +3638,13 @@ function app(){ return {
       link:{}, nt:{ci:null,name:'',div:'',err:'',busy:false},
       /* accepting: the note that goes on every offer, a cap reason per column,
          and what the database said it wrote */
-      acc:{busy:false, err:'', note:'', caps:{}, done:null}},
+      /* VERIFYING WITHOUT LEAVING THE BOARD. Ming, 20 Aug 2026, blocked at
+         accept by eight unchecked records: "I want to be able to quickly jump
+         into the record and check the list and verify if needed. Or else I need
+         a way to save my works so that I don't redo the whole thing again."
+         `open` is the person whose admin-reason field is showing. */
+      acc:{busy:false, err:'', note:'', caps:{}, done:null,
+           vfy:{busy:'', err:'', open:'', note:''}}},
 
   //  A dashboard row is a way INTO Formation, so it does what arriving at
   //  Formation does — loads it — and only then opens the age group.
@@ -3685,6 +3751,7 @@ function app(){ return {
   //  A season change invalidates a proposal built from another season's players.
   fReset(){
     this.fp.result = null; this.fp.frozen = null; this.fp.moves = {};
+    this.fp.resumed = false;
     this.fp.link = {}; this.fNewTeamClose(); this.fp.phase = 'setup'; this.fp.group = '';
   },
   dashLive(){ return this.dashSeasonOrder((this.seasons||[]).filter(s => !s.archived_at)); },
@@ -4013,6 +4080,19 @@ function app(){ return {
       this.fp.err='No player in '+g+' has a rating in this season yet.';
       return;
     }
+    //  REOPENING THE GROUP YOU WERE WORKING ON RESUMES IT. Ming, 20 Aug 2026:
+    //  "I need a way to save my works so that I don't redo the whole thing
+    //  again." Every hand move on the draft board lived only in `fp`, and this
+    //  method cleared it on the way in — so stepping out to check one record
+    //  and coming back cost an hour of dragging. Resume only where there is
+    //  something to resume: the same age group, a board already frozen, and
+    //  past the setup phase. It survives leaving the section; it does NOT
+    //  survive a page reload — that is `formation_run`, still to be built, and
+    //  the caption says so rather than implying a durability it does not have.
+    if(this.fp.group===g && this.fp.result && this.fp.phase!=='setup'){
+      this.fp.err=''; this.fp.resumed=true; this.modal='formation'; return;
+    }
+    this.fp.resumed=false;
     const p=this.fPlan(g);
     this.fp.group=g; this.fp.basis=p.basis||'rating';
     this.fp.cap=p.squad_cap||this.fCfg().cap; this.fp.min=p.min_field||8;
@@ -4101,7 +4181,7 @@ function app(){ return {
   //  first so the engine reads what is on screen rather than what was last
   //  written, and so a proposal can always be explained by a stored plan.
   async fGenerate(){
-    this.fp.err=''; this.fp.result=null; this.fp.busy=true;
+    this.fp.err=''; this.fp.result=null; this.fp.busy=true; this.fp.resumed=false;
     const ok = await this.fSavePlan();
     if(!ok){ this.fp.busy=false; return; }
     this.fp.busy=true;
@@ -4433,16 +4513,24 @@ function app(){ return {
   //  from inside a nested scope; the row carries everything the row draws.
   fAcceptRows(){
     return this.fBoard().map(col=>{
-      const unver=col.players.filter(p=>{
+      //  CARRY THE ID, NOT ONLY THE NAME — and the three fields the association's
+      //  registration is reconciled against. A name can be read; a record can be
+      //  acted on. This is what lets the refusal be cleared in place instead of
+      //  sending the coach to another section and losing the board.
+      const unver=col.players.map(p=>{
         const r=(this.pool||[]).find(x=>x.person_id===p.person_id);
-        return r && r.verification!=='verified'; })
-        .map(p=>(p.given_name+' '+p.family_name).replace('DEMO_',''));
+        if(!r || r.verification==='verified') return null;
+        return {id:p.person_id,
+                name:(p.given_name+' '+p.family_name).replace('DEMO_',''),
+                dob:r.dob||'—', gender:r.gender||'—', grp:r.age_group||'—'};
+      }).filter(Boolean);
       return { ci:col.ci, band:this.fSqLabel(col.ci),
         team:col.ref_team||null, name:col.ref_team?col.ref_team.team_name:'',
         div:this.fDivLabel(col.division_rank),
         rank:col.division_rank, n:col.players.length,
         over:Math.max(0,col.players.length-this.fp.cap),
         note:this.fp.acc.caps[col.ci]||'', unver:unver,
+        unverT:unver.map(u=>u.name).join(', '),
         vs:col.players.length?this.fColVs(col):'' };
     });
   },
@@ -4467,10 +4555,16 @@ function app(){ return {
     if(twice.length) out.push({k:'twice',
       t:twice.join(', ')+(twice.length===1?' is':' are')+' linked to more than one band',
       how:'One team can only take one roster. Link the others to a different team.'});
-    const unver=[...new Set(rows.flatMap(r=>r.unver))];
-    if(unver.length) out.push({k:'unver', t:unver.length+
+    //  THE STOP CARRIES THE RECORDS, so it can be cleared where it is raised.
+    //  A player can appear in only one band, but dedupe on the id anyway — the
+    //  list is what gets acted on and a name is not a key.
+    const seenP={}, unver=[];
+    rows.forEach(r=>r.unver.forEach(u=>{ if(seenP[u.id]) return;
+      seenP[u.id]=1; unver.push(u); }));
+    if(unver.length) out.push({k:'unver', people:unver, t:unver.length+
       (unver.length===1?' record has':' records have')+' not been checked against the registration: '+
-      unver.join(', '), how:'Verify them under Players — the gate is on the offer, not on the rating.'});
+      unver.map(u=>u.name).join(', '),
+      how:'Check each one here — the gate is on the offer, not on the rating, and nothing on this board is lost.'});
     const caps=rows.filter(r=>r.over>0 && !r.note.trim()).map(r=>r.name||('#'+(r.ci+1)));
     if(caps.length) out.push({k:'cap', t:caps.join(', ')+
       (caps.length===1?' is':' are')+' over the squad cap of '+this.fp.cap,
@@ -4478,6 +4572,42 @@ function app(){ return {
     return out;
   },
   fAcceptCount(){ return this.fAcceptRows().reduce((a,r)=>a+r.n,0); },
+  //  ── CLEARING THE VERIFICATION STOP WHERE IT IS RAISED ───────────────────
+  //  Ming, 20 Aug 2026, blocked at accept with eight unchecked records and an
+  //  hour of hand moves on the board behind him. Sending him to Players to tick
+  //  them was the screen telling him to throw his work away — the run is
+  //  live-only until N7 persists it, so leaving the modal loses the draft.
+  //
+  //  This is the SAME three acts as the player card, in the same order, with the
+  //  same rule: `admin` must say why, the other two write immediately. It is not
+  //  a bulk tick and must not become one — a gate that can be cleared for
+  //  everybody at once is not a gate. The count on screen is what makes a run
+  //  through eight of them feel finite.
+  async fVerify(id, src){
+    const note=(this.fp.acc.vfy.note||'').trim();
+    if(src==='admin' && !note){ this.fp.acc.vfy.err='Say why you are standing behind this record.'; return; }
+    this.fp.acc.vfy.busy=id; this.fp.acc.vfy.err='';
+    const {error}=await this.sb.from('person').update({
+      verification:'verified', verified_source:src, verified_by:this.me?.id,
+      verified_note: src==='admin' ? note : null }).eq('id', id);
+    this.fp.acc.vfy.busy='';
+    if(error){ this.fp.acc.vfy.err=error.message; return; }
+    this.fp.acc.vfy.open=''; this.fp.acc.vfy.note='';
+    //  The write succeeded, so the row is verified. Patch it rather than
+    //  refetching the pool: a refetch is a second source of truth for the board
+    //  to disagree with, and the board is the thing being protected here.
+    const p=(this.pool||[]).find(x=>x.person_id===id);
+    if(p){ p.verification='verified'; p.verified_source=src; this.pool=[...this.pool]; }
+    const q=(this.people||[]).find(x=>x.id===id);
+    if(q){ q.verification='verified'; q.verified_source=src; }
+  },
+  //  What the coach is actually being asked. Verification is RECONCILIATION —
+  //  the club matches the association's registration, which is already
+  //  parent-attested and paid against. It is never a "confirm your details"
+  //  email to the family.
+  fVerifyWhy(){ return 'Checking a record means matching it to the association’s registration — '
+    +'the name, the date of birth and the gender the child is registered under. '
+    +'It is not a second birthday check, and it is not a question for the parent.'; },
   async fAccept(){
     if(this.fAcceptStops().length) return;
     this.fp.acc.busy=true; this.fp.acc.err=''; this.fp.acc.done=null;
