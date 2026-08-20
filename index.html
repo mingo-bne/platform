@@ -4105,11 +4105,26 @@ function app(){ return {
   //  ACCUMULATES them — so the most recent few are cards and the rest sit
   //  behind one control. Ordered by the year age is reckoned at, newest first,
   //  with the current season pulled to the front of its year.
+  //  THE CURRENT SEASON IS ON THE LEFT; WHAT IS AHEAD RUNS TO THE RIGHT.
+  //  Ming, 20 Aug 2026. The order used to be newest year first, which put next
+  //  summer to the left of the season a club is actually running — the tile you
+  //  press ten times a day was never the first one.
+  //  Among several current seasons, the one that FINISHES FIRST leads: a club
+  //  running winter and summer at once is closing winter out, so that is the one
+  //  it is working. Then alphabetical, so the row never reorders itself over a
+  //  detail nobody set.
+  //  NO CLOCK ANYWHERE. "Ahead" is ordered on `season.year`, the number the CLUB
+  //  states, and on the end date it typed — never on today's date. Inferring it
+  //  from a clock would break the rule that keeps age eligibility honest.
   dashSeasonOrder(list){
+    const end = s => String(s.ends_on || '9999-12-31');   // no end date sorts last in its block
     return (list||[]).slice().sort((a,b) =>
-      (b.year||0) - (a.year||0)
-      || (b.is_current?1:0) - (a.is_current?1:0)
-      || String(a.name).localeCompare(String(b.name)));
+         (b.is_current?1:0) - (a.is_current?1:0)
+      || (a.is_current && b.is_current
+            ? 0
+            : (a.year||0) - (b.year||0))
+      || end(a).localeCompare(end(b))
+      || String(a.name||'').localeCompare(String(b.name||'')));
   },
   //  IN PLAY — which is exactly "current and future" once a club archives what
   //  is past. Ming, 19 Aug 2026. It needs no date arithmetic, and it must not
