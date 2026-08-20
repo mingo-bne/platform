@@ -490,6 +490,15 @@ word-break:break-all}
 .stop .how{color:var(--ink2);font-size:11.5px;margin-top:2px}
 /* the placement board's action cell — the one action that list exists for,
    on the row, because recording forty answers is a repeated act */
+/* THE TEAMS IN AN AGE GROUP, AS TILES. Ming, 20 Aug 2026 — a club enters a
+   handful of teams into one group, and a tile read at a glance beats a stacked
+   row. Same control the seasons use. */
+.ttiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
+.ttile{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:10px 12px}
+.ttile.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
+.ttile>b{font-size:14.5px;color:var(--navy);display:block;line-height:1.25}
+.ttile .mt{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.ttile .ta{display:flex;gap:6px;margin-top:9px}
 /* ══ THE TEAM CARD — a port of the TMS card, in the TMS tokens ══════════════
    Ming, 20 Aug 2026. The roster was a list of rows; a coach reading a squad
    wants its shape, its numbers, and its players as cards. Nothing here is a
@@ -1071,10 +1080,54 @@ word-break:break-all}
 
       <div class="pbody">
         <div class="tsplit">
+          <!-- ══ THE LEFT RAIL IS CONTEXTUAL ══════════════════════════════
+               Ming, 20 Aug 2026: "once click the roster, the age group list on
+               the left shall be replaced by the player pool."
+               Browsing, the question is WHICH GROUP. Editing a roster, the age
+               group is settled and the only list you need is who you can put in
+               the team — right beside the squad you are dropping them into,
+               rather than underneath it where you cannot see both at once. One
+               rail, two jobs, never both at the same time. -->
+          <div x-show="tm.view==='roster' && selTeam()">
+            <div class="cath" style="margin-top:0">Player pool</div>
+            <div class="field" style="margin-bottom:6px">
+              <input type="search" x-model="tm.q" placeholder="Search"></div>
+            <select x-model="tm.scope" style="width:100%;margin-bottom:6px">
+              <option value="grp">This age group</option>
+              <option value="all">All age groups</option>
+            </select>
+            <label class="fl" style="margin:0 0 6px;display:block">
+              <input type="checkbox" x-model="tm.hidePlaced" style="width:auto;margin-right:6px">
+              Hide anyone already placed here</label>
+            <!-- dropping a player BACK on the pool takes them off the roster —
+                 the reverse of the drag that put them there -->
+            <div class="pool" :class="tm.over?'over':''"
+                 @dragover.prevent="tm.over=true" @dragleave="tm.over=false"
+                 @drop.prevent="tm.over=false; tDropPool()">
+              <template x-for="p in poolShown()" :key="p.person_id">
+                <div class="pitem2" draggable="true"
+                     @dragstart="tm.drag=p.person_id; tm.dragRow=null"
+                     @dblclick="place(p.person_id)">
+                  <span class="pn" x-text="p.given_name+' '+p.family_name"></span>
+                  <span class="c" x-text="p.age!=null ? p.age : '?'"></span>
+                  <span class="pv" x-text="rate2(p.rating)"></span>
+                  <span class="elig" :class="eligOf(p).k" x-text="eligOf(p).s"></span>
+                  <button class="btn sm" @click="place(p.person_id)"
+                          :disabled="!tm.selected || eligOf(p).k==='no'">+</button>
+                </div>
+              </template>
+              <template x-if="!poolShown().length">
+                <div class="empty" style="padding:16px 10px">Nobody left in this filter.</div>
+              </template>
+            </div>
+            <p class="note">Drag a name onto a zone to place them <b>and</b> say what they are in
+              this team. Drag one back here to take them off.</p>
+          </div>
+
           <!-- ── AGE GROUPS, LEFT ── every group the club's bracket rule
                produced, not only the ones with teams: you pick the group you are
                entering FOR, then enter a team into it. -->
-          <div>
+          <div x-show="!(tm.view==='roster' && selTeam())">
             <div class="cath" style="margin-top:0">Age group</div>
             <template x-for="g in allAgeGroups()" :key="g">
               <button class="agi" :class="tm.grpSel===g?'on':''"
@@ -1157,23 +1210,29 @@ word-break:break-all}
                   </div>
                 </div>
 
-                <template x-for="ts in teamSeasonsIn(tm.grpSel||null)" :key="ts.id">
-                  <div class="tcard">
-                    <div class="th">
+                <!-- THE TEAMS IN THIS GROUP, AS TILES. Ming, 20 Aug 2026. A
+                     club works one age group at a time and enters a handful of
+                     teams into it; a tile you can read at a glance beats a
+                     stacked row, and it is the same control the seasons use. -->
+                <div class="ttiles">
+                  <template x-for="ts in teamSeasonsIn(tm.grpSel||null)" :key="ts.id">
+                    <div class="ttile" :class="tm.selected===ts.id?'on':''">
                       <b x-text="ts.team_name"></b>
-                      <span class="c grp" x-show="ts.division_label || ts.division"
-                            x-text="ts.division_label || ts.division"></span>
-                      <span class="c" x-show="!(ts.division_label || ts.division)"
-                            style="color:var(--ink3)">no division</span>
-                      <span class="c" x-text="rosterOf(ts.id).length+' players'"></span>
-                      <span class="c" x-text="'avg '+(rosterAvg(ts.id) || '–')"></span>
+                      <div class="mt">
+                        <span class="c grp" x-show="ts.division_label || ts.division"
+                              x-text="ts.division_label || ts.division"></span>
+                        <span class="c" x-show="!(ts.division_label || ts.division)"
+                              style="color:var(--ink3)">no division</span>
+                        <span class="c" x-text="rosterOf(ts.id).length+' players'"></span>
+                        <span class="c" x-text="'avg '+(rosterAvg(ts.id) || '–')"></span>
+                      </div>
+                      <div class="ta">
+                        <button class="btn sm" @click="openTeamEdit(ts.id)">Edit</button>
+                        <button class="btn sm pri" @click="openTeamRoster(ts.id)">Roster</button>
+                      </div>
                     </div>
-                    <div class="ta">
-                      <button class="btn sm" @click="openTeamEdit(ts.id)">Edit</button>
-                      <button class="btn sm pri" @click="openTeamRoster(ts.id)">Roster</button>
-                    </div>
-                  </div>
-                </template>
+                  </template>
+                </div>
                 <template x-if="!teamSeasonsIn(tm.grpSel||null).length && !tm.adding">
                   <div class="empty">No teams in <span x-text="tm.grpSel || 'this group'"></span>
                     for <span x-text="seasonName(seasonId)"></span> yet.</div>
@@ -1393,39 +1452,6 @@ word-break:break-all}
                     Empty. Drag a name from the pool below, or press <b>+</b> beside one.</div>
                 </template>
 
-                <!-- ── the pool, BENEATH the squad and full width ── -->
-                <div class="cath">Player pool</div>
-                <div class="inline" style="margin-top:0">
-                  <input type="search" x-model="tm.q" placeholder="Search" style="max-width:220px">
-                  <select x-model="tm.scope" style="width:auto">
-                    <option value="grp">This age group</option>
-                    <option value="all">All age groups</option>
-                  </select>
-                  <label class="fl" style="margin:0">
-                    <input type="checkbox" x-model="tm.hidePlaced" style="width:auto;margin-right:6px">
-                    Hide anyone already placed in this age group</label>
-                </div>
-                <div class="poolgrid" :class="tm.over?'over':''"
-                     @dragover.prevent="tm.over=true" @dragleave="tm.over=false"
-                     @drop.prevent="tm.over=false; if(tm.drag) place(tm.drag); tm.drag=null">
-                  <template x-for="p in poolShown()" :key="p.person_id">
-                    <div class="pitem2" draggable="true"
-                         @dragstart="tm.drag=p.person_id" @dblclick="place(p.person_id)">
-                      <span class="pn" x-text="p.given_name+' '+p.family_name"></span>
-                      <span class="c" x-text="p.age!=null ? p.age : '?'"></span>
-                      <span class="pv" x-text="rate2(p.rating)"></span>
-                      <span class="elig" :class="eligOf(p).k" x-text="eligOf(p).s"></span>
-                      <button class="btn sm" @click="place(p.person_id)"
-                              :disabled="!tm.selected || eligOf(p).k==='no'">+</button>
-                    </div>
-                  </template>
-                  <template x-if="!poolShown().length">
-                    <div class="empty" style="padding:16px 10px">Nobody left in this filter.</div>
-                  </template>
-                </div>
-                <p class="note">Drag a name onto a zone to place them AND say what they are in this
-                  team; drop on the pool area to place without a zone. A player can be in one team
-                  per age group, and in as many age groups as you place them.</p>
               </div>
             </template>
           </div>
@@ -3707,7 +3733,7 @@ function app(){ return {
   tm:{selected:'',grpSel:null,view:'list',adding:false,name:'',grp:'',div:'',
       ename:'',egrp:'',ediv:'',esaved:'',
       q:'',scope:'grp',hidePlaced:true,
-      drag:null,over:false,busy:false,err:'',dsaved:'',
+      drag:null,dragRow:null,over:false,busy:false,err:'',dsaved:'',
       /* what the team card reads — see loadTeams() */
       shape:[],offers:[],regs:[],scoring:[]},
   qv:{open:false,note:'',busy:false,err:''},
@@ -4144,6 +4170,14 @@ function app(){ return {
        fill:'rgba(138,138,128,.08)'},
       {vals:rows.map(r=>r.team), stroke:'#1F3864', fill:'rgba(31,56,100,.20)', w:2, dot:true},
     ], 240);
+  },
+  //  DRAGGING A CARD BACK TO THE POOL TAKES THEM OFF. The reverse of the drag
+  //  that put them there, and the only way the rail can be a drop target without
+  //  meaning something different in each direction. A name dragged FROM the pool
+  //  and dropped back on it is a no-op, not a removal.
+  async tDropPool(){
+    const row=this.tm.dragRow; this.tm.drag=null; this.tm.dragRow=null; this.tm.over=false;
+    if(row) await this.unplace(row);
   },
   //  Dropping ON a zone places the player AND says what they are in this team.
   //  Dropping on the pool area is a plain placement and leaves the zone alone —
