@@ -480,6 +480,12 @@ word-break:break-all}
 /* the placement board's action cell — the one action that list exists for,
    on the row, because recording forty answers is a repeated act */
 .plact{width:1%;white-space:nowrap;text-align:right}
+/* the decline confirmation, ON the row — a response the user cannot see is no
+   response, and below a 64-row table is 4,000px out of view */
+.pldec{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+ background:var(--badbg);border:1px solid var(--badline);border-radius:8px;padding:3px 7px}
+.pldec .q{font-size:11.5px;color:var(--bad)}
+.pldec .q b{color:var(--bad)}
 .plact input{font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line2);
  border-radius:6px;background:#fff}
 /* clearing a stop where it is raised — one record per row, never a bulk tick */
@@ -1630,13 +1636,33 @@ word-break:break-all}
                     </td>
                     <td class="plact">
                       <!-- ── the answer ────────────────────────────────────── -->
+                      <!-- THE CONFIRMATION HAPPENS ON THE ROW. Ming, 20 Aug 2026:
+                           "declined at the moment does nothing." It did exactly
+                           what it was built to do — it opened a confirmation box
+                           BELOW the table, which with sixty-four rows rendered
+                           four thousand pixels under the fold. A response the
+                           user cannot see is no response. The two-step guard
+                           stays (a decline takes a child off a roster); it just
+                           happens where the eye already is. -->
                       <template x-if="plBucket().act==='answer'">
-                        <span class="inline" style="margin:0;gap:5px;flex-wrap:nowrap">
-                          <button class="btn sm" :disabled="pl.busy===r.person_id"
-                                  @click="plAnswer(r,'accepted')">Accepted</button>
-                          <button class="btn sm" :class="pl.decline===r.person_id?'pri':''"
-                                  :disabled="pl.busy===r.person_id"
-                                  @click="pl.decline = pl.decline===r.person_id?'':r.person_id">Declined…</button>
+                        <span class="inline" style="margin:0;gap:5px;flex-wrap:nowrap;justify-content:flex-end">
+                          <template x-if="pl.decline!==r.person_id">
+                            <span class="inline" style="margin:0;gap:5px;flex-wrap:nowrap">
+                              <button class="btn sm" :disabled="pl.busy===r.person_id"
+                                      @click="plAnswer(r,'accepted')">Accepted</button>
+                              <button class="btn sm" :disabled="pl.busy===r.person_id"
+                                      @click="pl.decline=r.person_id">Declined…</button>
+                            </span>
+                          </template>
+                          <template x-if="pl.decline===r.person_id">
+                            <span class="pldec">
+                              <span class="q">Off <b x-text="r.team_name || r.team_label"></b>,
+                                back to the pool?</span>
+                              <button class="btn sm pri" :disabled="pl.busy===r.person_id"
+                                      @click="plAnswer(r,'declined')">Yes, declined</button>
+                              <button class="btn sm" @click="pl.decline=''">Keep it open</button>
+                            </span>
+                          </template>
                         </span>
                       </template>
                       <!-- ── the registration ──────────────────────────────── -->
@@ -1669,22 +1695,6 @@ word-break:break-all}
               </tbody>
             </table>
             </template>
-
-            <!-- the decline confirmation sits under the table, naming the team and
-                 saying what it does. A decline takes a child off a roster: it is
-                 not a control that belongs unguarded on a row of a ledger. -->
-            <div class="stop" x-show="pl.decline">
-              <b x-text="plDeclineName()"></b>
-              <div class="how">Recording a decline takes them off that roster and returns them to
-                the pool, still training with the club. The place is then backfilled by hand — the
-                engine is never re-run, because families who have already been told must not be
-                reshuffled.</div>
-              <div class="inline" style="margin-top:7px">
-                <button class="btn sm pri" @click="plAnswer(plDeclineRow(),'declined')"
-                        :disabled="pl.busy">Record the decline</button>
-                <button class="btn sm" @click="pl.decline=''">Keep the offer open</button>
-              </div>
-            </div>
 
             <p class="note" x-show="plBucket().act==='backfill' && plRows().length">
               Backfilling in place — picking a replacement here and seeing what it costs the team's
@@ -3970,7 +3980,8 @@ function app(){ return {
     return [
       {k:'answer', label:'Awaiting an answer', act:'answer', col:'Standing', tone:'wn',
        rule:'A place has been offered and the family has not answered. Accepting puts them on the '
-           +'roster; declining returns them to the pool.',
+           +'roster; declining takes them off it and returns them to the pool — still training with '
+           +'the club. The place is then backfilled by hand, never by re-running the engine.',
        empty:'Nobody is waiting on a family right now.',
        rows:f(r=>r.offer_response==='pending')},
       {k:'register', label:'Accepted, not registered', act:'register', col:'Standing', tone:'wn',
@@ -4011,9 +4022,6 @@ function app(){ return {
                                            && (r.fees==='unpaid'||r.fees==='part_paid')).length;
     return 0;
   },
-  plDeclineRow(){ return this.plAll().find(r=>r.person_id===this.pl.decline) || null; },
-  plDeclineName(){ const r=this.plDeclineRow(); if(!r) return '';
-    return 'Record '+r.name+' as declining '+(r.team_name||r.team_label||'their place')+'?'; },
 
   //  ── recording the answer ────────────────────────────────────────────────
   //  The database does the rest: `sync_player_season_from_offer` moves the club
