@@ -3157,7 +3157,16 @@ values (
             </div>
           </template>
 
-          <div class="warnbox" x-show="!fAcceptStops().length">
+          <!-- A REFUSAL IS A RED BOX WHERE THE WORK IS, NOT GREY TEXT IN THE
+               FOOTER. It used to render as a small `.note` at the far right of
+               the button row, which is where a message goes to be missed. -->
+          <div class="stop" x-show="fp.acc.err">
+            <b x-text="fp.acc.err"></b>
+            <div class="how">Nothing was written. Fix what is named here or above, then press it
+              again.</div>
+          </div>
+
+          <div class="warnbox" x-show="!fAcceptStops().length && !fp.acc.err">
             A place is binding at <b>registration</b>, not at acceptance. Accepting here enters the
             teams and puts the offers out; nobody is registered by it.</div>
 
@@ -3184,15 +3193,23 @@ values (
           <button class="btn pri" x-show="fp.phase==='draft'"
                   @click="fp.acc.err=''; fp.acc.done=null; fp.phase='accept'">Accept these teams…</button>
           <button class="btn" x-show="fp.phase==='accept'" @click="fp.phase='draft'">← Back to the draft board</button>
+          <!-- A CONTROL IS NEVER DISABLED BY A DERIVED METHOD. Ming, 20 Aug 2026,
+               sat in front of a dead button with nothing on screen explaining it:
+               `:disabled` was computed from `fAcceptStops().length`, it evaluated
+               to true once while the bands were still unlinked, and it never ran
+               again when the reason went away. A disabled control that cannot say
+               why is the worst state in the product — it is indistinguishable
+               from a broken app. It now only greys out while it is WORKING, which
+               is a plain reactive flag. Everything else is refused on the press,
+               and the refusal is shown. -->
           <button class="btn pri" x-show="fp.phase==='accept' && !fp.acc.done"
-                  @click="fAccept()" :disabled="fp.acc.busy || fAcceptStops().length">
+                  @click="fAccept()" :disabled="fp.acc.busy">
             Enter the teams and send the offers</button>
           <button class="btn pri" x-show="fp.phase==='accept' && fp.acc.done"
                   @click="fAcceptToTeams()">Open the rosters →</button>
           <button class="btn" @click="modal=''">Close</button>
           <span class="c" x-show="fp.busy || fp.acc.busy">working…</span>
           <span class="note" style="margin:0;margin-left:auto" x-show="fp.err" x-text="fp.err"></span>
-          <span class="note" style="margin:0;margin-left:auto" x-show="fp.acc.err" x-text="fp.acc.err"></span>
           <span class="note" style="margin:0;margin-left:auto"
                 x-show="!fp.err && fp.phase==='setup' && fp.result && !fp.stale">
             Open the draft board to move players by hand, then accept.</span>
@@ -5002,7 +5019,17 @@ function app(){ return {
     +'the name, the date of birth and the gender the child is registered under. '
     +'It is not a second birthday check, and it is not a question for the parent.'; },
   async fAccept(){
-    if(this.fAcceptStops().length) return;
+    //  IT ALWAYS ANSWERS THE PRESS. Returning silently was survivable while the
+    //  button disabled itself; now that it does not, a press with something
+    //  outstanding has to say what. The list is already on screen — this names
+    //  the count so the eye is sent to it.
+    const stops=this.fAcceptStops();
+    if(stops.length){
+      this.fp.acc.err = stops.length===1
+        ? 'One thing is still outstanding — it is listed below.'
+        : stops.length+' things are still outstanding — they are listed below.';
+      return;
+    }
     this.fp.acc.busy=true; this.fp.acc.err=''; this.fp.acc.done=null;
     const squads=this.fBoard().map(col=>({
       //  THE LINKED ENTRY, BY ID. The club chose a team that already exists in
