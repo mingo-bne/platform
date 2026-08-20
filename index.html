@@ -479,13 +479,28 @@ word-break:break-all}
 .stop .how{color:var(--ink2);font-size:11.5px;margin-top:2px}
 /* the placement board's action cell — the one action that list exists for,
    on the row, because recording forty answers is a repeated act */
+/* THE PLACEMENT LEDGER'S OWN COLUMNS. Left to itself the table gave the name
+   three lines and the team two, and the confirmation ran off the right edge —
+   Ming, 20 Aug 2026: "the design doesn't look good." A ledger is scanned down
+   one column at a time, so every column is sized for its content and nothing
+   inside a cell wraps. */
+.plt{table-layout:auto}
+.plt td,.plt th{vertical-align:middle}
+.plt .pn{white-space:nowrap}
+.plt .pn b{display:block;font-size:12.5px}
+.plt .pn span{display:block;font-size:10.5px;color:var(--ink3);white-space:nowrap}
+.plt .pg,.plt .pt{white-space:nowrap}
+.plt .pt b{font-weight:600}
+.plt .pt span{display:block;font-size:10.5px;color:var(--ink3)}
+.plt .ps{white-space:nowrap}
+.plt .ps span.sub{display:block;font-size:10.5px;color:var(--ink3);white-space:normal;
+ max-width:190px;margin-top:2px}
 .plact{width:1%;white-space:nowrap;text-align:right}
 /* the decline confirmation, ON the row — a response the user cannot see is no
    response, and below a 64-row table is 4,000px out of view */
 .pldec{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
- background:var(--badbg);border:1px solid var(--badline);border-radius:8px;padding:3px 7px}
-.pldec .q{font-size:11.5px;color:var(--bad)}
-.pldec .q b{color:var(--bad)}
+ background:var(--badbg);border:1px solid var(--badline);border-radius:8px;padding:3px 6px}
+.pldec .q{font-size:11.5px;color:var(--bad);font-weight:600}
 .plact input{font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line2);
  border-radius:6px;background:#fff}
 /* clearing a stop where it is raised — one record per row, never a bulk tick */
@@ -1609,7 +1624,7 @@ word-break:break-all}
             </template>
 
             <template x-if="plRows().length">
-            <table class="jt">
+            <table class="jt plt">
               <thead><tr>
                 <th>Player</th><th>Age group</th><th>Team</th>
                 <th x-text="plBucket().col || 'Standing'"></th>
@@ -1618,21 +1633,19 @@ word-break:break-all}
               <tbody>
                 <template x-for="r in plRows()" :key="r.person_id">
                   <tr>
-                    <td>
+                    <td class="pn">
                       <b x-text="r.name"></b>
-                      <span class="c wn" x-show="r.verification!=='verified'"
-                            style="margin-left:6px">unverified</span>
-                      <div class="how" style="font-size:11px;color:var(--ink3)"
-                           x-text="r.sub"></div>
+                      <span x-text="r.sub"></span>
                     </td>
-                    <td x-text="r.age_group || '—'"></td>
-                    <td><span x-text="r.team_name || r.team_label || '—'"></span>
-                      <div class="how" style="font-size:11px;color:var(--ink3)"
-                           x-show="r.division_label" x-text="r.division_label"></div></td>
-                    <td>
+                    <td class="pg" x-text="r.age_group || '—'"></td>
+                    <td class="pt">
+                      <b x-text="r.team_name || r.team_label || '—'"></b>
+                      <span x-show="r.division_label" x-text="r.division_label"></span>
+                    </td>
+                    <td class="ps">
                       <span class="c" :class="r.tone" x-text="r.standing"></span>
-                      <div class="how" style="font-size:11px;color:var(--ink3)"
-                           x-show="r.standing2" x-text="r.standing2"></div>
+                      <span class="c wn" x-show="r.verification!=='verified'">unverified</span>
+                      <span class="sub" x-show="r.standing2" x-text="r.standing2"></span>
                     </td>
                     <td class="plact">
                       <!-- ── the answer ────────────────────────────────────── -->
@@ -1656,11 +1669,13 @@ word-break:break-all}
                           </template>
                           <template x-if="pl.decline===r.person_id">
                             <span class="pldec">
-                              <span class="q">Off <b x-text="r.team_name || r.team_label"></b>,
-                                back to the pool?</span>
+                              <!-- THE TEAM IS ALREADY ON THIS ROW. Naming it again
+                                   in the confirmation is what pushed the strip off
+                                   the right edge of the screen. -->
+                              <span class="q">Decline?</span>
                               <button class="btn sm pri" :disabled="pl.busy===r.person_id"
-                                      @click="plAnswer(r,'declined')">Yes, declined</button>
-                              <button class="btn sm" @click="pl.decline=''">Keep it open</button>
+                                      @click="plAnswer(r,'declined')">Yes</button>
+                              <button class="btn sm" @click="pl.decline=''">Cancel</button>
                             </span>
                           </template>
                         </span>
@@ -3954,7 +3969,10 @@ function app(){ return {
         const bits=[];
         if(r.rating!=null) bits.push('rated '+Number(r.rating).toFixed(2));
         else bits.push('not rated');
-        if(r.offered_at) bits.push('offered '+String(r.offered_at).slice(0,10));
+        //  A DATE ON A LEDGER ROW IS READ, NOT COMPUTED WITH. Formatted off the
+        //  ISO string by hand — `new Date()` would shift the day by the local
+        //  offset, which is the same trap the session windows carry a rule about.
+        if(r.offered_at) bits.push('offered '+this.plDay(r.offered_at));
         //  BINDING IS REGISTRATION, so that is what the standing column says —
         //  never "accepted", which is only an intention until it is registered.
         let standing='training', tone='', standing2='';
@@ -4009,6 +4027,12 @@ function app(){ return {
        empty:'No player in this season yet.',
        rows:all},
     ].map(b=>({...b, n:b.rows.length}));
+  },
+  plDay(iso){
+    const m=String(iso||'').slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m) return '';
+    return String(+m[3])+' '+['Jan','Feb','Mar','Apr','May','Jun',
+                              'Jul','Aug','Sep','Oct','Nov','Dec'][+m[2]-1];
   },
   plBucket(){ return this.plBuckets().find(b=>b.k===this.pl.bucket) || this.plBuckets()[0]; },
   plRows(){ return this.plBucket().rows; },
