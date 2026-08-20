@@ -490,6 +490,50 @@ word-break:break-all}
 .stop .how{color:var(--ink2);font-size:11.5px;margin-top:2px}
 /* the placement board's action cell — the one action that list exists for,
    on the row, because recording forty answers is a repeated act */
+/* ══ THE TEAM CARD — a port of the TMS card, in the TMS tokens ══════════════
+   Ming, 20 Aug 2026. The roster was a list of rows; a coach reading a squad
+   wants its shape, its numbers, and its players as cards. Nothing here is a
+   second visual language — same paper, same chips, same panel. */
+.tch{display:flex;align-items:flex-start;gap:10px;margin:0 0 10px}
+.tch .tt b{font-size:17px;display:block;line-height:1.25}
+.tch .tt .sub{font-size:12px;color:var(--ink2);display:flex;align-items:center;
+ gap:4px;flex-wrap:wrap;margin-top:2px}
+.tch .tt .sub select{font-size:11.5px;padding:2px 4px}
+.statrow.tsr{flex-wrap:wrap}
+.statrow.tsr>div.wn b{color:var(--warn)}
+.panel2{background:#fff;border:1px solid var(--line);border-radius:10px;
+ padding:10px 12px;margin:0 0 10px}
+.tsh{font-size:12px}
+.tsh td{border:0;border-bottom:1px solid var(--line);padding:3px 0}
+.tsh td.v{text-align:right;width:44px;font-weight:600;font-variant-numeric:tabular-nums}
+.tsh td.d{text-align:right;width:46px;font-variant-numeric:tabular-nums;color:var(--ink3)}
+.tsh td.d.hi{color:var(--ok)} .tsh td.d.lo{color:var(--bad)}
+/* the zones. TWO THINGS YOU PICK OUT; EVERYONE ELSE IS THE THIRD. */
+.zcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;
+ margin:2px 0 12px}
+.zh{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;
+ letter-spacing:.7px;text-transform:uppercase;color:var(--ink3);padding:2px 2px 5px}
+.zh b{margin-left:auto;color:var(--ink2)}
+.zh i{width:9px;height:9px;border-radius:2px;background:var(--ink3);display:inline-block}
+.zh i.z0{background:#3c7dc4} .zh i.z1{background:#1d9e75} .zh i.z2{background:#8b8981}
+.zdrop{min-height:74px;border:1px dashed var(--line2);border-radius:9px;padding:7px;
+ display:flex;flex-direction:column;gap:7px;background:#fbfaf8}
+.pcard{background:#fff;border:1px solid var(--line);border-left:3px solid var(--line2);
+ border-radius:8px;padding:7px 9px}
+.pcard.ex{border-left-color:var(--warn)}
+.pcard .ph{display:flex;align-items:flex-start;gap:6px}
+.pcard .ph b{flex:1;min-width:0;font-size:13px;line-height:1.25}
+.pcard .pa{display:flex;gap:3px;flex:0 0 auto}
+.pcard .pchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.pcard .pchips .stat{background:#efeefb;border-color:#cecbf6;color:#4a44a8}
+.pcard .pchips .rt{background:var(--okbg);border-color:var(--okline);color:var(--ok)}
+.pcard .plens{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.pcard .plens select{font:inherit;font-size:10.5px;padding:2px 3px;width:auto}
+/* the pool, beneath the squad and full width */
+.poolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:6px;
+ border:1px solid var(--line);border-radius:9px;padding:7px;background:#fff;margin-top:6px}
+.poolgrid.over{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
+.poolgrid .pitem2{border-bottom:0;border:1px solid var(--line);border-radius:7px}
 /* THE PLACEMENT LEDGER'S OWN COLUMNS. Left to itself the table gave the name
    three lines and the team two, and the confirmation ran off the right edge —
    Ming, 20 Aug 2026: "the design doesn't look good." A ledger is scanned down
@@ -1203,94 +1247,185 @@ word-break:break-all}
               </div>
             </template>
 
-            <!-- ── ROSTER: who is IN it, this season ── -->
+            <!-- ══ ROSTER — THE TEAM CARD ══════════════════════════════════
+                 A PORT OF THE TMS TEAM CARD, NOT A DESIGN. Ming, 20 Aug 2026,
+                 with the TMS screen beside it: the roster was a list of rows,
+                 and a coach reading a squad wants the squad's SHAPE, its
+                 numbers, and its players as cards they can see at a glance.
+                 Same tokens throughout — this is a different arrangement of the
+                 design system, never a second one.
+                 What is NOT here is as deliberate as what is: no jersey
+                 register and no staff assignment, because neither has a table
+                 behind it. A control that cannot do anything is worse than an
+                 absent one. -->
             <template x-if="tm.view==='roster' && selTeam()">
               <div>
-                <div class="inline" style="margin:0 0 8px">
+                <!-- ── the head: what this team IS ── -->
+                <div class="tch">
                   <button class="btn sm" @click="tm.view='list'">← <span x-text="tm.grpSel"></span></button>
-                  <b style="font-size:15px" x-text="selTeam()?.team_name"></b>
-                  <span class="c grp" x-text="selTeam()?.age_group || 'no age group'"></span>
-                  <span class="c" x-show="selTeam()?.division_label || selTeam()?.division"
-                        x-text="selTeam()?.division_label || selTeam()?.division"></span>
-                  <span class="c" x-text="rosterOf(tm.selected).length + ' players'"></span>
-                  <span class="c" x-text="'avg ' + (rosterAvg(tm.selected) || '–')"></span>
+                  <div class="tt">
+                    <b x-text="selTeam()?.team_name"></b>
+                    <div class="sub">
+                      <span x-text="selTeam()?.age_group || 'no age group'"></span>
+                      <span x-show="selTeam()?.division_label">
+                        · <span x-text="selTeam()?.division_label"></span></span>
+                      <span> · Proposed for <span x-text="seasonYear()"></span>:</span>
+                      <select style="width:auto" @change="tSetDivision($event.target.value)">
+                        <option value="" :selected="!selTeam()?.division_rank">Div —</option>
+                        <template x-for="n in 10" :key="n">
+                          <option :value="n" :selected="selTeam()?.division_rank===n"
+                                  x-text="fDivLabel(n)"></option>
+                        </template>
+                      </select>
+                    </div>
+                  </div>
                   <span style="margin-left:auto"></span>
                   <button class="btn sm" @click="openTeamEdit(tm.selected)">Edit the team</button>
                 </div>
+                <p class="note" style="margin:0 0 8px" x-show="tm.dsaved" x-text="tm.dsaved"></p>
 
-                <!-- ROSTER LEFT, POOL RIGHT — and the POOL DROPS BENEATH the
-                     roster when there is not room for both, rather than being
-                     clipped. `BACKLOG` N5c asked for exactly this at 400
-                     players; the narrow window is the same problem earlier. -->
-                <div class="rsplit">
-                  <div>
-                    <div class="rost" :class="tm.over?'over':''"
-                         @dragover.prevent="tm.over=true" @dragleave="tm.over=false"
-                         @drop.prevent="tm.over=false; if(tm.drag) place(tm.drag); tm.drag=null">
-                      <template x-for="r in rosterOf(tm.selected)" :key="r.id">
-                        <div class="rrow">
-                          <button class="star" :class="r.is_star?'on':''"
-                                  @click="setStar(r, !r.is_star)"
-                                  :title="r.is_star?'Starred':'Mark as a key player'">★</button>
-                          <span class="rn" x-text="r.given_name+' '+r.family_name"></span>
-                          <span class="c" x-text="r.age!=null ? r.age : '?'"></span>
-                          <span class="elig" :class="eligRow(r).k" x-text="eligRow(r).s"></span>
-                          <!-- ONE SELECT PER LENS THE CLUB USES, and each writes the
-                               column its axis names. The vocabulary is the sport's;
-                               what a player IS stays keyed to (team, player). -->
-                          <template x-for="l in clubLenses()" :key="l.k">
-                            <select @change="setSlot(r, l.axis, $event.target.value)">
-                              <option value="" :selected="!r[l.axis]" x-text="l.short+' —'"></option>
-                              <template x-for="z in l.slots" :key="z.k">
-                                <option :value="z.k" :selected="r[l.axis]===z.k" x-text="z.t"></option>
-                              </template>
-                            </select>
-                          </template>
-                          <span class="rv" x-text="rate2(r.rating)"></span>
-                          <button class="btn sm" @click="unplace(r)">Remove</button>
-                        </div>
-                      </template>
-                      <template x-if="!rosterOf(tm.selected).length">
-                        <div class="empty" style="padding:22px 10px">
-                          Empty. Drag a name from the pool, or press <b>+</b> beside one.</div>
-                      </template>
-                    </div>
-                  </div>
+                <!-- ── the numbers ── -->
+                <div class="statrow tsr">
+                  <div><b x-text="tCard().n"></b>players</div>
+                  <div><b x-text="tCard().onAge"></b>on age</div>
+                  <div :class="tCard().outside.length?'wn':''">
+                    <b x-text="tCard().outside.length"></b>outside bracket</div>
+                  <div><b x-text="tCard().avgAge"></b>avg age</div>
+                  <div><b x-text="tCard().accepted"></b>accepted</div>
+                  <div><b x-text="tCard().registered"></b>registered</div>
+                  <div><b x-text="tCard().stars"></b>star players</div>
+                  <div><b x-text="tCard().mix"></b><span x-text="tCard().mixLabel"></span></div>
+                  <div><b x-text="tCard().unplaced"></b>unplaced in group</div>
+                </div>
 
-                  <!-- ── the pool, beside the roster it feeds ── -->
-                  <div>
-                    <div class="cath" style="margin-top:0">Player pool</div>
-                    <div class="inline" style="margin-top:0">
-                      <input type="search" x-model="tm.q" placeholder="Search" style="flex:1;min-width:90px">
-                      <select x-model="tm.scope" style="width:auto">
-                        <option value="grp">This age group</option>
-                        <option value="all">All age groups</option>
-                      </select>
+                <!-- ── the shape. A CHART WITH NO DATA REFUSES TO DRAW ── -->
+                <div class="panel2" x-show="tShapeRows().length">
+                  <div class="shape">
+                    <div class="csvg" x-html="tRadar()"></div>
+                    <div>
+                      <div class="cath" style="margin-top:0">Rating shape</div>
+                      <p class="note" style="margin:0 0 6px">
+                        <span x-text="tCard().ratedLine"></span></p>
+                      <div class="cskey" style="margin-bottom:6px">
+                        <span class="lg"><i style="border-top:2px solid #1F3864"></i>this squad —
+                          <b x-text="tCard().overall"></b></span>
+                        <span class="lg"><i style="border-top:2px dashed #8A8A80"></i>
+                          <span x-text="selTeam()?.age_group"></span> average —
+                          <b x-text="tCard().groupOverall"></b></span>
+                      </div>
+                      <table class="jt tsh">
+                        <template x-for="m in tShapeRows()" :key="m.label">
+                          <tr>
+                            <td x-text="m.label"></td>
+                            <td class="v" x-text="m.team.toFixed(1)"></td>
+                            <td class="d" :class="m.delta==null?'':(m.delta<0?'lo':'hi')"
+                                x-text="m.delta==null ? '—'
+                                        : (m.delta>0?'+':'')+m.delta.toFixed(1)"></td>
+                          </tr>
+                        </template>
+                      </table>
                     </div>
-                    <label class="fl" style="margin:6px 0 4px">
-                      <input type="checkbox" x-model="tm.hidePlaced" style="width:auto;margin-right:6px">
-                      Hide anyone already placed in this age group</label>
-                    <div class="pool">
-                      <template x-for="p in poolShown()" :key="p.person_id">
-                        <div class="pitem2" draggable="true"
-                             @dragstart="tm.drag=p.person_id"
-                             @dblclick="place(p.person_id)">
-                          <span class="pn" x-text="p.given_name+' '+p.family_name"></span>
-                          <span class="c" x-text="p.age!=null ? p.age : '?'"></span>
-                          <span class="pv" x-text="rate2(p.rating)"></span>
-                          <span class="elig" :class="eligOf(p).k" x-text="eligOf(p).s"></span>
-                          <button class="btn sm" @click="place(p.person_id)"
-                                  :disabled="!tm.selected || eligOf(p).k==='no'">+</button>
-                        </div>
-                      </template>
-                      <template x-if="!poolShown().length">
-                        <div class="empty" style="padding:16px 10px">Nobody left in this filter.</div>
-                      </template>
-                    </div>
-                    <p class="note">Drag a name onto the roster, or use <b>+</b>. A player can be in
-                      one team per age group and in as many age groups as you place them.</p>
                   </div>
                 </div>
+                <p class="note" x-show="!tShapeRows().length && rosterOf(tm.selected).length">
+                  No one on this roster has an approved rating yet, so there is no shape to draw.
+                  Run a trial and confirm it, and it appears here.</p>
+
+                <!-- ── what needs a decision, stated where it happens ── -->
+                <p class="warnbar" style="border-radius:8px;border:1px solid var(--warnline)"
+                   x-show="tCard().outside.length">
+                  <b x-text="tCard().outsideLine"></b>
+                  Leave them in place to keep the exception, or take them off with <b>×</b>.
+                </p>
+
+                <!-- ── the squad, in its zones ──
+                     TWO THINGS YOU PICK OUT; EVERYONE ELSE IS THE THIRD. Other
+                     is implicit and is never a state anybody has to sort into. -->
+                <div class="zcols">
+                  <template x-for="z in tZones()" :key="z.k || 'other'">
+                    <div class="zcol">
+                      <div class="zh"><i :class="'z'+(z.i)"></i>
+                        <span x-text="z.t"></span><b x-text="z.n"></b></div>
+                      <div class="zdrop" @dragover.prevent @drop.prevent.stop="tDropZone($event, z.k)">
+                        <template x-for="c in z.cards" :key="c.id">
+                          <div class="pcard" :class="c.elig.k==='on2'?'':'ex'"
+                               draggable="true" @dragstart="tm.drag=c.r.person_id; tm.dragRow=c.r">
+                            <div class="ph">
+                              <b x-text="c.name"></b>
+                              <span class="pa">
+                                <button class="star" :class="c.star?'on':''"
+                                        @click="setStar(c.r, !c.star)"
+                                        :title="c.star?'Starred':'Mark as a key player'">★</button>
+                                <button class="btn sm" @click="unplace(c.r)" title="Take off this roster">×</button>
+                              </span>
+                            </div>
+                            <div class="pchips">
+                              <span class="c" x-show="c.gender" x-text="c.gender"></span>
+                              <span class="elig" :class="c.elig.k" x-show="c.elig.k!=='on2'"
+                                    x-text="c.elig.s"></span>
+                              <span class="c" x-show="c.age" x-text="c.age"></span>
+                              <span class="c stat" x-show="c.stats" x-text="c.stats"></span>
+                              <span class="c rt" x-show="c.rating" x-text="c.rating"></span>
+                            </div>
+                            <!-- one select per lens the club uses; the vocabulary
+                                 is the sport's, the value is keyed to (team, player) -->
+                            <div class="plens">
+                              <template x-for="l in clubLenses()" :key="l.k">
+                                <select @change="setSlot(c.r, l.axis, $event.target.value)">
+                                  <option value="" :selected="!c.r[l.axis]" x-text="l.short+' —'"></option>
+                                  <template x-for="s in l.slots" :key="s.k">
+                                    <option :value="s.k" :selected="c.r[l.axis]===s.k" x-text="s.t"></option>
+                                  </template>
+                                </select>
+                              </template>
+                            </div>
+                          </div>
+                        </template>
+                        <template x-if="!z.cards.length">
+                          <div class="empty" style="padding:14px 8px">Drop a player here.</div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+                <template x-if="!rosterOf(tm.selected).length">
+                  <div class="empty" style="padding:22px 10px">
+                    Empty. Drag a name from the pool below, or press <b>+</b> beside one.</div>
+                </template>
+
+                <!-- ── the pool, BENEATH the squad and full width ── -->
+                <div class="cath">Player pool</div>
+                <div class="inline" style="margin-top:0">
+                  <input type="search" x-model="tm.q" placeholder="Search" style="max-width:220px">
+                  <select x-model="tm.scope" style="width:auto">
+                    <option value="grp">This age group</option>
+                    <option value="all">All age groups</option>
+                  </select>
+                  <label class="fl" style="margin:0">
+                    <input type="checkbox" x-model="tm.hidePlaced" style="width:auto;margin-right:6px">
+                    Hide anyone already placed in this age group</label>
+                </div>
+                <div class="poolgrid" :class="tm.over?'over':''"
+                     @dragover.prevent="tm.over=true" @dragleave="tm.over=false"
+                     @drop.prevent="tm.over=false; if(tm.drag) place(tm.drag); tm.drag=null">
+                  <template x-for="p in poolShown()" :key="p.person_id">
+                    <div class="pitem2" draggable="true"
+                         @dragstart="tm.drag=p.person_id" @dblclick="place(p.person_id)">
+                      <span class="pn" x-text="p.given_name+' '+p.family_name"></span>
+                      <span class="c" x-text="p.age!=null ? p.age : '?'"></span>
+                      <span class="pv" x-text="rate2(p.rating)"></span>
+                      <span class="elig" :class="eligOf(p).k" x-text="eligOf(p).s"></span>
+                      <button class="btn sm" @click="place(p.person_id)"
+                              :disabled="!tm.selected || eligOf(p).k==='no'">+</button>
+                    </div>
+                  </template>
+                  <template x-if="!poolShown().length">
+                    <div class="empty" style="padding:16px 10px">Nobody left in this filter.</div>
+                  </template>
+                </div>
+                <p class="note">Drag a name onto a zone to place them AND say what they are in this
+                  team; drop on the pool area to place without a zone. A player can be in one team
+                  per age group, and in as many age groups as you place them.</p>
               </div>
             </template>
           </div>
@@ -3572,7 +3707,9 @@ function app(){ return {
   tm:{selected:'',grpSel:null,view:'list',adding:false,name:'',grp:'',div:'',
       ename:'',egrp:'',ediv:'',esaved:'',
       q:'',scope:'grp',hidePlaced:true,
-      drag:null,over:false,busy:false,err:''},
+      drag:null,over:false,busy:false,err:'',dsaved:'',
+      /* what the team card reads — see loadTeams() */
+      shape:[],offers:[],regs:[],scoring:[]},
   qv:{open:false,note:'',busy:false,err:''},
   pe:{id:null,given:'',family:'',dob:'',gender:'',ref:'',status:'active',
       verification:'unverified',vsource:'',vnote:'',
@@ -3833,6 +3970,26 @@ function app(){ return {
       : [];
     this.roster = this.seasonId ? await q('v_roster','*',['season_id',this.seasonId]) : [];
     this.pool   = this.seasonId ? await q('v_player_pool','*',['season_id',this.seasonId]) : [];
+    //  ── what the TEAM CARD reads ────────────────────────────────────────
+    //  The shape comes out of `v_team_shape` (migration 029) rather than the
+    //  client pulling every score in the club to average ten of them.
+    this.tm.shape  = this.seasonId ? await q('v_team_shape','*',['season_id',this.seasonId]) : [];
+    //  accepted / registered, so the card can say where the squad actually
+    //  stands. Both are small per season.
+    this.tm.offers = this.seasonId ? await q('team_offer','*',['season_id',this.seasonId]) : [];
+    this.tm.regs   = this.seasonId ? await q('player_season','*',['season_id',this.seasonId]) : [];
+    //  A SCORING RECORD IS LAST SEASON'S. Take the most recent record per player
+    //  from any season EARLIER than this one — the same rule Formation uses, and
+    //  the reason a card never shows this season's own numbers back at you.
+    {
+      const yr = (this.seasons.find(x=>x.id===this.seasonId)||{}).year;
+      const rows = this.seasonId ? await q('v_player_scoring') : [];
+      const best = {};
+      rows.filter(r => yr==null || r.year < yr)
+          .forEach(r => { const b=best[r.person_id];
+            if(!b || (r.year||0) > (b.year||0)) best[r.person_id]=r; });
+      this.tm.scoring = Object.values(best);
+    }
     if(!this.teamSeasons.find(ts=>ts.id===this.tm.selected)){
       this.tm.selected = (this.teamSeasons[0]||{}).id || '';
     }
@@ -3890,6 +4047,129 @@ function app(){ return {
   //  roster nobody trusts the rest of. Two decimals, and a dash where there is
   //  no rating at all — the same shape the rest of the product uses.
   rate2(v){ return (v===null||v===undefined||v==='') ? '–' : Number(v).toFixed(2); },
+  //  ══ THE TEAM CARD ═══════════════════════════════════════════════════════
+  //  A port of the TMS team card (Ming, 20 Aug 2026). DERIVED ONCE — the card's
+  //  numbers, its columns and its warnings all come out of `tCard()` and
+  //  `tZones()`, so a number in the header can never disagree with the list
+  //  beneath it. Same rule the comparison board is built on.
+  seasonYear(){ return (this.seasons.find(s=>s.id===this.seasonId)||{}).year || ''; },
+  tScore(pid){ return (this.tm.scoring||[]).find(s=>s.person_id===pid) || null; },
+  tCard(){
+    const ts=this.selTeam();
+    const roster=ts ? this.rosterOf(this.tm.selected) : [];
+    const grp=ts?.age_group||'';
+    const outside=roster.filter(r=>this.eligRow(r).k!=='on2');
+    const ages=roster.map(r=>r.age).filter(n=>n!=null);
+    const rated=roster.filter(r=>r.rating!=null);
+    const ids=new Set(roster.map(r=>r.person_id));
+    const offers=(this.tm.offers||[]).filter(o=>ids.has(o.person_id));
+    const regs=(this.tm.regs||[]).filter(x=>ids.has(x.person_id) && x.registered_at);
+    //  the mix across the zone lens — "2 / 1 / 2" reads as one fact
+    const z=this.tZones();
+    const shape=this.tShapeRows();
+    const mean=a=>a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+    const ov=mean(rated.map(r=>+r.rating));
+    const gov=mean(shape.map(m=>m.group).filter(v=>v!=null));
+    return {
+      n:roster.length,
+      onAge:roster.length-outside.length,
+      outside,
+      outsideLine: outside.length===1
+        ? '1 player is outside '+grp+' for '+this.seasonYear()+'.'
+        : outside.length+' players are outside '+grp+' for '+this.seasonYear()+'.',
+      avgAge: ages.length ? (ages.reduce((a,b)=>a+b,0)/ages.length).toFixed(1) : '—',
+      accepted: offers.filter(o=>o.response==='accepted').length,
+      registered: regs.length,
+      stars: roster.filter(r=>r.is_star).length,
+      mix: z.map(c=>c.n).join(' / '),
+      mixLabel: z.map(c=>String(c.t).toLowerCase()).join(' / '),
+      unplaced: this.poolAll().filter(p=>p.age_group===grp).length
+                - this.placedInGroup(grp).size,
+      overall: ov==null?'—':ov.toFixed(1),
+      groupOverall: gov==null?'—':gov.toFixed(1),
+      ratedLine: rated.length===roster.length
+        ? roster.length+' of '+roster.length+' rated'
+        : (roster.length-rated.length)+' of this squad have no rating, so this shape is drawn from '
+          +rated.length+'.',
+    };
+  },
+  //  TWO THINGS YOU PICK OUT; EVERYONE ELSE IS THE THIRD. Other is implicit —
+  //  never a state anybody has to sort into, and never something to warn about.
+  tZones(){
+    const lens=(this.clubLenses()||[]).find(l=>l.axis==='zone')
+            || (this.sportLenses()||[]).find(l=>l.axis==='zone');
+    const slots=(lens&&lens.slots)||[];
+    const roster=this.rosterOf(this.tm.selected);
+    const cols=slots.map((s,i)=>({k:s.k, t:s.t, i,
+      players:roster.filter(r=>r.zone===s.k)}));
+    cols.push({k:'', t:'Other', i:slots.length,
+      players:roster.filter(r=>!r.zone || !slots.some(s=>s.k===r.zone))});
+    return cols.map(c=>({...c, n:c.players.length,
+                         cards:c.players.map(r=>this.tCardOf(r))}));
+  },
+  tCardOf(r){
+    const e=this.eligRow(r), sc=this.tScore(r.person_id), yr=this.seasonYear();
+    //  A NUMBER WITHOUT A RECORD IS NOT SHOWN. No games on file means no chip,
+    //  never a zero — a zero reads as "played and scored nothing".
+    const stats = (sc && sc.games)
+      ? sc.games+' gms · '+Number(sc.ppg||0).toFixed(1)+' ppg · '
+        +Number(sc.fpg||0).toFixed(1)+' fpg'
+      : '';
+    return {r, id:r.id,
+      name:(r.given_name+' '+r.family_name),
+      gender:r.gender==='M'?'Male':(r.gender==='F'?'Female':''),
+      age: r.age!=null && yr ? (r.age+' in '+yr) : (r.age!=null?String(r.age):''),
+      elig:e, star:!!r.is_star, stats,
+      rating: r.rating!=null ? 'rated '+Number(r.rating).toFixed(1) : ''};
+  },
+  //  The shape comes from `v_team_shape` (migration 029) — the team's average on
+  //  every measure beside the age group's own average for the same measure. The
+  //  client never fetches four thousand scores to draw one picture.
+  tShapeRows(){
+    return (this.tm.shape||[]).filter(s=>s.team_season_id===this.tm.selected)
+      .slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
+      .map(s=>({label:s.measure_label, team:+s.team_avg,
+                group:s.group_avg==null?null:+s.group_avg,
+                delta:s.group_avg==null?null:(+s.team_avg - +s.group_avg),
+                rated:s.rated}));
+  },
+  //  THE PICTURE IS THE TMS PICTURE — `radarSVG()` with its geometry untouched,
+  //  and its stroke on the TMS navy, because the radar is change-both-or-neither
+  //  with the TMS (ADR-034). A chart with no data refuses to draw.
+  tRadar(){
+    const rows=this.tShapeRows();
+    if(!rows.length) return '';
+    return this.radarSVG(rows.map(r=>r.label), [
+      {vals:rows.map(r=>r.group), stroke:'#8A8A80', dash:'4 3', w:1.3,
+       fill:'rgba(138,138,128,.08)'},
+      {vals:rows.map(r=>r.team), stroke:'#1F3864', fill:'rgba(31,56,100,.20)', w:2, dot:true},
+    ], 240);
+  },
+  //  Dropping ON a zone places the player AND says what they are in this team.
+  //  Dropping on the pool area is a plain placement and leaves the zone alone —
+  //  the same rule as the comparison board.
+  async tDropZone(ev, zone){
+    const id=this.tm.drag; this.tm.drag=null; this.tm.over=false;
+    if(!id) return;
+    const row=this.rosterOf(this.tm.selected).find(r=>r.person_id===id);
+    if(row){ await this.setSlot(row, 'zone', zone||''); return; }
+    await this.place(id, zone||'');
+  },
+  //  The division a club intends to enter this team in, changed from the card
+  //  itself. It writes the RANK as well as the label — without the rank the team
+  //  is invisible to Formation, which reads the rank and nothing else.
+  async tSetDivision(v){
+    const ts=this.selTeam(); if(!ts) return;
+    const rank=v===''?null:Number(v);
+    this.tm.dsaved='';
+    const {error}=await this.sb.from('team_season')
+      .update({division_rank:rank, division_label: rank==null?null:this.fDivLabel(rank)})
+      .eq('id', ts.id);
+    if(error){ this.tm.err=error.message; return; }
+    this.tm.dsaved = rank==null ? 'Division cleared.' : 'Entered as '+this.fDivLabel(rank)+'.';
+    await this.loadTeams();
+  },
+
   rosterAvg(tsId){
     const v = this.rosterOf(tsId).map(r=>Number(r.rating)).filter(n=>!isNaN(n));
     return v.length ? (v.reduce((a,b)=>a+b,0)/v.length).toFixed(2) : '';
@@ -5387,11 +5667,15 @@ function app(){ return {
       : (this.seasonRows.find(r=>r.id===sid)?.teams ?? 0)+' teams';
   },
 
-  async place(personId){
+  //  A drop ON a zone places the player AND says what they are in this team, in
+  //  ONE write — two round trips would show the card without a zone and then
+  //  move it, which reads as the app changing its mind.
+  async place(personId, zone){
     if(!this.tm.selected) { this.tm.err='Pick a team first.'; return; }
     this.tm.err='';
-    const {error} = await this.sb.from('team_member').insert({
-      org_id:this.org.id, team_season_id:this.tm.selected, person_id:personId});
+    const row = {org_id:this.org.id, team_season_id:this.tm.selected, person_id:personId};
+    if(zone) row.zone = zone;
+    const {error} = await this.sb.from('team_member').insert(row);
     if(error){ this.tm.err = error.message; return; }
     await this.loadTeams();
   },
