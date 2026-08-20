@@ -493,12 +493,20 @@ word-break:break-all}
 /* THE TEAMS IN AN AGE GROUP, AS TILES. Ming, 20 Aug 2026 — a club enters a
    handful of teams into one group, and a tile read at a glance beats a stacked
    row. Same control the seasons use. */
+.fchk{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 9px;
+ border:1px solid var(--line2);border-radius:8px;background:#fff;cursor:pointer}
+.fchk.on{border-color:var(--navy);background:var(--navy2);font-weight:600}
+.fchk input{width:auto;margin:0}
 .ttiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
 .ttile{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:10px 12px}
 .ttile.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
 .ttile>b{font-size:14.5px;color:var(--navy);display:block;line-height:1.25}
 .ttile .mt{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .ttile .ta{display:flex;gap:6px;margin-top:9px}
+/* the shape on a tile — the outline is the point, so it is drawn small and
+   label-free; every number is on the card behind it */
+.tsh8{margin:8px 0 0;display:flex;justify-content:center}
+.tsh8 svg{width:118px;height:auto;display:block}
 /* ══ THE TEAM CARD — a port of the TMS card, in the TMS tokens ══════════════
    Ming, 20 Aug 2026. The roster was a list of rows; a coach reading a squad
    wants its shape, its numbers, and its players as cards. Nothing here is a
@@ -1220,13 +1228,24 @@ word-break:break-all}
                     <div class="ttile" :class="tm.selected===ts.id?'on':''">
                       <b x-text="ts.team_name"></b>
                       <div class="mt">
-                        <span class="c grp" x-show="ts.division_label || ts.division"
-                              x-text="ts.division_label || ts.division"></span>
-                        <span class="c" x-show="!(ts.division_label || ts.division)"
+                        <span class="c grp" x-show="tsDiv(ts)" x-text="tsDiv(ts)"></span>
+                        <span class="c" x-show="!tsDiv(ts)"
                               style="color:var(--ink3)">no division</span>
                         <span class="c" x-text="rosterOf(ts.id).length+' players'"></span>
                         <span class="c" x-text="'avg '+(rosterAvg(ts.id) || '–')"></span>
                       </div>
+                      <!-- THE SHAPE ON THE TILE. Ming, 20 Aug 2026: "I want to see
+                           the rating shape on the team tile so that I can quickly
+                           go through those teams." Same picture as the card and
+                           the TMS, drawn small: a squad is recognised by its
+                           outline long before anybody reads its average.
+                           A CHART WITH NO DATA REFUSES TO DRAW — an unrated squad
+                           says so instead of showing a shape made of nothing. -->
+                      <div class="tsh8" x-show="tShapeOf(ts.id).length"
+                           x-html="tRadarSmall(ts.id)"></div>
+                      <p class="note" style="margin:6px 0 0"
+                         x-show="!tShapeOf(ts.id).length && rosterOf(ts.id).length">
+                        No approved rating on this squad yet.</p>
                       <div class="ta">
                         <button class="btn sm" @click="openTeamEdit(ts.id)">Edit</button>
                         <button class="btn sm pri" @click="openTeamRoster(ts.id)">Roster</button>
@@ -1239,29 +1258,6 @@ word-break:break-all}
                     for <span x-text="seasonName(seasonId)"></span> yet.</div>
                 </template>
 
-                <!-- the balance across the group is a property of the GROUP, so
-                     it belongs on the group's own screen rather than on one team -->
-                <template x-if="teamSeasonsIn(tm.grpSel||null).length > 1">
-                  <div>
-                    <div class="cath" style="margin-top:12px">Balance across
-                      <b x-text="tm.grpSel"></b></div>
-                    <table class="vtab">
-                      <thead><tr><th>Team</th><th class="r">Players</th>
-                        <th class="r">Average</th></tr></thead>
-                      <tbody>
-                        <template x-for="ts in teamSeasonsIn(tm.grpSel||null)" :key="ts.id">
-                          <tr>
-                            <td x-text="ts.team_name"></td>
-                            <td class="r v" x-text="rosterOf(ts.id).length"></td>
-                            <td class="r v" x-text="rosterAvg(ts.id) || '–'"></td>
-                          </tr>
-                        </template>
-                      </tbody>
-                    </table>
-                    <p class="note">Every placement moves these numbers. A backfill by hand is
-                      meant to be visible, not silent.</p>
-                  </div>
-                </template>
               </div>
             </template>
 
@@ -1327,8 +1323,8 @@ word-break:break-all}
                     <b x-text="selTeam()?.team_name"></b>
                     <div class="sub">
                       <span x-text="selTeam()?.age_group || 'no age group'"></span>
-                      <span x-show="selTeam()?.division_label">
-                        · <span x-text="selTeam()?.division_label"></span></span>
+                      <span x-show="tsDiv(selTeam())">
+                        · <span x-text="tsDiv(selTeam())"></span></span>
                       <span> · Proposed for <span x-text="seasonYear()"></span>:</span>
                       <select style="width:auto" @change="tSetDivision($event.target.value)">
                         <option value="" :selected="!selTeam()?.division_rank">Div —</option>
@@ -1460,9 +1456,6 @@ word-break:break-all}
                                           x-text="s.t"></option>
                                 </template>
                               </select>
-                              <template x-for="o in c.others" :key="o.axis">
-                                <span class="c oth" x-text="o.t"></span>
-                              </template>
                             </div>
                           </div>
                         </template>
@@ -1818,11 +1811,26 @@ word-break:break-all}
 
           <!-- ── THAT LIST, AND THE ONE ACTION IT IS FOR, RIGHT ── -->
           <div>
-            <div class="cath" style="margin-top:0" x-text="plBucket().label"></div>
+            <div class="inline" style="margin:0 0 4px">
+              <div class="cath" style="margin:0" x-text="plBucket().label"></div>
+              <span style="margin-left:auto"></span>
+              <!-- A LIST YOU CHASE PEOPLE THROUGH NEEDS A SEARCH. Ming, 20 Aug
+                   2026. A parent rings about one child; scrolling sixty-four rows
+                   to find them is not a workflow. It filters the list ON SCREEN
+                   and says how many it hid, because a list that silently shrinks
+                   is a list you stop trusting. -->
+              <input type="search" x-model="pl.q" placeholder="Find a player"
+                     style="max-width:220px">
+              <button class="btn sm" x-show="pl.q" @click="pl.q=''">Clear</button>
+            </div>
             <p class="note" style="margin:0 0 8px" x-text="plBucket().rule"></p>
+            <p class="note" style="margin:0 0 8px" x-show="pl.q && plHidden()">
+              <b x-text="plHidden()"></b> more in this list do not match
+              “<span x-text="pl.q"></span>”.</p>
 
             <template x-if="!plRows().length">
-              <div class="empty" x-text="plBucket().empty"></div>
+              <div class="empty"
+                   x-text="pl.q ? ('Nobody in this list matches “'+pl.q+'”.') : plBucket().empty"></div>
             </template>
 
             <template x-if="plRows().length">
@@ -2923,17 +2931,20 @@ values (
             to run 1, 2, 3. <b>Two teams entered in the same division share one band</b> and are
             balanced against each other.</p>
 
-          <div class="cath">What a re-run may move</div>
-          <label class="fopt" :class="fp.lock?'on':''">
-            <input type="checkbox" x-model="fp.lock">
-            <span><b>Lock players already placed and still in age</b>
-              <span class="c" x-text="fLocked().length+' locked'"></span><br>
-              <span class="note" style="margin:0">Both conditions hold: they are in a team, and they
-              are still in this age group. A child who has aged up has no place here to keep.</span>
-            </span></label>
-
-          <div class="ladder" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;
+          <!-- ONE ROW OF SETTINGS. Ming, 20 Aug 2026: "in formation engine, I
+               want to make lock player section smaller." The lock was a full
+               block with a two-line explanation on a screen whose actual work is
+               the distribution beneath it. It is a switch, and switches belong on
+               a line with the other switches; the reasoning moved to the title
+               attribute, which is where a rule that is read once belongs. -->
+          <div class="ladder" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;
                                      margin-top:10px">
+            <label class="fchk" :class="fp.lock?'on':''"
+                   title="Both conditions hold: they are in a team, and they are still in this age group. A child who has aged up has no place here to keep.">
+              <input type="checkbox" x-model="fp.lock">
+              <span>Lock players already placed</span>
+              <span class="c" x-show="fp.lock" x-text="fLocked().length"></span>
+            </label>
             <span class="c">squad cap <input type="number" x-model.number="fp.cap" min="3" max="30"
               style="width:56px;margin-left:4px"></span>
             <span class="c">minimum to field <input type="number" x-model.number="fp.min" min="3"
@@ -4121,6 +4132,21 @@ function app(){ return {
   //  `tZones()`, so a number in the header can never disagree with the list
   //  beneath it. Same rule the comparison board is built on.
   seasonYear(){ return (this.seasons.find(s=>s.id===this.seasonId)||{}).year || ''; },
+  //  THE DIVISION A TEAM IS ENTERED IN, PRINTED FROM ITS RANK. Ming, 20 Aug
+  //  2026: the division linked in Formation must carry across to Teams — and it
+  //  DOES: `accept_formation` writes `division_rank`. What did not carry was the
+  //  printable label, because the label is a CLUB PATTERN and the accept only
+  //  stored whatever string the board had. The rank is the fact; everything that
+  //  prints a division goes through `fDivLabel()`, so a stored label is now an
+  //  override and never the only source. This also fixes every team already
+  //  written, without touching a row.
+  tsDiv(ts){
+    if(!ts) return '';
+    if(ts.division_label && String(ts.division_label).trim()) return String(ts.division_label).trim();
+    if(ts.division_rank!=null) return this.fDivLabel(ts.division_rank);
+    if(ts.division && String(ts.division).trim()) return String(ts.division).trim();
+    return '';
+  },
   tScore(pid){ return (this.tm.scoring||[]).find(s=>s.person_id===pid) || null; },
   tCard(){
     const ts=this.selTeam();
@@ -4184,16 +4210,15 @@ function app(){ return {
     return cols.map(c=>({...c, n:c.players.length,
                          cards:c.players.map(r=>this.tCardOf(r))}));
   },
-  //  WHAT THIS PLAYER IS ON THE AXES NOT ON SCREEN. Three different questions
-  //  about the same child — a stretch five is a Big who is a Shooter — so
-  //  flipping the lens must not look like the other answers were thrown away.
-  tOthers(r){
-    const cur=(this.tLens()||{}).axis;
-    return this.clubLenses().filter(l=>l.axis!==cur).map(l=>{
-      const slot=(l.slots||[]).find(s=>s.k===r[l.axis]);
-      return slot ? {axis:l.axis, t:slot.t} : null;
-    }).filter(Boolean);
-  },
+  //  A LENS'S ANSWER IS SHOWN IN THAT LENS'S VIEW AND NOWHERE ELSE. Ming,
+  //  20 Aug 2026: "I do not want those tags to be carried by all those players.
+  //  I only want to see them in their respective views, because a player can be
+  //  assigned a centre in one team but a power forward in the other."
+  //  The marks ARE per team already — `team_member.zone` / `.role` / `.position`
+  //  are keyed to (team, player), so the same child is the size in one squad and
+  //  a skill player in another. But showing all three axes on one card read as
+  //  though the tags belonged to the PERSON, which is the one thing this model
+  //  must never imply. One lens on screen, one answer on the card.
   tCardOf(r){
     const e=this.eligRow(r), sc=this.tScore(r.person_id), yr=this.seasonYear();
     //  A NUMBER WITHOUT A RECORD IS NOT SHOWN. No games on file means no chip,
@@ -4202,7 +4227,7 @@ function app(){ return {
       ? sc.games+' gms · '+Number(sc.ppg||0).toFixed(1)+' ppg · '
         +Number(sc.fpg||0).toFixed(1)+' fpg'
       : '';
-    return {r, id:r.id, others:this.tOthers(r),
+    return {r, id:r.id,
       name:(r.given_name+' '+r.family_name),
       gender:r.gender==='M'?'Male':(r.gender==='F'?'Female':''),
       age: r.age!=null && yr ? (r.age+' in '+yr) : (r.age!=null?String(r.age):''),
@@ -4212,6 +4237,25 @@ function app(){ return {
   //  The shape comes from `v_team_shape` (migration 029) — the team's average on
   //  every measure beside the age group's own average for the same measure. The
   //  client never fetches four thousand scores to draw one picture.
+  //  the shape of ANY team in the season, not only the one open — the tiles need
+  //  it too, and one derivation keeps a tile and its card from disagreeing
+  tShapeOf(tsId){
+    return (this.tm.shape||[]).filter(s=>s.team_season_id===tsId)
+      .slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
+      .map(s=>({label:s.measure_label, team:+s.team_avg,
+                group:s.group_avg==null?null:+s.group_avg}));
+  },
+  //  Small, and label-free: at this size the axis names are unreadable and the
+  //  OUTLINE is the whole point. The card beneath carries every number.
+  tRadarSmall(tsId){
+    const rows=this.tShapeOf(tsId);
+    if(!rows.length) return '';
+    return this.radarSVG(rows.map(()=>''), [
+      {vals:rows.map(r=>r.group), stroke:'#8A8A80', dash:'3 2', w:1,
+       fill:'rgba(138,138,128,.08)'},
+      {vals:rows.map(r=>r.team), stroke:'#1F3864', fill:'rgba(31,56,100,.20)', w:1.6},
+    ], 120, true);
+  },
   tShapeRows(){
     return (this.tm.shape||[]).filter(s=>s.team_season_id===this.tm.selected)
       .slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
@@ -4338,7 +4382,7 @@ function app(){ return {
   //  chasing forty families across thirteen teams never asks "show me B14 Gold";
   //  it asks "who has not answered". So the index IS the work list, and each list
   //  carries exactly one action.
-  pl:{busy:'', err:'', bucket:'answer', decline:'', ref:{}, rows:[]},
+  pl:{busy:'', err:'', bucket:'answer', decline:'', ref:{}, rows:[], q:''},
   plFeeStates:[{k:'unpaid',label:'Unpaid'},{k:'part_paid',label:'Part'},
                {k:'paid',label:'Paid'},{k:'waived',label:'Waived'}],
 
@@ -4438,7 +4482,18 @@ function app(){ return {
                               'Jul','Aug','Sep','Oct','Nov','Dec'][+m[2]-1];
   },
   plBucket(){ return this.plBuckets().find(b=>b.k===this.pl.bucket) || this.plBuckets()[0]; },
-  plRows(){ return this.plBucket().rows; },
+  //  THE COUNTS ON THE LEFT ARE THE LIST, NOT THE FILTERED LIST. A search that
+  //  changed the badge beside "Awaiting an answer" would tell a club it has
+  //  fewer families to chase than it does. The rows narrow; the counts do not,
+  //  and the screen says how many the search is hiding.
+  plMatch(r){
+    const q=(this.pl.q||'').trim().toLowerCase();
+    if(!q) return true;
+    return (r.name+' '+(r.team_name||r.team_label||'')+' '+(r.age_group||''))
+             .toLowerCase().includes(q);
+  },
+  plRows(){ return this.plBucket().rows.filter(r=>this.plMatch(r)); },
+  plHidden(){ return this.plBucket().rows.length - this.plRows().length; },
   //  the four numbers on the statrow, from the same derivation the lists use
   plCount(k){
     const all=this.plAll();
@@ -6387,10 +6442,15 @@ function app(){ return {
   esc(t){ return String(t).replace(/[&<>"]/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); },
 
-  radarSVG(labels, series, size){
+  //  `bare` draws the SAME picture with no axis names — for a tile, where the
+  //  labels would be unreadable and the OUTLINE is the entire point. Geometry,
+  //  rings and the dashed 3-ring are untouched: this changes the margin the
+  //  labels needed, nothing about the shape itself, so a squad drawn small and a
+  //  squad drawn large are still the same picture (and still the TMS's).
+  radarSVG(labels, series, size, bare){
     const N = labels.length; if(!N) return '';
-    const padx = 58;
-    const R = size/2 - 30, cx = size/2, cy = size/2 + 2;
+    const padx = bare ? 4 : 58;
+    const R = (bare ? size/2 - 6 : size/2 - 30), cx = size/2, cy = size/2 + (bare?0:2);
     const ang = i => (Math.PI*2*i/N) - Math.PI/2;
     const pt  = (i,v) => [cx + Math.cos(ang(i))*R*(v/5), cy + Math.sin(ang(i))*R*(v/5)];
     const poly = v => labels.map((_,i) => pt(i,v).join(',')).join(' ');
@@ -6410,7 +6470,7 @@ function app(){ return {
       if(sr.dot) labels.forEach((_,i) => { const v = sr.vals[i]; if(v==null) return;
         const [x,y] = pt(i,v); h += `<circle cx="${x}" cy="${y}" r="2.4" fill="${sr.stroke}"/>`; });
     });
-    labels.forEach((lab,i) => { const [x,y] = pt(i,5.8);
+    if(!bare) labels.forEach((lab,i) => { const [x,y] = pt(i,5.8);
       const an = ang(i), mid = Math.abs(Math.cos(an)) < 0.25;
       const anc = mid ? 'middle' : (Math.cos(an) > 0 ? 'start' : 'end');
       const sp = String(lab).indexOf(' ');
