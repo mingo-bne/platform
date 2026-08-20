@@ -3618,6 +3618,8 @@ values (
             <span class="c" x-show="bc.rows.length" x-text="bc.rows.length+' rows'"></span>
           </div>
           <p class="err" x-show="bc.err" x-text="bc.err"></p>
+          <p class="note" x-show="bcSetHint()" style="margin-top:6px"
+             x-text="bcSetHint()"></p>
           <p class="note" x-show="!bc.kind" style="margin-top:6px">
             Three kinds are recognised, by their own column headings —
             <b>play time</b> (Play Time · Player's Current Team), <b>scoring</b> (PTS · FG · 2P · 3P
@@ -3693,11 +3695,16 @@ values (
             <div>
               <p class="okbar" style="margin:10px 0 0;border-radius:8px"
                  x-text="bcDoneLine()"></p>
+              <!-- A SEASON IS MORE THAN ONE COMPETITION, and a scoring file
+                   whose play time has not been loaded is not a record yet. Those
+                   points are KEPT and left out of the total; they count the
+                   moment the matching play-time file lands, with no re-import. -->
               <p class="warnbar" style="margin:8px 0 0;border-radius:8px;border:1px solid var(--warnline)"
-                 x-show="bc.done.no_own_team"
-                 x-text="bc.done.no_own_team+' of these had no own-team on file when this ran, so '
-                   +'their figures were counted as own-team. Load the play-time file first and run '
-                   +'this again to split them properly.'"></p>
+                 x-show="bc.done.held"
+                 x-text="bc.done.held+' player'+(bc.done.held===1?' has':'s have')
+                   +' points on file with no games behind them yet — a scoring file whose '
+                   +'competition\u2019s play-time file has not been loaded. Nothing is lost: they '
+                   +'are held out of the totals and count as soon as that file is loaded.'"></p>
             </div>
           </template>
 
@@ -4992,6 +4999,21 @@ function app(){ return {
       + (d.linked ? ', '+d.linked+' matched to a Basketball Connect id for the first time' : '')
       + (d.skipped ? ', '+d.skipped+' rows skipped for a player this club does not have' : '')
       + '.';
+  },
+  //  THE THREE FILES OF ONE COMPETITION BELONG TOGETHER, and Basketball Connect
+  //  numbers them as though they did not: play time, scoring and fouls repeat
+  //  in threes. Naming the pattern on screen saves a club from pairing one
+  //  competition's scoring with another's play time, which is what happened the
+  //  first time this ran on real files.
+  bcSetHint(){
+    const n = (this.bc.file||'').match(/filecsv-?(\d*)\.csv$/i);
+    if(!n) return '';
+    const i = n[1] === '' ? 1 : parseInt(n[1], 10);
+    const set = Math.ceil((i === 1 ? 1 : i) / 3);
+    return 'This looks like competition ' + set + ' of the export — its three files are '
+      + [1,2,3].map(k => { const x = (set-1)*3 + k;
+          return x === 1 ? 'filecsv.csv' : 'filecsv-' + x + '.csv'; }).join(', ')
+      + '. Load all three of a competition before moving to the next.';
   },
   bcReset(){
     this.bc={kind:'', file:'', rows:[], report:null, ok:[], busy:false,
