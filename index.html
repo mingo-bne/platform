@@ -919,32 +919,33 @@ word-break:break-all}
           you are in.</div>
       </div>
 
-      <!-- ── the season, on tiles ── the same control as the dashboard, because
-           it is the same decision and a club should not meet two of them. -->
+      <!-- ── the season, on tiles ── the same control everywhere the season is
+           the scope. One derivation (`seasonTiles`), one handler (`pickSeason`),
+           because four copies of a dropdown drift apart. -->
       <div class="pbody" style="padding-bottom:0">
         <div class="cath" style="margin-top:0">Season</div>
         <div class="dsh" style="margin-bottom:8px">
-          <template x-for="s in dashSeasons()" :key="s.id">
-            <button class="dsc" :class="s.id===seasonId?'on':''"
-                    @click="seasonId=s.id; onSeasonChange(); loadTeams(); tm.view='list'">
+          <template x-for="s in seasonTiles()" :key="s.id">
+            <button class="dsc" :class="s.id===seasonId?'on':''" @click="pickSeason(s.id)">
               <b x-text="s.name"></b>
               <span class="yr">age reckoned at <span x-text="s.year"></span></span>
               <span class="mt">
                 <span class="c ok" x-show="s.is_current">current</span>
-                <span class="c" x-text="teamsInSeason(s.id)"></span>
+                <span class="c wn" x-show="s.archived_at">archived · read-only</span>
+                <span class="c" x-text="dashSeasonSub(s)"></span>
               </span>
             </button>
           </template>
+          <template x-if="!seasonTiles().length">
+            <div class="empty" style="flex:1">No season in play. Open <b>Season</b> and create one.</div>
+          </template>
         </div>
-        <div class="inline" style="margin:0 0 4px" x-show="dashOlder().length">
-          <label class="fl" style="margin:0">Earlier seasons</label>
-          <select style="width:auto"
-                  @change="if($event.target.value){seasonId=$event.target.value;
-                           onSeasonChange(); loadTeams(); tm.view='list'}">
+        <div class="inline" style="margin:0 0 4px" x-show="seasonTilesOlder().length">
+          <label class="fl" style="margin:0">Earlier and archived seasons</label>
+          <select style="width:auto" @change="pickSeason($event.target.value)">
             <option value="">—</option>
-            <template x-for="s in dashOlder()" :key="s.id">
-              <option :value="s.id" :selected="s.id===seasonId"
-                      x-text="seasonOptionLabel(s)+(s.archived_at?' · archived':'')"></option>
+            <template x-for="s in seasonTilesOlder()" :key="s.id">
+              <option :value="s.id" x-text="seasonOptionLabel(s)+(s.archived_at?' · archived':'')"></option>
             </template>
           </select>
         </div>
@@ -1376,10 +1377,35 @@ word-break:break-all}
           <div class="sub">One row per age group. Open one to see who is in it and set the
             divisions you intend to play.</div>
         </div>
-        <div class="inline" style="margin:0">
-          <select x-model="seasonId" @change="onSeasonChange(); loadFormation()" style="width:auto">
-            <template x-for="s in seasonsForWork()" :key="s.id">
-              <option :value="s.id" x-text="seasonOptionLabel(s)" :selected="s.id===seasonId"></option>
+      </div>
+
+      <!-- ── the season, on tiles ── the same control everywhere the season is
+           the scope. One derivation (`seasonTiles`), one handler (`pickSeason`),
+           because four copies of a dropdown drift apart. -->
+      <div class="pbody" style="padding-bottom:0">
+        <div class="cath" style="margin-top:0">Season</div>
+        <div class="dsh" style="margin-bottom:8px">
+          <template x-for="s in seasonTiles()" :key="s.id">
+            <button class="dsc" :class="s.id===seasonId?'on':''" @click="pickSeason(s.id)">
+              <b x-text="s.name"></b>
+              <span class="yr">age reckoned at <span x-text="s.year"></span></span>
+              <span class="mt">
+                <span class="c ok" x-show="s.is_current">current</span>
+                <span class="c wn" x-show="s.archived_at">archived · read-only</span>
+                <span class="c" x-text="dashSeasonSub(s)"></span>
+              </span>
+            </button>
+          </template>
+          <template x-if="!seasonTiles().length">
+            <div class="empty" style="flex:1">No season in play. Open <b>Season</b> and create one.</div>
+          </template>
+        </div>
+        <div class="inline" style="margin:0 0 4px" x-show="seasonTilesOlder().length">
+          <label class="fl" style="margin:0">Earlier and archived seasons</label>
+          <select style="width:auto" @change="pickSeason($event.target.value)">
+            <option value="">—</option>
+            <template x-for="s in seasonTilesOlder()" :key="s.id">
+              <option :value="s.id" x-text="seasonOptionLabel(s)+(s.archived_at?' · archived':'')"></option>
             </template>
           </select>
         </div>
@@ -1958,15 +1984,41 @@ values (
              than in the header beside Players and Rubrics. Everything below is
              read through it. -->
         <div class="inline" style="margin:0">
-          <select x-model="seasonId" @change="onSeasonChange()" style="width:auto"
-                  :disabled="!seasons.length">
-            <template x-for="s in seasonsForWork()" :key="s.id">
-              <option :value="s.id" x-text="seasonOptionLabel(s)"></option>
-            </template>
-          </select>
           <button class="btn" @click="newSession.open=!newSession.open"
                   :disabled="!seasons.length"
                   x-text="newSession.open?'Cancel':'New session'"></button>
+        </div>
+      </div>
+
+      <!-- ── the season, on tiles ── the same control everywhere the season is
+           the scope. One derivation (`seasonTiles`), one handler (`pickSeason`),
+           because four copies of a dropdown drift apart. -->
+      <div class="pbody" style="padding-bottom:0">
+        <div class="cath" style="margin-top:0">Season</div>
+        <div class="dsh" style="margin-bottom:8px">
+          <template x-for="s in seasonTiles()" :key="s.id">
+            <button class="dsc" :class="s.id===seasonId?'on':''" @click="pickSeason(s.id)">
+              <b x-text="s.name"></b>
+              <span class="yr">age reckoned at <span x-text="s.year"></span></span>
+              <span class="mt">
+                <span class="c ok" x-show="s.is_current">current</span>
+                <span class="c wn" x-show="s.archived_at">archived · read-only</span>
+                <span class="c" x-text="dashSeasonSub(s)"></span>
+              </span>
+            </button>
+          </template>
+          <template x-if="!seasonTiles().length">
+            <div class="empty" style="flex:1">No season in play. Open <b>Season</b> and create one.</div>
+          </template>
+        </div>
+        <div class="inline" style="margin:0 0 4px" x-show="seasonTilesOlder().length">
+          <label class="fl" style="margin:0">Earlier and archived seasons</label>
+          <select style="width:auto" @change="pickSeason($event.target.value)">
+            <option value="">—</option>
+            <template x-for="s in seasonTilesOlder()" :key="s.id">
+              <option :value="s.id" x-text="seasonOptionLabel(s)+(s.archived_at?' · archived':'')"></option>
+            </template>
+          </select>
         </div>
       </div>
       <p class="warnbar" x-show="!seasons.length">There is no season yet, and a trial has to belong
@@ -2677,7 +2729,13 @@ values (
                     <div class="srow" style="margin-top:6px;padding:8px">
                       <div class="field" style="margin-bottom:6px">
                         <label class="fl">Team name</label>
-                        <input type="text" x-model="fp.nt.name" placeholder="e.g. Gold"></div>
+                        <!-- the club's own names, offered as you type — the same
+                             autocomplete the Teams stage has -->
+                        <input type="text" x-model="fp.nt.name" placeholder="e.g. Northside Yellow"
+                               list="teamNamesF"></div>
+                      <datalist id="teamNamesF">
+                        <template x-for="t in teams" :key="t.id"><option :value="t.name"></option></template>
+                      </datalist>
                       <div class="field" style="margin-bottom:6px">
                         <label class="fl">Division
                           <span style="color:var(--ink3);font-weight:400">— optional</span></label>
@@ -2686,6 +2744,11 @@ values (
                       <p class="note" style="margin:0 0 6px" x-show="fNewTeamTidy()
                             && fNewTeamTidy()!==(fp.nt.name||'').trim()">
                         Will be recorded as <b x-text="fNewTeamTidy()"></b>.</p>
+                      <p class="note" style="margin:0 0 6px" x-show="fNtProposed()">
+                        Many clubs put the age group in front of the name.
+                        <button class="lnk" @click="fNtUsePrefix()">Enter it as
+                          <b x-text="fNtProposed()"></b></button>
+                      </p>
                       <p class="note" style="margin:0 0 6px"
                          x-text="'It is entered in '+fp.group+', '+seasonName(seasonId)
                                  +' — the same as creating it on the Teams stage.'"></p>
@@ -3582,6 +3645,48 @@ function app(){ return {
   //  have any: `season.year` is a number the CLUB states, never the wall-clock
   //  year, so "future" cannot be inferred from a clock without breaking the rule
   //  that keeps age eligibility honest. The club says what is finished.
+  // ── THE SEASON IS CHOSEN ON TILES, EVERYWHERE IT IS CHOSEN ───────────────
+  //  Ming, 20 Aug 2026: "make season selection tiles where-ever appropriate
+  //  throughout the system." One control, one derivation, one handler — the
+  //  alternative is four copies of a dropdown that drift apart, which is how the
+  //  dashboard ended up asking the same question in a different shape from every
+  //  other screen.
+  //
+  //  "Appropriate" means: a stage where the season is the SCOPE everything below
+  //  is read through. It is not the Season section — there the season is the
+  //  subject, not the lens — and it is not Players, which reads the season's
+  //  YEAR for age arithmetic and never filters by it.
+  //
+  //  A WORKING STAGE OFFERS ONLY SEASONS IN PLAY, plus the one already selected
+  //  whatever its state, so arriving from the dashboard on an archived season
+  //  does not silently jump (the `seasonsForWork` rule, now on the tiles too).
+  seasonTiles(){
+    const live = this.dashLive();
+    const cur = (this.seasons||[]).find(s => s.id === this.seasonId);
+    const four = live.slice(0, 4);
+    return (cur && !four.some(s => s.id === cur.id)) ? four.concat([cur]) : four;
+  },
+  seasonTilesOlder(){
+    const shown = new Set(this.seasonTiles().map(s => s.id));
+    return this.dashLive().filter(s => !shown.has(s.id))
+      .concat(this.dashSeasonOrder((this.seasons||[]).filter(s => s.archived_at)))
+      .filter(s => !shown.has(s.id));
+  },
+  //  WHAT CHANGING THE SEASON MEANS IS PER STAGE, AND IT LIVES HERE. Every stage
+  //  owns its data and none of it exists until that stage's loader has run — the
+  //  same rule that gave Ming an empty Formation modal on 19 Aug.
+  async pickSeason(id){
+    if(!id) return;
+    this.seasonId = id; this.onSeasonChange();
+    if(this.stage === 'teams'){ await this.loadTeams(); this.tm.view = 'list'; }
+    else if(this.stage === 'formation'){ await this.loadFormation(); this.fReset(); }
+    else if(this.stage === 'dash'){ await this.openDash(); }
+  },
+  //  A season change invalidates a proposal built from another season's players.
+  fReset(){
+    this.fp.result = null; this.fp.frozen = null; this.fp.moves = {};
+    this.fp.link = {}; this.fNewTeamClose(); this.fp.phase = 'setup'; this.fp.group = '';
+  },
   dashLive(){ return this.dashSeasonOrder((this.seasons||[]).filter(s => !s.archived_at)); },
   dashSeasons(){ return this.dashLive().slice(0, 4); },
   //  Seasons ACCUMULATE even unarchived — a club five years in that has never
@@ -3593,8 +3698,14 @@ function app(){ return {
   dashArchived(){ return (this.seasons||[]).filter(s => s.archived_at).length; },
   //  What is actually in a season, so a card is worth pressing rather than just
   //  a name. Read from v_season_summary, which already counts these.
+  //  WHAT IS IN A SEASON, wherever the tiles are drawn. The dashboard loads its
+  //  own summary; every other stage has `seasonRows` from boot. Reading only the
+  //  dashboard's copy made every tile on Rating, Teams and Formation say
+  //  "nothing in it yet" — a card is worth pressing because of what it says, so
+  //  a card that says nothing is worse than no card.
   dashSeasonSub(s){
-    const r = (this.dash.summary||[]).find(x => x.id === s.id);
+    const r = (this.dash.summary||[]).find(x => x.id === s.id)
+           || (this.seasonRows||[]).find(x => x.id === s.id);
     if(!r) return 'nothing in it yet';
     const bits = [];
     if(+r.players) bits.push(r.players + ' player' + (+r.players===1?'':'s'));
@@ -4228,6 +4339,18 @@ function app(){ return {
   },
   fNewTeamClose(){ this.fp.nt = {ci:null, name:'', div:'', err:'', busy:false}; },
   fNewTeamTidy(){ return this.tmTidy(this.fp.nt?.name||''); },
+  //  THE SAME PREFIX PROPOSAL AS THE TEAMS STAGE. Ming, 20 Aug 2026: "I like the
+  //  autocomplete name function in teams… I want that in the formation draft
+  //  board for new teams as well." Same rule, same words, same button — a club
+  //  that meets a convention in one place and not the other learns that the
+  //  product is inconsistent rather than that the convention is worth following.
+  //  PROPOSED, NEVER IMPOSED (ADR-008): what was typed is left alone.
+  fNtProposed(){
+    const n=(this.fp.nt?.name||'').trim(), p=this.fp.group ? this.fPrefix(this.fp.group) : '';
+    if(!n || !p) return '';
+    return n.toUpperCase().startsWith(p.toUpperCase()+' ') ? '' : p+' '+n;
+  },
+  fNtUsePrefix(){ const n=this.fNtProposed(); if(n) this.fp.nt = {...this.fp.nt, name:n}; },
   fNewTeamOpenOn(ci){ return this.fp.nt && this.fp.nt.ci===ci; },
   async fNewTeamSave(){
     const nt=this.fp.nt; if(!nt || nt.ci===null) return;
