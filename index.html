@@ -538,6 +538,7 @@ word-break:break-all}
 .pcard .pchips .rt{background:var(--okbg);border-color:var(--okline);color:var(--ok)}
 .pcard .plens{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .pcard .plens select{font:inherit;font-size:10.5px;padding:2px 3px;width:auto}
+.pcard .plens .oth{font-size:10px;color:var(--ink3)}
 /* the pool, beneath the squad and full width */
 .poolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:6px;
  border:1px solid var(--line);border-radius:9px;padding:7px;background:#fff;margin-top:6px}
@@ -1397,9 +1398,29 @@ word-break:break-all}
                   Leave them in place to keep the exception, or take them off with <b>×</b>.
                 </p>
 
-                <!-- ── the squad, in its zones ──
-                     TWO THINGS YOU PICK OUT; EVERYONE ELSE IS THE THIRD. Other
-                     is implicit and is never a state anybody has to sort into. -->
+                <!-- ══ THREE LENSES OVER ONE ROSTER, AND YOU FLIP BETWEEN THEM
+                     Ming, 20 Aug 2026: "I want to be able to flip those views in
+                     the team roster management interface." The card used to ask
+                     every lens at once — a select per lens on every player — which
+                     is three questions stacked on one card and no way to see the
+                     squad THROUGH one of them. It is the same control the
+                     comparison board uses, and the same rule: which lenses appear
+                     is the club's setting (Setup → this club), what the slots ARE
+                     is the sport's. -->
+                <div class="lens">
+                  <template x-for="l in clubLenses()" :key="l.k">
+                    <button class="lb" :class="l.k===tLens()?.k?'on':''"
+                            @click="tm.lens=l.k" x-text="l.t"></button>
+                  </template>
+                  <span class="c" x-text="tLensNote()"></span>
+                </div>
+                <p class="note" style="margin:0 0 6px" x-show="!clubLenses().length">
+                  This sport has no lenses declared, so there is nothing to group the squad by.
+                </p>
+
+                <!-- TWO THINGS YOU PICK OUT; EVERYONE ELSE IS THE THIRD. The last
+                     column is whatever the lens calls its empty state — never a
+                     state anybody has to sort into. -->
                 <div class="zcols">
                   <template x-for="z in tZones()" :key="z.k || 'other'">
                     <div class="zcol">
@@ -1426,16 +1447,21 @@ word-break:break-all}
                               <span class="c stat" x-show="c.stats" x-text="c.stats"></span>
                               <span class="c rt" x-show="c.rating" x-text="c.rating"></span>
                             </div>
-                            <!-- one select per lens the club uses; the vocabulary
-                                 is the sport's, the value is keyed to (team, player) -->
-                            <div class="plens">
-                              <template x-for="l in clubLenses()" :key="l.k">
-                                <select @change="setSlot(c.r, l.axis, $event.target.value)">
-                                  <option value="" :selected="!c.r[l.axis]" x-text="l.short+' —'"></option>
-                                  <template x-for="s in l.slots" :key="s.k">
-                                    <option :value="s.k" :selected="c.r[l.axis]===s.k" x-text="s.t"></option>
-                                  </template>
-                                </select>
+                            <!-- ONE SELECT: the lens on screen. The other axes are
+                                 not lost — they are on the card as chips, because
+                                 they are three different questions about the same
+                                 child and the answers travel with them. -->
+                            <div class="plens" x-show="tLens()">
+                              <select @change="setSlot(c.r, tLens().axis, $event.target.value)">
+                                <option value="" :selected="!c.r[tLens()?.axis]"
+                                        x-text="(tLens()?.empty || 'Not set')"></option>
+                                <template x-for="s in (tLens()?.slots||[])" :key="s.k">
+                                  <option :value="s.k" :selected="c.r[tLens()?.axis]===s.k"
+                                          x-text="s.t"></option>
+                                </template>
+                              </select>
+                              <template x-for="o in c.others" :key="o.axis">
+                                <span class="c oth" x-text="o.t"></span>
                               </template>
                             </div>
                           </div>
@@ -3484,10 +3510,16 @@ values (
                Forward, Center, Utility" — that asked a club to retype vocabulary
                the sport already defines. Two places to say what a Guard is, and
                they drift. Same rule as the rubrics. -->
-          <div class="cath">On a roster</div>
-          <p class="note" style="margin-top:0">Tick the ways you want a roster cut. The slots inside
-            each are the sport's, the same for every club — you are choosing which questions your
-            coaches are asked, not inventing the answers.</p>
+          <div class="cath">Ways to look at a roster</div>
+          <!-- A SETTING SHOULD SAY WHERE IT SHOWS UP. Ming, 20 Aug 2026: "I don't
+               know what's on a roster in the setting doing at the moment." It was
+               named for the data it wrote rather than for what a club would see
+               change — so the copy now names the screen. -->
+          <p class="note" style="margin-top:0">These become the buttons above a squad on
+            <b>Teams</b> and on the formation comparison board — flip between them and the roster
+            regroups. Tick the ones your club uses. The slots inside each are the sport's, the same
+            for every club: you are choosing which questions your coaches are asked, not inventing
+            the answers.</p>
           <div class="fopts">
             <template x-for="l in sportLenses()" :key="l.k">
               <label class="fopt" :class="cfg2.lenses.includes(l.k)?'on':''">
@@ -3733,7 +3765,7 @@ function app(){ return {
   tm:{selected:'',grpSel:null,view:'list',adding:false,name:'',grp:'',div:'',
       ename:'',egrp:'',ediv:'',esaved:'',
       q:'',scope:'grp',hidePlaced:true,
-      drag:null,dragRow:null,over:false,busy:false,err:'',dsaved:'',
+      drag:null,dragRow:null,over:false,busy:false,err:'',dsaved:'',lens:'',
       /* what the team card reads — see loadTeams() */
       shape:[],offers:[],regs:[],scoring:[]},
   qv:{open:false,note:'',busy:false,err:''},
@@ -3996,6 +4028,16 @@ function app(){ return {
       : [];
     this.roster = this.seasonId ? await q('v_roster','*',['season_id',this.seasonId]) : [];
     this.pool   = this.seasonId ? await q('v_player_pool','*',['season_id',this.seasonId]) : [];
+    //  THE SPORT'S LENSES LOAD WITH THIS STAGE TOO. They lived only in
+    //  `loadFormation()`, so a coach who went straight to Teams got a card with
+    //  no lens control at all — the vocabulary is the SPORT's and every stage
+    //  that shows it has to ask for it.
+    {
+      const sports = await q('sport');
+      const mine = sports.find(x=>x.id===this.org?.primary_sport_id);
+      this.fp.lenses = ((mine && mine.lenses && mine.lenses.length ? mine
+                         : sports.find(x=>x.lenses&&x.lenses.length)) || {}).lenses || [];
+    }
     //  ── what the TEAM CARD reads ────────────────────────────────────────
     //  The shape comes out of `v_team_shape` (migration 029) rather than the
     //  client pulling every score in the club to average ten of them.
@@ -4119,19 +4161,38 @@ function app(){ return {
           +rated.length+'.',
     };
   },
-  //  TWO THINGS YOU PICK OUT; EVERYONE ELSE IS THE THIRD. Other is implicit —
-  //  never a state anybody has to sort into, and never something to warn about.
+  //  THE LENS ON SCREEN. Which lenses are offered is the CLUB's setting
+  //  (`org_profile.lenses_used`, Setup → this club); what the slots ARE is the
+  //  SPORT's. Defaults to the first one the club uses.
+  tLens(){
+    const L=this.clubLenses();
+    return L.find(l=>l.k===(this.tm.lens || (L[0]||{}).k)) || L[0] || null;
+  },
+  tLensNote(){ const l=this.tLens(); return l ? (l.note || '') : ''; },
+  //  TWO THINGS YOU PICK OUT; EVERYONE ELSE IS THE THIRD — and the third is
+  //  whatever the lens calls its empty state, never a state anybody has to sort
+  //  into and never something to warn about.
   tZones(){
-    const lens=(this.clubLenses()||[]).find(l=>l.axis==='zone')
-            || (this.sportLenses()||[]).find(l=>l.axis==='zone');
+    const lens=this.tLens();
     const slots=(lens&&lens.slots)||[];
+    const axis=(lens&&lens.axis)||'zone';
     const roster=this.rosterOf(this.tm.selected);
     const cols=slots.map((s,i)=>({k:s.k, t:s.t, i,
-      players:roster.filter(r=>r.zone===s.k)}));
-    cols.push({k:'', t:'Other', i:slots.length,
-      players:roster.filter(r=>!r.zone || !slots.some(s=>s.k===r.zone))});
+      players:roster.filter(r=>r[axis]===s.k)}));
+    cols.push({k:'', t:(lens&&lens.empty) || 'Other', i:slots.length,
+      players:roster.filter(r=>!r[axis] || !slots.some(s=>s.k===r[axis]))});
     return cols.map(c=>({...c, n:c.players.length,
                          cards:c.players.map(r=>this.tCardOf(r))}));
+  },
+  //  WHAT THIS PLAYER IS ON THE AXES NOT ON SCREEN. Three different questions
+  //  about the same child — a stretch five is a Big who is a Shooter — so
+  //  flipping the lens must not look like the other answers were thrown away.
+  tOthers(r){
+    const cur=(this.tLens()||{}).axis;
+    return this.clubLenses().filter(l=>l.axis!==cur).map(l=>{
+      const slot=(l.slots||[]).find(s=>s.k===r[l.axis]);
+      return slot ? {axis:l.axis, t:slot.t} : null;
+    }).filter(Boolean);
   },
   tCardOf(r){
     const e=this.eligRow(r), sc=this.tScore(r.person_id), yr=this.seasonYear();
@@ -4141,7 +4202,7 @@ function app(){ return {
       ? sc.games+' gms · '+Number(sc.ppg||0).toFixed(1)+' ppg · '
         +Number(sc.fpg||0).toFixed(1)+' fpg'
       : '';
-    return {r, id:r.id,
+    return {r, id:r.id, others:this.tOthers(r),
       name:(r.given_name+' '+r.family_name),
       gender:r.gender==='M'?'Male':(r.gender==='F'?'Female':''),
       age: r.age!=null && yr ? (r.age+' in '+yr) : (r.age!=null?String(r.age):''),
@@ -4182,12 +4243,15 @@ function app(){ return {
   //  Dropping ON a zone places the player AND says what they are in this team.
   //  Dropping on the pool area is a plain placement and leaves the zone alone —
   //  the same rule as the comparison board.
-  async tDropZone(ev, zone){
-    const id=this.tm.drag; this.tm.drag=null; this.tm.over=false;
+  async tDropZone(ev, slot){
+    const id=this.tm.drag; this.tm.drag=null; this.tm.dragRow=null; this.tm.over=false;
     if(!id) return;
+    const axis=(this.tLens()||{}).axis || 'zone';
     const row=this.rosterOf(this.tm.selected).find(r=>r.person_id===id);
-    if(row){ await this.setSlot(row, 'zone', zone||''); return; }
-    await this.place(id, zone||'');
+    //  the column writes the axis ON SCREEN — dropping into "Shooter" while the
+    //  positions lens is up must not quietly set a zone
+    if(row){ await this.setSlot(row, axis, slot||''); return; }
+    await this.place(id, slot||'', axis);
   },
   //  The division a club intends to enter this team in, changed from the card
   //  itself. It writes the RANK as well as the label — without the rank the team
@@ -5704,11 +5768,11 @@ function app(){ return {
   //  A drop ON a zone places the player AND says what they are in this team, in
   //  ONE write — two round trips would show the card without a zone and then
   //  move it, which reads as the app changing its mind.
-  async place(personId, zone){
+  async place(personId, slot, axis){
     if(!this.tm.selected) { this.tm.err='Pick a team first.'; return; }
     this.tm.err='';
     const row = {org_id:this.org.id, team_season_id:this.tm.selected, person_id:personId};
-    if(zone) row.zone = zone;
+    if(slot) row[axis || 'zone'] = slot;
     const {error} = await this.sb.from('team_member').insert(row);
     if(error){ this.tm.err = error.message; return; }
     await this.loadTeams();
