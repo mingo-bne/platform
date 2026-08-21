@@ -7,19 +7,29 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <style>
-/* ── Design tokens lifted from the TMS (build/src/app.css). Keep in step. ──
-     ONE EXCEPTION, and it is deliberate: `--navy` is the CapFlowO FAMILY navy
-     #1A2B48, not the TMS #1F3864. Ming's call, 20 Aug 2026, following ADR-028
-     (the product is ClubFlowO, in the family wordmark) — once the name is
-     family the chrome it sits on has to be too, or the mark sits on a foreign
-     navy. Every other token still matches the TMS exactly.
-     `--d1`…`--d6` and the chart strokes below are DATA colour, not chrome, and
-     they stay on the TMS navy: a player drawn here and a player drawn in the
-     TMS must be the same picture, and that rule is change-both-or-neither. */
-:root{--bg:#f6f5f2;--card:#fff;--line:#e3e1db;--line2:#cfccc4;--ink:#1c1b19;--ink2:#5f5e5a;
---ink3:#8b8981;--navy:#1A2B48;--navy2:#e8edf5;--flow:#F37021;--flowo:#00A19D;--ok:#0f6e56;--okbg:#e1f5ee;--okline:#9fe1cb;
---warn:#854f0b;--warnbg:#faeeda;--warnline:#fac775;--bad:#a32d2d;--badbg:#fcebeb;--badline:#f7c1c1;
---acc:#534ab7;--accbg:#eeedfe;--accline:#cecbf6;--sh:0 6px 24px rgba(28,27,25,.16);--hh:52px;
+/* ── ClubFlowO tokens. Structure lifted from the TMS (build/src/app.css);
+     the CHROME hue comes from the FlowO family design system, exported by Ming
+     on 21 Aug 2026 as `design/FlowO-Design-Reference-standalone.html`
+     ([data-brand="clubflow"]). See ADR-043, which supersedes ADR-028's wordmark
+     colours and ADR-034's family navy.
+
+     `--navy` KEEPS ITS NAME on purpose. It is the chrome slot, not a hue, and
+     renaming it would touch 200-odd rules for no behaviour. It now holds Valley
+     Purple #1D1160.
+
+     `--d1`…`--d6` AND THE RADAR STROKES ARE NOT CHROME. They are DATA colour,
+     locked to the TMS #1F3864, and the rule is change-both-or-neither: a player
+     drawn here and a player drawn in the TMS must be the same picture. A
+     regression test asserts these literals are still here. DO NOT SWEEP THEM. */
+:root{--bg:#f7f6f3;--card:#fff;--card2:#fbfaf8;--zebra:#fcfbf9;--track:#efeee9;
+--line:#e3e1db;--line2:#cfccc4;--ink:#161616;--ink2:#5f5e5a;--ink3:#72706a;
+--navy:#1D1160;--navyhi:#2b1c85;--navy2:#efecf9;--navyline:#d6cff2;--flow:#E56020;
+--ok:#0f6e56;--okbg:#e1f5ee;--okline:#9fe1cb;--oktrack:#c8ebdd;
+--warn:#854f0b;--warnbg:#faeeda;--warnline:#fac775;--warntrack:#f0dfc2;
+--bad:#a32d2d;--badbg:#fcebeb;--badline:#f7c1c1;
+--acc:#c94f14;--accbg:#fdece0;--accline:#f5c298;--star:#a67c00;
+--z0:#3c7dc4;--z1:#1d9e75;--z2:#72706a;
+--sh:0 6px 24px rgba(29,17,96,.15);--hh:52px;
 --d1:#1F3864;--d2:#33517f;--d3:#4d6c9b;--d4:#7b96bd;--d5:#a3b7d3;--d6:#c8d3e4}
 html,body{margin:0;height:100%}
 body{font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
@@ -35,7 +45,7 @@ header .spacer{flex:1}
 .hb{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.3);
 padding:6px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
 .hb:hover{background:rgba(255,255,255,.26)}
-.hb.pri{background:#fff;color:var(--navy);border-color:#fff;font-weight:600}
+.hb.pri{background:var(--card);color:var(--navy);border-color:#fff;font-weight:600}
 .hb:disabled{opacity:.45;cursor:default}
 
 #shell{padding-top:var(--hh)}
@@ -50,11 +60,11 @@ padding:6px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
 .stage.wide{max-width:1400px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;
 margin-bottom:14px}
-.rhead{padding:14px 18px;border-bottom:1px solid var(--line);background:#fbfaf8}
+.rhead{padding:14px 18px;border-bottom:1px solid var(--line);background:var(--card2)}
 .rhead h2{margin:0;font-size:19px;font-weight:600}
 .rhead .sub{font-size:12.5px;color:var(--ink2);margin-top:3px}
 .pbody{padding:12px 18px 16px}
-.statrow{display:flex;gap:20px;flex-wrap:wrap;padding:11px 18px;background:#fbfaf8;
+.statrow{display:flex;gap:20px;flex-wrap:wrap;padding:11px 18px;background:var(--card2);
 border-bottom:1px solid var(--line);font-size:12px;color:var(--ink2)}
 .statrow div{min-width:76px}
 .statrow b{display:block;font-size:17px;color:var(--ink);font-weight:600;line-height:1.25}
@@ -67,8 +77,8 @@ color:var(--ok);font-size:12.5px}
 
 .chips{display:flex;gap:4px;flex-wrap:wrap}
 .c{font-size:10px;padding:2px 6px;border-radius:9px;border:1px solid var(--line2);color:var(--ink2);
-background:#f7f6f3;white-space:nowrap}
-.c.grp{background:var(--navy2);border-color:#c2cfe3;color:var(--navy);font-weight:600}
+background:var(--bg);white-space:nowrap}
+.c.grp{background:var(--navy2);border-color:var(--navyline);color:var(--navy);font-weight:600}
 .c.acc{background:var(--accbg);border-color:var(--accline);color:var(--acc);font-weight:600}
 .c.ok{background:var(--okbg);border-color:var(--okline);color:var(--ok);font-weight:600}
 .c.wn{background:var(--warnbg);border-color:var(--warnline);color:var(--warn);font-weight:600}
@@ -82,39 +92,45 @@ text-transform:uppercase;letter-spacing:.04em;margin:12px 0 5px}
 
 .jt{width:100%;border-collapse:collapse;font-size:12.5px}
 .jt th,.jt td{border:1px solid var(--line);padding:5px 7px;text-align:left}
-.jt th{background:#fbfaf8;font-weight:600;font-size:11.5px}
+.jt th{background:var(--card2);font-weight:600;font-size:11.5px}
 .scroll{max-height:270px;overflow:auto;border:1px solid var(--line);border-radius:8px}
 .scroll .jt th{position:sticky;top:0;z-index:1}
 .scroll .jt th,.scroll .jt td{border-left:0;border-top:0}
 
 input[type=text],input[type=email],input[type=date],input[type=time],select,textarea{
 font:12.5px inherit;padding:5px 8px;border:1px solid var(--line2);border-radius:6px;
-background:#fff;color:var(--ink);box-sizing:border-box}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--navy2);border-color:var(--navy)}
+background:var(--card);color:var(--ink);box-sizing:border-box}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);outline-offset:1px;
+border-color:var(--navy)}
 textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}
-/* THE ClubFlowO WORDMARK — the CapFlowO family treatment, unchanged.
-   Club (navy on light / white on dark) + Flow (Prosperity Orange #F37021)
-   + O (Growth Teal #00A19D). One word, capital C, F and O. The colour
-   assignments never move between elements, and it is never written as three
-   words. Ming's brand rule, carried across from CapFlowO.
-   The family specifies Inter 800; this file loads no webfont on purpose
-   (no build pipeline, and a font is a network dependency on a sideline with
-   no signal), so it renders in the app's own stack at 800. */
+/* THE ClubFlowO WORDMARK — FlowO family design system, 21 Aug 2026 (ADR-043).
+   One word, capital C, F and O. Never "Club Flow O", never "ClubFlow".
+   The assignment is by ROLE and never moves between elements:
+     Club = brand primary   Flow = brand accent   O = contrast of the ground.
+   On the purple chrome that renders Club and O white with Flow orange; on a
+   light ground Club and O are purple. Suns Orange is 3.49:1 on white, so it is
+   never load-bearing text — it carries the one syllable of a mark that is
+   always read beside the other two.
+   The family specifies a Barlow Condensed display face. THIS FILE LOADS NO
+   WEBFONT ON PURPOSE — courtside has to work in a school hall with no wifi, and
+   a webfont is a network dependency. The mark renders in the app's own stack at
+   800. Changing that is Ming's call, not a tidy-up. */
 .wm{font-weight:800;letter-spacing:-.5px}
 .wm .f{color:var(--flow)}
-.wm .o{color:var(--flowo)}
+.wm .o{color:var(--navy)}
 header .wm{color:#fff}
+header .wm .o{color:#fff}
 label.fl{display:block;font-size:11px;color:var(--ink2);margin:0 0 3px}
 .field{margin-bottom:10px}
 .field input,.field select,.field textarea{width:100%}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 @media(max-width:760px){.row3{grid-template-columns:1fr}}
-.btn{border:1px solid var(--line2);background:#fff;border-radius:6px;padding:6px 12px;
+.btn{border:1px solid var(--line2);background:var(--card);border-radius:6px;padding:6px 12px;
 cursor:pointer;font-size:12.5px;color:var(--ink)}
-.btn:hover{background:#fbfaf8}
+.btn:hover{background:var(--card2)}
 .btn.pri{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
-.btn.pri:hover{background:#2b4a7d}
+.btn.pri:hover{background:var(--navyhi)}
 .btn:disabled{opacity:.45;cursor:default}
 .btn.sm{padding:3px 8px;font-size:11.5px}
 .err{color:var(--bad);font-size:12px;margin:6px 0 0}
@@ -127,18 +143,18 @@ padding:0;text-align:left}
 /* ── the detail block of the player card. Read by default; the SAME rows
       become editable in place, so looking at a player and correcting one are
       not two different screens. ── */
-.dl{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.dl{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
 .dl .r{display:flex;align-items:center;gap:12px;padding:7px 12px;border-bottom:1px solid var(--line);
 min-height:36px}
 .dl .r:last-child{border-bottom:0}
-.dl .r:nth-child(even){background:#fcfbf9}
+.dl .r:nth-child(even){background:var(--zebra)}
 .dl .r .k{width:118px;flex:none;font-size:11.5px;color:var(--ink2)}
 .dl .r .v{font-size:13px;flex:1;min-width:0}
 .dl .r .v.none{color:var(--ink3)}
 .dl .r input,.dl .r select{flex:1;min-width:0}
 .vsrc{display:flex;gap:5px;flex-wrap:wrap}
 
-.srow{border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:7px;background:#fff}
+.srow{border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:7px;background:var(--card)}
 .srow:hover{border-color:var(--line2)}
 .sflex{display:flex;align-items:center;gap:10px}
 .sflex .body{flex:1;min-width:0}
@@ -147,7 +163,7 @@ min-height:36px}
 .sdet{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 .inline{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
 .scale{display:flex;gap:4px}
-.sv{border:1px solid var(--line2);background:#fff;border-radius:6px;width:38px;height:32px;
+.sv{border:1px solid var(--line2);background:var(--card);border-radius:6px;width:38px;height:32px;
 cursor:pointer;font-size:13px;font-weight:600;color:var(--ink2);padding:0}
 .sv:hover{border-color:var(--navy);color:var(--navy)}
 .sv.on{background:var(--navy);border-color:var(--navy);color:#fff}
@@ -158,12 +174,12 @@ cursor:pointer;font-size:13px;font-weight:600;color:var(--ink2);padding:0}
 .pitem{display:flex;align-items:center;gap:8px;padding:6px 9px;border-bottom:1px solid var(--line);
 cursor:pointer;font-size:12.5px}
 .pitem:last-child{border-bottom:0}
-.pitem:hover{background:#fbfaf8}
+.pitem:hover{background:var(--card2)}
 .pitem.on{background:var(--navy2);font-weight:600}
 .pitem .st{margin-left:auto;font-size:10px;color:var(--ink3)}
 .split{display:grid;grid-template-columns:240px 1fr;gap:14px}
 tr.flag td{background:var(--warnbg)}
-pre.sql{background:#fbfaf8;border:1px solid var(--line);border-radius:7px;padding:9px 11px;
+pre.sql{background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:9px 11px;
 font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
 /* ── the player card. Same tokens, deliberately NOT a ledger. ──────────
@@ -171,17 +187,17 @@ font-size:11px;overflow-x:auto;margin:0;font-family:ui-monospace,SFMono-Regular,
    as rows of evidence: the measure, what each pass said, and where the mean
    sits on the scale. Value first, colour second — every number is on screen,
    the bar only repeats it. ── */
-.pc{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.pc{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
 .pcr{display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid var(--line)}
 .pcr:last-child{border-bottom:0}
-.pcr:nth-child(even){background:#fcfbf9}
+.pcr:nth-child(even){background:var(--zebra)}
 .pcr .lb{width:132px;flex:none;font-size:13px;font-weight:600}
 .pcr .passes{display:flex;gap:4px;flex:none}
-.pv{width:26px;height:26px;border-radius:6px;border:1px solid var(--line2);background:#fff;
+.pv{width:26px;height:26px;border-radius:6px;border:1px solid var(--line2);background:var(--card);
 display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;
 color:var(--ink2)}
-.pv.none{color:var(--ink3);background:#f7f6f3}
-.meter{flex:1;min-width:70px;height:7px;border-radius:4px;background:#efeee9;position:relative}
+.pv.none{color:var(--ink3);background:var(--bg)}
+.meter{flex:1;min-width:70px;height:7px;border-radius:4px;background:var(--track);position:relative}
 .meter i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--navy);
 display:block}
 .pcr .mn{width:38px;flex:none;text-align:right;font-size:14px;font-weight:600}
@@ -190,18 +206,18 @@ display:block}
 .pcr.settled{border-left:3px solid var(--okline);background:var(--okbg)}
 .pcr.gap{border-left:3px solid var(--line2)}
 .pcr.gap .lb,.pcr.gap .mn{color:var(--ink3)}
-.pcr.settled .meter{background:#c8ebdd}
+.pcr.settled .meter{background:var(--oktrack)}
 .pcr.settled .meter i{background:var(--ok)}
 .pcr .act{flex:none}
-.rz{padding:10px 12px;background:#fbfaf8;border-top:1px solid var(--line)}
+.rz{padding:10px 12px;background:var(--card2);border-top:1px solid var(--line)}
 .rz .opt{display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid var(--line);
-border-radius:8px;margin-bottom:5px;background:#fff;cursor:pointer;font-size:12.5px}
+border-radius:8px;margin-bottom:5px;background:var(--card);cursor:pointer;font-size:12.5px}
 .rz .opt:hover{border-color:var(--navy)}
 .rz .opt.on{border-color:var(--navy);background:var(--navy2);font-weight:600}
 .rz .opt .v{width:26px;height:26px;border-radius:6px;background:var(--navy);color:#fff;flex:none;
 display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12.5px}
 .rz .opt.on .v{background:var(--ok)}
-.pcr.wide .meter{background:#f0dfc2}
+.pcr.wide .meter{background:var(--warntrack)}
 .pcr.wide .sp{color:var(--warn);font-weight:600}
 .shape{display:grid;grid-template-columns:auto minmax(230px,1fr);gap:18px;align-items:start}
 @media (max-width:760px){.shape{grid-template-columns:1fr}}
@@ -220,16 +236,6 @@ color:var(--ink3);font-weight:700;padding:0 0 5px;border-bottom:1px solid var(--
 .vtab th.r,.vtab td.r{text-align:right;padding-left:10px;white-space:nowrap}
 .vtab td.v{font-weight:600;font-variant-numeric:tabular-nums}
 .vtab td.d{font-variant-numeric:tabular-nums}
-/* formation */
-.tcol{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
-.tcol .h{padding:8px 11px;background:#fbfaf8;border-bottom:1px solid var(--line);
-display:flex;align-items:center;gap:8px}
-.tcol .h b{flex:1;font-size:13px}
-.tcol .p{display:flex;align-items:center;gap:8px;padding:6px 11px;border-bottom:1px solid var(--line);
-font-size:12.5px}
-.tcol .p:last-child{border-bottom:0}
-.tcol .p .r{margin-left:auto;font-weight:600}
-.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
 .vals{margin-top:8px;border-top:1px solid var(--line)}
 .vrow{display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--line)}
 .vrow .l{flex:1;min-width:0;font-size:12.5px}
@@ -240,7 +246,7 @@ font-size:12.5px}
 .dlt{font-size:11px;font-weight:600}
 .dlt.up{color:var(--ok)} .dlt.dn{color:var(--bad)} .dlt.flat{color:var(--ink3)}
 .sess{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--line);
-border-radius:9px;margin-bottom:6px;background:#fff}
+border-radius:9px;margin-bottom:6px;background:var(--card)}
 .sess .body{flex:1;min-width:0}
 .sess .t{font-size:13px;font-weight:600}
 .sess .d{font-size:11px;color:var(--ink2);margin-top:1px}
@@ -257,11 +263,11 @@ font-size:12.5px;margin-bottom:11px;border:1px solid}
 .qbar.wait{background:var(--warnbg);border-color:var(--warnline);color:var(--warn)}
 .qbar.done{background:var(--okbg);border-color:var(--okline);color:var(--ok)}
 .qbar .spacer{flex:1}
-.prow{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);
-border-radius:10px;margin-bottom:7px;background:#fff;cursor:pointer}
-.prow:active{background:#fbfaf8}
-.prow .nm{flex:1;min-width:0;font-size:15px;font-weight:600}
-.prow .who{font-size:11px;color:var(--ink2);font-weight:400;display:block;margin-top:1px}
+.crow{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);
+border-radius:10px;margin-bottom:7px;background:var(--card);cursor:pointer}
+.crow:active{background:var(--card2)}
+.crow .nm{flex:1;min-width:0;font-size:15px;font-weight:600}
+.crow .who{font-size:11px;color:var(--ink2);font-weight:400;display:block;margin-top:1px}
 .mrow.big{padding:11px 0}
 .mrow.big .lb{font-size:15px}
 .scale.big{gap:6px}
@@ -281,12 +287,12 @@ overflow:hidden;box-shadow:var(--sh)}
       list and the detail follows, rather than opening and closing a dialog per
       player. ── */
 .psplit{display:grid;grid-template-columns:264px 1fr;gap:14px;align-items:start}
-.plist2{border:1px solid var(--line);border-radius:9px;overflow:auto;max-height:60vh;background:#fff}
+.plist2{border:1px solid var(--line);border-radius:9px;overflow:auto;max-height:60vh;background:var(--card)}
 .prow{display:flex;align-items:center;gap:7px;padding:6px 9px;border-bottom:1px solid var(--line);
 cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;
 font:inherit}
 .prow:last-child{border-bottom:0}
-.prow:hover{background:#fbfaf8}
+.prow:hover{background:var(--card2)}
 .prow.on{background:var(--navy2)}
 .prow .bd{flex:1;min-width:0}
 .prow .n2{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;
@@ -296,7 +302,7 @@ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .prow .u{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
 .pdet{min-width:0}
 .fchips{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px}
-.fc{font-size:11px;padding:3px 8px;border-radius:9px;border:1px solid var(--line2);background:#fff;
+.fc{font-size:11px;padding:3px 8px;border-radius:9px;border:1px solid var(--line2);background:var(--card);
 color:var(--ink2);cursor:pointer;font:inherit;font-size:11px}
 .fc:hover{border-color:var(--navy)}
 .fc.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
@@ -313,7 +319,7 @@ color:var(--ink2);cursor:pointer;font:inherit;font-size:11px}
 .tgrp{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
 color:var(--ink3);padding:9px 2px 4px}
 .titem{display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid var(--line);
-border-radius:8px;background:#fff;cursor:pointer;width:100%;text-align:left;font:inherit;
+border-radius:8px;background:var(--card);cursor:pointer;width:100%;text-align:left;font:inherit;
 margin-bottom:5px}
 .titem:hover{border-color:var(--navy)}
 .titem.on{background:var(--navy2);border-color:var(--navy)}
@@ -322,38 +328,38 @@ margin-bottom:5px}
    is listed, not only the ones with teams in them — you pick the group you are
    entering FOR, then enter a team into it. */
 .agi{display:flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid var(--line);
-border-radius:8px;background:#fff;cursor:pointer;width:100%;text-align:left;font:inherit;
+border-radius:8px;background:var(--card);cursor:pointer;width:100%;text-align:left;font:inherit;
 margin-bottom:5px}
 .agi:hover{border-color:var(--navy)}
 .agi.on{background:var(--navy2);border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
 .agi .an{flex:1;min-width:0;font-size:12.5px;font-weight:600}
 .agi .c{flex:0 0 auto}
 /* a team, with the two things you can do to it side by side */
-.tcard{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:10px 12px;
+.tcard{border:1px solid var(--line2);border-radius:10px;background:var(--card);padding:10px 12px;
 margin-bottom:8px}
 .tcard.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
 .tcard .th{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
-.tcard .th b{font-size:14.5px;color:var(--navy)}
+.tcard .th b{font-size:15px;color:var(--navy)}
 .tcard .ta{display:flex;gap:6px;margin-top:8px}
 .titem .tn{flex:1;min-width:0;font-size:12.5px;font-weight:600;white-space:nowrap;
 overflow:hidden;text-overflow:ellipsis}
-.rost{border:1px solid var(--line);border-radius:10px;background:#fff;min-height:120px}
+.rost{border:1px solid var(--line);border-radius:10px;background:var(--card);min-height:120px}
 .rost.over{border-color:var(--navy);background:var(--navy2)}
 .rrow{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--line);
 font-size:12.5px}
 .rrow:last-child{border-bottom:0}
-.rrow:nth-child(even){background:#fcfbf9}
+.rrow:nth-child(even){background:var(--zebra)}
 .rrow .rn{flex:1;min-width:0;font-weight:600}
 .rrow .rv{width:42px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
 .rrow select{font:inherit;font-size:11px;padding:2px 4px;width:auto}
 .star{background:none;border:0;cursor:pointer;font-size:14px;line-height:1;padding:0 2px;
-color:var(--line2)}
-.star.on{color:#d19a2a}
-.pool{border:1px solid var(--line);border-radius:9px;background:#fff;max-height:46vh;overflow:auto}
+color:var(--ink3)}
+.star.on{color:var(--star)}
+.pool{border:1px solid var(--line);border-radius:9px;background:var(--card);max-height:46vh;overflow:auto}
 .pitem2{display:flex;align-items:center;gap:7px;padding:6px 9px;border-bottom:1px solid var(--line);
 font-size:12px;cursor:grab}
 .pitem2:last-child{border-bottom:0}
-.pitem2:hover{background:#fbfaf8}
+.pitem2:hover{background:var(--card2)}
 .pitem2 .pn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pitem2 .pv{font-weight:600;font-variant-numeric:tabular-nums}
 .elig{font-size:9.5px;font-weight:700;letter-spacing:.4px;padding:1px 4px;border-radius:4px;
@@ -363,9 +369,9 @@ white-space:nowrap}
 .elig.dn{background:var(--warnbg);color:var(--warn);border:1px solid var(--warnline)}
 .elig.no{background:var(--badbg);color:var(--bad);border:1px solid var(--badline)}
 .mhead{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;
-gap:10px;background:#fbfaf8}
+flex-wrap:wrap;gap:10px;background:var(--card2)}
 .mhead h3{margin:0;font-size:16px;font-weight:600;flex:1}
-.mhead .x{border:1px solid var(--line2);background:#fff;border-radius:5px;width:24px;height:24px;
+.mhead .x{border:1px solid var(--line2);background:var(--card);border-radius:5px;width:24px;height:24px;
 cursor:pointer;color:var(--ink3);font-size:14px;line-height:1;padding:0}
 .mhead .x:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
 .mbody{padding:12px 18px 18px;max-height:70vh;overflow:auto}
@@ -373,7 +379,7 @@ cursor:pointer;color:var(--ink3);font-size:14px;line-height:1;padding:0}
     and its own tinted band. Without it the buttons ran flush to the edge and
     read as if they had fallen out of the dialog. Ported from the prototype. */
 .mfoot{display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:12px 18px;
- border-top:1px solid var(--line);background:#fbfaf8;border-radius:0 0 13px 13px}
+ border-top:1px solid var(--line);background:var(--card2);border-radius:0 0 13px 13px}
 .mfoot .note{margin:0}
 .kv{display:grid;grid-template-columns:150px 1fr;gap:4px 12px;font-size:12.5px}
 .kv dt{color:var(--ink2)}
@@ -386,9 +392,9 @@ word-break:break-all}
    for a handful at a time and this is the first decision on the screen */
 .dsn{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:2px}
 .dsc{flex:1 1 210px;max-width:340px;text-align:left;font:inherit;cursor:pointer;
- border:1px solid var(--line2);border-radius:11px;background:#fff;padding:12px 14px;
+ border:1px solid var(--line2);border-radius:11px;background:var(--card);padding:12px 14px;
  display:flex;flex-direction:column;gap:3px}
-.dsc:hover{border-color:var(--navy);background:#fbfaf8}
+.dsc:hover{border-color:var(--navy);background:var(--card2)}
 .dsc.on{border-color:var(--navy);background:var(--navy2);box-shadow:0 0 0 1px var(--navy)}
 .dsc b{font-size:15px;color:var(--navy);line-height:1.2}
 .dsc .yr{font-size:11px;color:var(--ink3)}
@@ -397,20 +403,20 @@ word-break:break-all}
 /* the dashboard: a number, what it counts, and the section it opens */
 .dsh{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:2px}
 .dc{display:flex;flex-direction:column;gap:1px;align-items:flex-start;min-width:104px;
- border:1px solid var(--line2);border-radius:9px;background:#fff;padding:9px 13px;
+ border:1px solid var(--line2);border-radius:9px;background:var(--card);padding:9px 13px;
  cursor:pointer;font:inherit;text-align:left}
-.dc:hover{border-color:var(--navy);background:#fbfaf8}
-.dc b{font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--navy)}
+.dc:hover{border-color:var(--navy);background:var(--card2)}
+.dc b{font-size:19px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--navy)}
 .dc span{font-size:11px;color:var(--ink2)}
 .dc.wn{border-color:var(--warnline);background:var(--warnbg)}
 .dc.wn b{color:var(--warn)}
 .fgen{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:12px 0 4px}
 .fgl{border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .fgr{display:flex;align-items:center;gap:12px;padding:9px 12px;border:0;
- border-bottom:1px solid var(--line);background:#fff;cursor:pointer;width:100%;text-align:left;
+ border-bottom:1px solid var(--line);background:var(--card);cursor:pointer;width:100%;text-align:left;
  font:inherit}
 .fgr:last-child{border-bottom:0}
-.fgr:hover{background:#fbfaf8}
+.fgr:hover{background:var(--card2)}
 .fgr .nm{width:120px;flex:0 0 120px;font-weight:650;font-size:13px}
 .fgr .nm span{display:block;font-weight:400;font-size:11px;color:var(--ink3)}
 .fspark{flex:1;height:30px;display:flex;align-items:flex-end;gap:1px;min-width:120px}
@@ -421,7 +427,7 @@ word-break:break-all}
 .fgr .st{width:200px;flex:0 0 200px;display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap}
 /* levels: the cohort drawn, with the division lines on it */
 .flv{position:relative;height:132px;border:1px solid var(--line);border-radius:9px;
- background:#fbfaf8;overflow:hidden;margin-top:4px}
+ background:var(--card2);overflow:hidden;margin-top:4px}
 .flv .bars{position:absolute;inset:0 0 20px 0;display:flex;align-items:flex-end;padding:8px 0 0}
 .flv .bars i{flex:1;margin:0 .5px;background:var(--line2);border-radius:1px 1px 0 0;min-height:1px}
 .flv .bars i.b1{background:var(--d1)} .flv .bars i.b2{background:var(--d2)}
@@ -450,17 +456,17 @@ word-break:break-all}
    restyling it independently is how the two drift apart. */
 .c.bad{background:var(--badbg);border-color:var(--badline);color:var(--bad);font-weight:600}
 .sq{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,268px));gap:10px;margin-top:8px}
-.sqc{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}
+.sqc{border:1px solid var(--line);border-radius:9px;background:var(--card);overflow:hidden}
 .sqc.short{border-color:var(--warnline)}
-.sqh{padding:7px 10px;border-bottom:1px solid var(--line);background:#fbfaf8;font-size:12.5px}
+.sqh{padding:7px 10px;border-bottom:1px solid var(--line);background:var(--card2);font-size:12.5px}
 .sqh .row{display:flex;gap:6px;align-items:baseline;margin-top:3px;font-size:11px;color:var(--ink2);
  flex-wrap:wrap}
-.asg select{width:100%;font:600 12.5px inherit;padding:3px 5px;border-color:#b9c7de;
+.asg select{width:100%;font:600 12.5px inherit;padding:3px 5px;border-color:var(--navyline);
  background:var(--navy2);color:var(--navy)}
 .cats{padding:6px 10px}
 .catr{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink2);margin-bottom:2px}
 .catr .nm2{width:70px;flex:0 0 70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.catr .tr{position:relative;flex:1;height:7px;background:#f1efea;border-radius:4px}
+.catr .tr{position:relative;flex:1;height:7px;background:var(--track);border-radius:4px}
 .catr .tr i{position:absolute;top:0;bottom:0;width:2px;background:var(--line2);left:50%}
 .catr .tr b{position:absolute;top:1px;height:5px;border-radius:3px;background:var(--navy)}
 .catr .tr b.lo{background:var(--warn)}
@@ -485,7 +491,7 @@ word-break:break-all}
  vertical-align:top}
 .acct td.r{text-align:right;font-variant-numeric:tabular-nums}
 .acct input{width:100%;font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line2);
- border-radius:6px;background:#fff}
+ border-radius:6px;background:var(--card)}
 .stop{background:var(--badbg);border:1px solid var(--badline);border-radius:9px;
  padding:8px 11px;font-size:12.5px;color:var(--bad);margin-top:8px}
 .stop b{display:block;color:var(--bad)}
@@ -496,13 +502,13 @@ word-break:break-all}
    handful of teams into one group, and a tile read at a glance beats a stacked
    row. Same control the seasons use. */
 .fchk{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 9px;
- border:1px solid var(--line2);border-radius:8px;background:#fff;cursor:pointer}
+ border:1px solid var(--line2);border-radius:8px;background:var(--card);cursor:pointer}
 .fchk.on{border-color:var(--navy);background:var(--navy2);font-weight:600}
 .fchk input{width:auto;margin:0}
 .ttiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
-.ttile{border:1px solid var(--line2);border-radius:10px;background:#fff;padding:10px 12px}
+.ttile{border:1px solid var(--line2);border-radius:10px;background:var(--card);padding:10px 12px}
 .ttile.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
-.ttile>b{font-size:14.5px;color:var(--navy);display:block;line-height:1.25}
+.ttile>b{font-size:15px;color:var(--navy);display:block;line-height:1.25}
 .ttile .mt{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .ttile .ta{display:flex;gap:6px;margin-top:9px}
 /* the shape on a tile — the outline is the point, so it is drawn small and
@@ -520,7 +526,7 @@ word-break:break-all}
 .tch .tt .sub select{font-size:11.5px;padding:2px 4px}
 .statrow.tsr{flex-wrap:wrap}
 .statrow.tsr>div.wn b{color:var(--warn)}
-.panel2{background:#fff;border:1px solid var(--line);border-radius:10px;
+.panel2{background:var(--card);border:1px solid var(--line);border-radius:10px;
  padding:10px 12px;margin:0 0 10px}
 .tsh{font-size:12px}
 .tsh td{border:0;border-bottom:1px solid var(--line);padding:3px 0}
@@ -534,24 +540,24 @@ word-break:break-all}
  letter-spacing:.7px;text-transform:uppercase;color:var(--ink3);padding:2px 2px 5px}
 .zh b{margin-left:auto;color:var(--ink2)}
 .zh i{width:9px;height:9px;border-radius:2px;background:var(--ink3);display:inline-block}
-.zh i.z0{background:#3c7dc4} .zh i.z1{background:#1d9e75} .zh i.z2{background:#8b8981}
+.zh i.z0{background:var(--z0)} .zh i.z1{background:var(--z1)} .zh i.z2{background:var(--z2)}
 .zdrop{min-height:74px;border:1px dashed var(--line2);border-radius:9px;padding:7px;
- display:flex;flex-direction:column;gap:7px;background:#fbfaf8}
-.pcard{background:#fff;border:1px solid var(--line);border-left:3px solid var(--line2);
+ display:flex;flex-direction:column;gap:7px;background:var(--card2)}
+.pcard{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line2);
  border-radius:8px;padding:7px 9px}
 .pcard.ex{border-left-color:var(--warn)}
 .pcard .ph{display:flex;align-items:flex-start;gap:6px}
 .pcard .ph b{flex:1;min-width:0;font-size:13px;line-height:1.25}
 .pcard .pa{display:flex;gap:3px;flex:0 0 auto}
 .pcard .pchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
-.pcard .pchips .stat{background:#efeefb;border-color:#cecbf6;color:#4a44a8}
+.pcard .pchips .stat{background:var(--accbg);border-color:var(--accline);color:var(--acc)}
 .pcard .pchips .rt{background:var(--okbg);border-color:var(--okline);color:var(--ok)}
 .pcard .plens{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .pcard .plens select{font:inherit;font-size:10.5px;padding:2px 3px;width:auto}
 .pcard .plens .oth{font-size:10px;color:var(--ink3)}
 /* the pool, beneath the squad and full width */
 .poolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:6px;
- border:1px solid var(--line);border-radius:9px;padding:7px;background:#fff;margin-top:6px}
+ border:1px solid var(--line);border-radius:9px;padding:7px;background:var(--card);margin-top:6px}
 .poolgrid.over{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
 .poolgrid .pitem2{border-bottom:0;border:1px solid var(--line);border-radius:7px}
 /* THE PLACEMENT LEDGER'S OWN COLUMNS. Left to itself the table gave the name
@@ -577,9 +583,9 @@ word-break:break-all}
  background:var(--badbg);border:1px solid var(--badline);border-radius:8px;padding:3px 6px}
 .pldec .q{font-size:11.5px;color:var(--bad);font-weight:600}
 .plact input{font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line2);
- border-radius:6px;background:#fff}
+ border-radius:6px;background:var(--card)}
 /* clearing a stop where it is raised — one record per row, never a bulk tick */
-.vfy{margin-top:8px;background:#fff;border:1px solid var(--badline);border-radius:8px;
+.vfy{margin-top:8px;background:var(--card);border:1px solid var(--badline);border-radius:8px;
  padding:6px 9px}
 .vfy .how{margin:2px 0 6px}
 .vfyr{display:flex;align-items:center;gap:6px;flex-wrap:wrap;
@@ -590,7 +596,7 @@ word-break:break-all}
 .vfyr .who span{font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
 .vfyn{display:flex;gap:6px;align-items:center;padding:0 0 7px}
 .vfyn input{flex:1 1 auto;font:inherit;font-size:12px;padding:4px 6px;
- border:1px solid var(--line2);border-radius:6px;background:#fff}
+ border:1px solid var(--line2);border-radius:6px;background:var(--card)}
 .wrote{background:var(--okbg);border:1px solid var(--okline);border-radius:9px;
  padding:10px 12px;font-size:13px;color:var(--ok);margin-top:8px}
 /* the comparison board */
@@ -607,55 +613,56 @@ word-break:break-all}
 .cskey .cv.lo b,.cskey .cv.lo i{color:var(--warn);font-weight:650}
 .cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(206px,1fr));gap:10px;
  align-items:start}
-.col{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}
+.col{border:1px solid var(--line);border-radius:9px;background:var(--card);overflow:hidden}
 .col.over{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy2)}
 .col.warn{border-color:var(--warnline)}
-.colh{padding:7px 9px;border-bottom:1px solid var(--line);background:#fbfaf8}
+.colh{padding:7px 9px;border-bottom:1px solid var(--line);background:var(--card2)}
 .colh b{font-size:12.5px;display:block}
 .colh .mt{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
 .pl{list-style:none;margin:0;padding:3px 0;min-height:56px}
 .pl li{display:flex;gap:7px;padding:3px 9px;font-size:11.5px;cursor:grab;
- border-bottom:1px solid #f3f1ec}
+ border-bottom:1px solid var(--track)}
 .pl li:last-child{border-bottom:0}
-.pl li:hover{background:#fbfaf8}
+.pl li:hover{background:var(--card2)}
 .pl li .r{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink2)}
-.pl li .mk{color:var(--acc);font-weight:700;font-size:9px;letter-spacing:.04em}
+.pl li .mk{color:var(--acc);font-weight:700;font-size:9.5px;letter-spacing:.04em}
 .pl li .mvn{color:var(--acc);font-weight:600}
-.pl li .ax{font-size:9px;color:var(--ink3);border:1px solid var(--line);border-radius:9px;
+.pl li .ax{font-size:9.5px;color:var(--ink3);border:1px solid var(--line);border-radius:9px;
  padding:0 5px;white-space:nowrap}
-.pl li .st{background:0;border:0;padding:0 2px 0 0;font-size:11px;color:var(--line2);cursor:pointer}
-.pl li .st.on{color:#c9a227}
+.pl li .st{background:0;border:0;padding:0 2px 0 0;font-size:11px;color:var(--ink3);cursor:pointer}
+.pl li .st.on{color:var(--star)}
 .pl li.ph{color:var(--ink3);cursor:default;justify-content:center;font-size:10px}
 .lens{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-.lb{background:#fff;border:1px solid var(--line2);border-radius:7px;padding:4px 11px;
- font:12.5px inherit;cursor:pointer}
-.lb.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+.tgl{background:var(--card);border:1px solid var(--line2);border-radius:7px;padding:4px 11px;
+ font:12.5px inherit;color:var(--ink);cursor:pointer}
+.tgl:hover{border-color:var(--navy)}
+.tgl.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
 .zbar{display:flex;height:6px;margin:0 9px 6px}
 .zbar i{display:block}
 .zbar i:first-child{border-radius:3px 0 0 3px}
 .zbar i:last-child{border-radius:0 3px 3px 0}
 .zsec{border-top:1px solid var(--line)}
 .zsec.over{background:var(--navy2)}
-.zh{display:flex;align-items:center;gap:5px;padding:4px 9px 2px;font-size:9.5px;
+.fzh{display:flex;align-items:center;gap:5px;padding:4px 9px 2px;font-size:10px;
  letter-spacing:.05em;text-transform:uppercase;color:var(--ink3);font-weight:650}
-.zh i{width:8px;height:8px;border-radius:2px;display:inline-block}
-.zh span{margin-left:auto;font-weight:600}
+.fzh i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.fzh span{margin-left:auto;font-weight:600}
 .ftms{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
-.ftm{display:inline-flex;align-items:center;gap:5px;background:var(--navy2);border:1px solid #b9c7de;
+.ftm{display:inline-flex;align-items:center;gap:5px;background:var(--navy2);border:1px solid var(--navyline);
  color:var(--navy);font-weight:600;font-size:12px;padding:3px 5px 3px 10px;border-radius:20px}
 .ftm button{background:0;border:0;color:var(--navy);cursor:pointer;font-size:14px;line-height:1;
  padding:0 3px;opacity:.6}
 .ftm button:hover{opacity:1}
 .fopt{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line2);border-radius:9px;
- padding:9px 12px;background:#fff;cursor:pointer;font-size:12.5px}
-.fopt.on{border-color:var(--navy);background:#f4f7fc}
+ padding:9px 12px;background:var(--card);cursor:pointer;font-size:12.5px}
+.fopt.on{border-color:var(--navy);background:var(--navy2)}
 .fopts{display:flex;flex-direction:column;gap:7px;margin-top:6px}
 .fopt .c{margin-left:6px}
 .fopt span span{display:block}
 .fbasis{display:flex;gap:12px;flex-wrap:wrap}
 .fb{flex:1 1 300px;border:1px solid var(--line2);border-radius:10px;padding:10px 13px;
- background:#fff;cursor:pointer}
-.fb.on{border-color:var(--navy);background:#f4f7fc}
+ background:var(--card);cursor:pointer}
+.fb.on{border-color:var(--navy);background:var(--navy2)}
 .fb b{font-size:13px}
 .fb p{margin:5px 0 0;font-size:11.5px;color:var(--ink2)}
 </style>
@@ -673,8 +680,7 @@ word-break:break-all}
   <div id="shell"><div class="stage narrow">
     <div class="panel">
       <div class="rhead"><h2>Connect to your database</h2>
-        <div class="sub">One-time. Both values come from Supabase — Settings → API.
-          They are stored only in this browser.</div></div>
+        <div class="sub">Supabase → Settings → API. Stored in this browser only.</div></div>
       <div class="pbody">
         <div class="field"><label class="fl">Project URL</label>
           <input type="text" x-model="cfg.url" placeholder="https://xxxxxxxx.supabase.co"></div>
@@ -697,7 +703,7 @@ word-break:break-all}
   <div id="shell"><div class="stage narrow">
     <div class="panel">
       <div class="rhead"><h2>Sign in</h2>
-        <div class="sub">We email you a link. No password to remember.</div></div>
+        <div class="sub">A sign-in link is emailed to you.</div></div>
       <div class="pbody">
         <div class="field"><label class="fl">Email address</label>
           <input type="email" x-model="email" placeholder="you@example.com"></div>
@@ -720,7 +726,7 @@ word-break:break-all}
       <!-- THE CLUB OWNS THE HEADLINE once you are signed in: this is their
            tool. The product names itself where it introduces itself — the
            browser title, the sign-in and setup screens, and More…. -->
-      <h1 x-text="org?.name || 'ClubFlowO'"></h1>
+      <h1 x-text="org?.name || ''"></h1>
       <div class="sub">
         <span x-text="me?.display_name || userEmail"></span>
         <template x-if="me"><span> · <span x-text="me.role.replace('_',' ')"></span>
@@ -743,7 +749,7 @@ word-break:break-all}
              from the Rating stage, which is the screen it belongs to. This is
              the only button here that exists in one stage and not the others —
              it is the way back out of a mode that hides everything else. -->
-        <button class="hb" x-show="stage==='court'" @click="stage='dash'">Back to the club</button>
+        <button class="hb" x-show="stage==='court'" @click="stage='dash'">← Club</button>
         <button class="hb" x-show="stage!=='court'" :class="stage==='dash'?'pri':''"
                 @click="openDash()">Dashboard</button>
         <!-- SEASON IS A SECTION OF ITS OWN. Ming, 19 Aug 2026: "Move Season as a
@@ -795,9 +801,8 @@ word-break:break-all}
           <button class="btn sm" x-show="queue.length" :disabled="syncing || !online"
                   @click="flushQueue()" x-text="syncing?'Sending…':'Send now'"></button>
         </div>
-        <p class="note" x-show="queue.length && !online" style="margin:-6px 0 11px">
-          No connection. Keep rating — everything is held on this device and goes up by itself
-          when you are back.</p>
+        <p class="note" x-show="queue.length && !online" style="margin:-6px 0 11px">Offline. Keep rating — ratings are held on this device and sent when the connection
+          returns.</p>
 
         <!-- A refusal is not a network problem and must never be retried into a loop.
              The database said no; the coach is told what it said and decides. -->
@@ -808,8 +813,7 @@ word-break:break-all}
                 <span x-text="rejected.length"></span>
                 <span x-text="rejected.length===1?'rating was not accepted':'ratings were not accepted'"></span>
               </h2>
-              <div class="sub">These did not fail to send — they reached the database and it refused
-                them. Nothing is lost; nothing will be retried on its own.</div>
+              <div class="sub">The database refused these. They are kept, and will not be retried on their own.</div>
             </div>
             <div class="pbody">
               <template x-for="r in rejected" :key="r.id">
@@ -834,11 +838,10 @@ word-break:break-all}
               <div class="sub">Only sessions you have been authorised to rate in.</div></div>
             <div class="pbody">
               <template x-if="!court.sessions.length">
-                <div class="empty">Nothing open for you right now. The club opens a session and
-                  authorises you before it appears here.</div>
+                <div class="empty">No session open for you. Raters are authorised per session.</div>
               </template>
               <template x-for="s in court.sessions" :key="s.id">
-                <div class="prow" @click="pickCourtSession(s)">
+                <div class="crow" @click="pickCourtSession(s)">
                   <div class="nm"><span x-text="s.name"></span>
                     <span class="who"><span x-text="s.opens_at?.slice(0,10)"></span> →
                       <span x-text="s.closes_at?.slice(0,10)"></span></span></div>
@@ -858,13 +861,12 @@ word-break:break-all}
                 <div class="sub"><span x-text="courtDone()"></span> of
                   <span x-text="court.people.length"></span> rated by anyone</div>
               </div>
-              <button class="btn sm" @click="court.session=null;court.person=null">Back</button>
+              <button class="btn sm" @click="court.session=null;court.person=null">← Sessions</button>
             </div>
             <div class="pbody">
-              <p class="note" style="margin:0 0 9px">Nobody is assigned. Pick up whoever has not
-                been rated — the list shows who already has.</p>
+              <p class="note" style="margin:0 0 9px">Nobody is assigned. The list marks who has already been rated.</p>
               <template x-for="p in court.people" :key="p.id">
-                <div class="prow" @click="pickCourtPlayer(p)">
+                <div class="crow" @click="pickCourtPlayer(p)">
                   <div class="nm"><span x-text="p.given_name+' '+p.family_name"></span>
                     <span class="who" x-text="courtWho(p.id)"></span></div>
                   <span class="c" :class="courtMine(p.id) ? 'ok' : (courtRated(p.id) ? 'grp' : '')"
@@ -884,13 +886,11 @@ word-break:break-all}
                 <div class="sub"><span x-text="Object.keys(court.scores).length"></span> of
                   <span x-text="courtMeasures().length"></span> scored</div>
               </div>
-              <button class="btn sm" @click="court.person=null">Back</button>
+              <button class="btn sm" @click="court.person=null">← Squad</button>
             </div>
             <div class="pbody">
               <p class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);margin-bottom:10px"
-                 x-show="courtMine(court.person?.id)">
-                You have already rated this player in this session. Rating again is allowed and both
-                are kept — the head coach sees the spread.</p>
+                 x-show="courtMine(court.person?.id)">Already rated by you in this session. A second pass is kept alongside the first.</p>
               <template x-for="m in courtMeasures()" :key="m.id">
                 <div class="mrow big">
                   <span class="lb" x-text="m.label"></span>
@@ -911,9 +911,8 @@ word-break:break-all}
                         :disabled="!Object.keys(court.scores).length">Save and next</button>
                 <button class="btn" @click="court.scores={};court.note=''">Clear</button>
               </div>
-              <p class="note">Saved on this device straight away. It goes up on its own — you do not
-                have to wait for it. A saved rating cannot be edited; a correction is a resolution by
-                the head coach.</p>
+              <p class="note">Saved to this device and sent automatically. A saved rating cannot be edited; a
+                correction is a resolution by the head coach.</p>
               <p x-show="court.msg" x-text="court.msg" class="msg"></p>
             </div>
           </div>
@@ -950,15 +949,15 @@ word-break:break-all}
 
       <div class="pbody">
 
-        <p class="note" style="margin-top:0">Every trial belongs to a season, and the season's
-          <b>year</b> is what age eligibility is reckoned against. It is a number the club states —
-          named bands like U12 are an association's own convention and are not assumed here.</p>
+        <p class="note" style="margin-top:0">Every trial belongs to a season, and the season's <b>year</b> is what age eligibility is
+          reckoned against. Named bands like U12 are an association's own convention and are not
+          assumed here.</p>
 
-        <div class="srow" style="background:#fbfaf8">
+        <div class="srow" style="background:var(--card2)">
           <div class="row2">
             <div class="field"><label class="fl">Season name</label>
               <input type="text" x-model="newSeason.name" placeholder="e.g. Winter 2027"></div>
-            <div class="field"><label class="fl">Year age is reckoned against</label>
+            <div class="field"><label class="fl">Age-reckoning year</label>
               <input type="number" x-model.number="newSeason.year" min="1900" max="2200"></div>
           </div>
           <div class="row2">
@@ -971,7 +970,7 @@ word-break:break-all}
                  style="width:auto;margin-right:6px">Make this the current season</label>
           <div class="inline">
             <button class="btn pri" @click="createSeason()"
-                    :disabled="!newSeason.name.trim() || !newSeason.year || busy">Add season</button>
+                    :disabled="!newSeason.name.trim() || !newSeason.year || busy">Save</button>
           </div>
           <p x-show="seasonErr" x-text="seasonErr" class="err"></p>
         </div>
@@ -1000,7 +999,7 @@ word-break:break-all}
                   <button class="btn sm" x-show="!r.archived_at && !r.is_current"
                           @click="archiveSeason(r, true)">Archive</button>
                   <button class="btn sm" x-show="r.archived_at"
-                          @click="archiveSeason(r, false)">Put back in play</button>
+                          @click="archiveSeason(r, false)">Restore</button>
                   <button class="btn sm" x-show="!r.archived_at" @click="deleteSeason(r)"
                           :disabled="r.sessions+r.teams+r.players+r.offers>0">Delete</button>
                 </td>
@@ -1008,10 +1007,8 @@ word-break:break-all}
             </template>
           </tbody>
         </table>
-        <p class="note">A season holding a trial, a team, a player record or an offer is
-          <b>kept</b>. Deleting it would take the year's evaluations with it — <b>archive</b> it
-          instead. An archived season keeps everything and goes read-only: it leaves the working
-          screens, and nothing new can be written against it until you put it back in play.</p>
+        <p class="note">Delete is available only on an empty season. <b>Archive</b> keeps everything and makes the
+          season read-only until you put it back in play.</p>
         <p class="note" style="margin-top:4px">The <b>current</b> season cannot be archived, and
           neither can one with a trial still open — close it first, so nobody is left
           mid-rating.</p>
@@ -1172,7 +1169,7 @@ word-break:break-all}
                   <b style="font-size:15px" x-text="tm.grpSel || 'No age group'"></b>
                   <span class="c" x-text="teamSeasonsIn(tm.grpSel||null).length+' teams'"></span>
                   <span style="margin-left:auto"></span>
-                  <button class="btn pri" @click="startTeam()" :disabled="!seasonId">New team</button>
+                  <button class="btn pri" @click="startTeam()" :disabled="!seasonId">Add team</button>
                 </div>
 
                 <!-- NEW TEAM. Name and age group are what a team IS; a division
@@ -1180,9 +1177,9 @@ word-break:break-all}
                      was entered in, and a club often does not know it yet.
                      Ming, 19 Aug 2026: "Name, Gender/Age Group by default,
                      Division as Optional." -->
-                <div x-show="tm.adding" class="srow" style="background:#fbfaf8">
+                <div x-show="tm.adding" class="srow" style="background:var(--card2)">
                   <div class="row2">
-                    <div class="field"><label class="fl">Team name — reused every season</label>
+                    <div class="field"><label class="fl">Team name</label>
                       <input type="text" x-model="tm.name" placeholder="e.g. Gold"
                              list="teamNames"></div>
                     <div class="field"><label class="fl">Gender / age group</label>
@@ -1195,13 +1192,10 @@ word-break:break-all}
                     <template x-for="t in teams" :key="t.id"><option :value="t.name"></option></template>
                   </datalist>
                   <div class="field"><label class="fl">Division
-                      <span style="color:var(--ink3);font-weight:400">— optional, and it can be
-                      added when the association confirms it</span></label>
+                      <span style="color:var(--ink3);font-weight:400">— optional</span></label>
                     <input type="text" x-model="tm.div" placeholder="e.g. Div 1"></div>
-                  <p class="note" style="margin-bottom:8px">Reusing an existing name puts that team
-                    into this season — it does not create a second team. The same name in <b>two
-                    different age groups</b> is fine; twice in <b>one</b> age group is not, because
-                    they would be one team on a team sheet.</p>
+                  <p class="note" style="margin-bottom:8px">Reusing a name enters that existing team into this season. The same name in two age groups
+                    is fine; twice in one age group is not.</p>
                   <p class="note" style="margin-bottom:8px" x-show="tmTidied()">
                     Will be recorded as <b x-text="tmTidied()"></b>.</p>
                   <p class="note" style="margin-bottom:8px" x-show="tmProposed()">
@@ -1216,7 +1210,7 @@ word-break:break-all}
                   <div class="inline">
                     <button class="btn pri" @click="createTeam()"
                             :disabled="!tm.name.trim() || !tm.grp || tm.busy || !!tmNameStop()">
-                      Add team</button>
+                      Save</button>
                     <button class="btn" @click="tm.adding=false">Cancel</button>
                   </div>
                 </div>
@@ -1287,8 +1281,7 @@ word-break:break-all}
                 </div>
                 <div class="srow">
                   <div class="row2">
-                    <div class="field"><label class="fl">Team name — club-wide, and it carries
-                      across seasons</label>
+                    <div class="field"><label class="fl">Team name</label>
                       <input type="text" x-model="tm.ename"></div>
                     <div class="field"><label class="fl">Gender / age group this season</label>
                       <select x-model="tm.egrp">
@@ -1299,9 +1292,8 @@ word-break:break-all}
                   <div class="field"><label class="fl">Division
                       <span style="color:var(--ink3);font-weight:400">— optional</span></label>
                     <input type="text" x-model="tm.ediv" placeholder="e.g. Div 1"></div>
-                  <p class="note" style="margin-bottom:8px">Renaming changes the team <b>everywhere,
-                    in every season</b> — it is the same team. Changing the age group moves this
-                    season's entry only.</p>
+                  <p class="note" style="margin-bottom:8px">Renaming changes the team in <b>every season</b> — it is the same team. Changing the age
+                      group moves this season's entry only.</p>
                   <p class="note" style="margin-bottom:8px" x-show="tm.esaved" x-text="tm.esaved"></p>
                   <div class="inline">
                     <button class="btn pri" @click="saveTeam()"
@@ -1352,7 +1344,7 @@ word-break:break-all}
                     </div>
                   </div>
                   <span style="margin-left:auto"></span>
-                  <button class="btn sm" @click="openTeamEdit(tm.selected)">Edit the team</button>
+                  <button class="btn sm" @click="openTeamEdit(tm.selected)">Edit</button>
                 </div>
                 <p class="note" style="margin:0 0 8px" x-show="tm.dsaved" x-text="tm.dsaved"></p>
 
@@ -1436,7 +1428,7 @@ word-break:break-all}
                      is the sport's. -->
                 <div class="lens">
                   <template x-for="l in clubLenses()" :key="l.k">
-                    <button class="lb" :class="l.k===tLens()?.k?'on':''"
+                    <button class="tgl" :class="l.k===tLens()?.k?'on':''"
                             @click="tm.lens=l.k" x-text="l.t"></button>
                   </template>
                   <span class="c" x-text="tLensNote()"></span>
@@ -1505,7 +1497,7 @@ word-break:break-all}
                 </div>
                 <template x-if="!rosterOf(tm.selected).length">
                   <div class="empty" style="padding:22px 10px">
-                    Empty. Drag a name from the pool below, or press <b>+</b> beside one.</div>
+                    Empty. Drag a name from the pool, or press <b>+</b> beside one.</div>
                 </template>
 
               </div>
@@ -1551,6 +1543,7 @@ word-break:break-all}
             <span class="yr">age reckoned at <span x-text="s.year"></span></span>
             <span class="mt">
               <span class="c ok" x-show="s.is_current">current</span>
+              <span class="c wn" x-show="s.archived_at">archived · read-only</span>
               <span class="c" x-text="dashSeasonSub(s)"></span>
             </span>
           </button>
@@ -1568,13 +1561,13 @@ word-break:break-all}
           </template>
         </select>
       </div>
-      <p class="note" x-show="!seasons.length">No season yet. Add one from Rating.</p>
+      <p class="note" x-show="!seasons.length">No season yet. Add one from <b>Season</b>.</p>
       <p class="note" x-show="seasons.length && !dashLive().length">
         Every season is archived. Put one back in play from <b>Season</b>, or add a new
         one.</p>
 
       <template x-if="!seasonId">
-        <div class="empty">Choose a season — everything here is read through one.</div>
+        <div class="empty">Choose a season.</div>
       </template>
 
       <p class="warnbar" style="margin:10px 0 0;border-radius:8px;border:1px solid var(--warnline)"
@@ -1606,9 +1599,7 @@ word-break:break-all}
             <button class="dc" :class="dashSessionsLate()?'wn':''" @click="stage='admin'">
               <b x-text="dashSessionsLate()"></b><span>open past close</span></button>
           </div>
-          <p class="note" style="margin-top:2px" x-show="dashSessionsLate()">A trial sitting open
-            past its own closing date is a signal, not a lock — coaches still enter ratings from a
-            clipboard days later.</p>
+          <p class="note" style="margin-top:2px" x-show="dashSessionsLate()">Open past its own closing date. Ratings are still accepted.</p>
 
           <div class="cath">Player placement</div>
           <!-- EVERY NUMBER IS A WAY INTO THE SECTION THAT WOULD DO IT. Teams are
@@ -1654,11 +1645,9 @@ word-break:break-all}
           </table>
           <p class="note" x-show="!dashGroups().length">No player has a date of birth and a rating
             in this season yet, so there is nothing to band.</p>
-          <p class="note" style="margin-bottom:0" x-show="dashGroups().length">
-            An age group runs <b>no plan → planned → named → offered → responded → confirmed</b>.
-            A row opens that age group in Formation. <b>Confirmed</b> means every accepted place is
-            registered — the only rung with nothing outstanding, because a place is binding at
-            registration and not at acceptance.</p>
+          <p class="note" style="margin-bottom:0" x-show="dashGroups().length">An age group runs <b>no plan → planned → named → offered → responded → confirmed</b>.
+            <b>Confirmed</b> means every accepted place is registered. A row opens that age group in
+            Formation.</p>
         </div>
       </template>
       </div>
@@ -1711,7 +1700,7 @@ word-break:break-all}
       <p x-show="fp.err" x-text="fp.err" class="err" style="margin-top:0"></p>
 
       <template x-if="!seasonId">
-        <div class="empty">Choose a season first — formation belongs to one.</div>
+        <div class="empty">Choose a season.</div>
       </template>
 
       <template x-if="seasonId && !fAllGroups().length">
@@ -1732,7 +1721,7 @@ word-break:break-all}
         <div class="fgen">
           <span class="cath" style="margin:0">Gender</span>
           <template x-for="x in fGenders()" :key="x">
-            <button class="lb" :class="fp.gender===x?'on':''" @click="fp.gender=x"
+            <button class="tgl" :class="fp.gender===x?'on':''" @click="fp.gender=x"
                     x-text="x"></button>
           </template>
           <span class="c" x-text="fGroups().length+' age group'+(fGroups().length===1?'':'s')"></span>
@@ -1765,9 +1754,7 @@ word-break:break-all}
               </button>
             </template>
           </div>
-          <p class="note" style="margin-bottom:0">The strip is that age group's distribution,
-            shaded by the divisions you have set. There is nothing to set club-wide — no two age
-            groups have the same players in them.</p>
+          <p class="note" style="margin-bottom:0">Each strip is that age group's own distribution, shaded by the divisions set for it.</p>
         </div>
       </template>
       </div>
@@ -1839,7 +1826,7 @@ word-break:break-all}
 
       <div class="pbody">
         <template x-if="!seasonId">
-          <div class="empty">Choose a season — everything here is read through one.</div>
+          <div class="empty">Choose a season.</div>
         </template>
 
         <template x-if="seasonId">
@@ -1972,10 +1959,8 @@ word-break:break-all}
             </table>
             </template>
 
-            <p class="note" x-show="plBucket().act==='backfill' && plRows().length">
-              Backfilling in place — picking a replacement here and seeing what it costs the team's
-              average — is not built yet. Until it is, open the team and place somebody from the
-              pool; the balance table on that age group shows the cost.</p>
+            <p class="note" x-show="plBucket().act==='backfill' && plRows().length">Backfill from the team roster. Replacing in place, with the cost to the team average on
+              screen, is not built yet.</p>
           </div>
         </div>
         </template>
@@ -1998,7 +1983,7 @@ word-break:break-all}
                   x-text="unverifiedCount()+' unverified'"></span>
             <span style="margin-left:auto"></span>
             <button class="btn sm pri" @click="startAdd()"
-                    x-show="!pm.editing && pm.returnTo!=='review'">Add a player</button></div>
+                    x-show="!pm.editing && pm.returnTo!=='review'">Add player…</button></div>
 
           <div class="mbody" style="max-height:none">
             <p x-show="peopleErr" x-text="peopleErr" class="err" style="margin-top:0"></p>
@@ -2051,10 +2036,8 @@ word-break:break-all}
               </template>
               <span class="c" x-show="!pGroups().length">no dates of birth recorded</span>
             </div>
-            <p class="note" style="margin:4px 0 0">Age groups come from this club's own brackets in
-              <b>Setup</b> — a player is in the first group whose number is above their age at
-              31 December. <b>A player's age is on their card</b>, where it belongs to one child
-              rather than to a filter.</p>
+            <p class="note" style="margin:4px 0 0">Age groups come from this club's own brackets in <b>Setup</b> — a player is in the first
+              group whose number is above their age at 31 December. A player's age is on their card.</p>
 
             <div class="psplit" style="margin-top:10px">
               <div>
@@ -2088,8 +2071,8 @@ word-break:break-all}
                          x-text="people.length ? 'Nobody matches that.' : 'No players yet.'"></div>
                   </template>
                 </div>
-                <p class="note">A dot marks a record nobody has stood behind yet. Rating never waits
-                  on it; <b>an offer of a place does</b>.</p>
+                <p class="note">A dot marks a record nobody has stood behind yet. Verification gates an <b>offer</b>, never
+                  a rating.</p>
               </div>
 
               <div class="pdet" data-modal="player">
@@ -2113,7 +2096,7 @@ word-break:break-all}
                               @click="pm.editing=true">Edit</button>
                       <button class="btn sm pri" x-show="pm.editing" @click="savePerson()"
                               :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
-                              x-text="pe.busy ? 'Saving…' : 'Done'"></button>
+                              x-text="pe.busy ? 'Saving…' : 'Save'"></button>
                       <button class="btn sm" x-show="pm.editing" @click="cancelEdit()">Cancel</button>
                     </div>
 
@@ -2196,11 +2179,11 @@ word-break:break-all}
               <div>
                 <div class="inline" style="margin-top:0" x-show="pe.verification!=='verified'">
                   <button class="btn pri" @click="quickVerify('association')"
-                          :disabled="qv.busy">Matched the registration</button>
+                          :disabled="qv.busy">Association registration</button>
                   <button class="btn" @click="quickVerify('attested')"
-                          :disabled="qv.busy">Parent attested</button>
+                          :disabled="qv.busy">Parent attestation</button>
                   <button class="btn" @click="qv.open=!qv.open"
-                          x-text="qv.open ? 'Cancel' : 'My own authority…'"></button>
+                          x-text="qv.open ? 'Cancel' : 'Own authority…'"></button>
                 </div>
 
                 <div class="inline" style="margin-top:0" x-show="pe.verification==='verified'">
@@ -2210,7 +2193,7 @@ word-break:break-all}
 
                 <div x-show="qv.open" style="margin-top:8px">
                   <div class="field" style="margin-bottom:6px">
-                    <label class="fl">What did you check? — this goes on the record</label>
+                    <label class="fl">What was checked</label>
                     <input type="text" x-model="qv.note" @keydown.enter="quickVerify('admin', qv.note)"
                            placeholder="e.g. birth certificate sighted, Connect record not live yet">
                   </div>
@@ -2226,16 +2209,14 @@ word-break:break-all}
 
             <template x-if="pm.editing">
               <div>
-                <p class="note" style="margin:0 0 6px">A club is downstream of the association, whose
-                  registration the parent already attested to — so match that, and only go back to a
-                  family where the two disagree.</p>
+                <p class="note" style="margin:0 0 6px">Match the association's registration. Go back to a family only where the two disagree.</p>
                 <div class="vsrc">
                   <button class="btn" :class="pe.verification==='verified' && pe.vsource==='association' ? 'pri':''"
-                          @click="setVerification('association')">Matched the registration</button>
+                          @click="setVerification('association')">Association registration</button>
                   <button class="btn" :class="pe.verification==='verified' && pe.vsource==='attested' ? 'pri':''"
-                          @click="setVerification('attested')">Parent attested</button>
+                          @click="setVerification('attested')">Parent attestation</button>
                   <button class="btn" :class="pe.verification==='verified' && pe.vsource==='admin' ? 'pri':''"
-                          @click="setVerification('admin')">My own authority</button>
+                          @click="setVerification('admin')">Own authority</button>
                   <button class="btn" :class="pe.verification!=='verified' ? 'pri':''"
                           @click="setVerification('')">Not verified</button>
                 </div>
@@ -2243,29 +2224,24 @@ word-break:break-all}
                      whole difference between an override and a bypass. -->
                 <div class="field" x-show="pe.verification==='verified' && pe.vsource==='admin'"
                      style="margin-top:8px">
-                  <label class="fl">What did you check? — this is the reason on the record</label>
+                  <label class="fl">What was checked</label>
                   <input type="text" x-model="pe.vnote"
                          placeholder="e.g. birth certificate sighted, Connect record not live yet">
                 </div>
-                <p class="note" x-show="pe.verification==='verified'" style="margin-top:8px">
-                  Changing the date of birth un-verifies this record — the registration it was matched
-                  against is keyed on that date, so somebody has to look again.</p>
-                <p class="note" x-show="!pm.personId">Anything created here is flagged <b>DEMO</b>.
-                  This version holds fabricated data only.</p>
+                <p class="note" x-show="pe.verification==='verified'" style="margin-top:8px">Changing the date of birth un-verifies this record.</p>
+                <p class="note" x-show="!pm.personId">Flagged <b>DEMO</b> — this version holds fabricated data only.</p>
 
                 <div class="inline" style="margin-top:10px" x-show="pm.personId">
                   <button class="btn" x-show="!pe.delConfirm" @click="pe.delConfirm=true">Delete…</button>
                   <template x-if="pe.delConfirm">
                     <span class="inline" style="margin:0">
                       <span class="c wn">Delete permanently?</span>
-                      <button class="btn" @click="deletePerson()">Yes, delete</button>
+                      <button class="btn" @click="deletePerson()">Delete</button>
                       <button class="btn" @click="pe.delConfirm=false">No</button>
                     </span>
                   </template>
                 </div>
-                <p class="note" x-show="pe.delConfirm">A player who has been rated cannot be deleted —
-                  the ratings would go with them. Mark them <b>inactive</b> instead; they leave the
-                  lists and the record survives.</p>
+                <p class="note" x-show="pe.delConfirm">A rated player cannot be deleted. Mark them <b>inactive</b> instead.</p>
                 <p x-show="pe.err" x-text="pe.err" class="err"></p>
               </div>
             </template>
@@ -2326,9 +2302,7 @@ word-break:break-all}
                          coach's call; only the record of WHOSE call differs. -->
                     <div class="rz" x-show="rz.measure_id===m.measure_id">
                       <div class="cath" style="margin-top:0">The head coach's call</div>
-                      <p class="note" style="margin:0 0 7px">A session is usually run by the coaching
-                        staff; the head coach carries the final say on every rating, and the
-                        explanation with it.</p>
+                      <p class="note" style="margin:0 0 7px">The head coach carries the final say on every rating.</p>
                       <template x-for="w in pmRaters()" :key="w.key">
                         <div class="opt" x-show="m.by[w.key] != null"
                              :class="rz.source==='adopted' && rz.adopted===w.mid ? 'on' : ''"
@@ -2350,14 +2324,13 @@ word-break:break-all}
                         </span>
                       </div>
                       <div class="field" style="margin:8px 0 0">
-                        <label class="fl">Why — optional, and only for you. The head coach's
-                          authority does not rest on writing it down</label>
+                        <label class="fl">Why <span style="color:var(--ink3);font-weight:400">— optional</span></label>
                         <input type="text" x-model="rz.rationale"
                                placeholder="e.g. watched the second half">
                       </div>
                       <div class="inline" style="margin-top:8px">
                         <button class="btn pri" @click="saveResolution(m)"
-                                :disabled="!rz.score || rz.busy">Save the call</button>
+                                :disabled="!rz.score || rz.busy">Save</button>
                         <button class="btn" @click="rz.measure_id=''">Cancel</button>
                       </div>
                       <p x-show="rz.err" x-text="rz.err" class="err"></p>
@@ -2365,10 +2338,8 @@ word-break:break-all}
                     </div>
                   </template>
                 </div>
-                <p class="note" x-show="pmRaters().length>1">One box per rating pass, in the order
-                  they were taken. Where the same coach rated twice the passes stay separate —
-                  nothing is averaged away before you see it. The bar repeats the mean; it does not
-                  add anything the number does not already say.</p>
+                <p class="note" x-show="pmRaters().length>1">One box per rating pass, in the order they were taken. Repeat passes by the same coach are
+                  kept separate.</p>
                 <p class="note" x-show="pmRaters().length===1">One pass, so there is nothing to
                   disagree with yet. Spread appears once a second coach rates this player.</p>
               </div>
@@ -2439,12 +2410,8 @@ word-break:break-all}
                     </template>
                   </div>
                 </div>
-                <p class="note" x-show="pmHistory().length === 1">
-                  One confirmed session. The trend fills in as more are signed off — this is the
-                  first point on it.</p>
-                <p class="note" x-show="pmHistory().length > 1">
-                  Overall is the plain mean across every approved measure in that session, the same
-                  arithmetic the rating itself uses.</p>
+                <p class="note" x-show="pmHistory().length === 1">One confirmed session. The trend builds as further sessions are confirmed.</p>
+                <p class="note" x-show="pmHistory().length > 1">Overall is the mean across every approved measure in the session.</p>
               </div>
             </template>
 
@@ -2467,8 +2434,7 @@ word-break:break-all}
                           x-text="h.anyResolved?'resolved':'mean'"></span>
                   </div>
                 </template>
-                <p class="note">One card per confirmed session, oldest first. The matrix and the
-                  trend chart will read from this same record.</p>
+                <p class="note">One card per confirmed session, oldest first.</p>
               </div>
             </template>
                   </div>
@@ -2488,8 +2454,7 @@ word-break:break-all}
       <div class="panel">
         <div class="rhead"><h2>No organisation yet</h2>
           <div class="sub">You are signed in, but not a member of any organisation.</div></div>
-        <p class="warnbar">This is the security model working. With no membership row the database
-          returns nothing at all — not an error, just nothing.</p>
+        <p class="warnbar">No membership row exists for this account, so the database returns nothing.</p>
         <div class="pbody">
           <p class="note" style="margin-top:0">Run this in the Supabase SQL Editor to join the demo
             club. Your user id is already filled in.</p>
@@ -2499,7 +2464,7 @@ values (
   '11111111-0000-0000-0000-000000000001',
   'Your Name', 'head_coach', 10
 );</pre>
-          <p><button class="btn pri" @click="load()">I've done that — reload</button></p>
+          <p><button class="btn pri" @click="load()">Reload</button></p>
         </div>
       </div>
     </template>
@@ -2525,7 +2490,7 @@ values (
         <div class="inline" style="margin:0">
           <button class="btn" @click="newSession.open=!newSession.open"
                   :disabled="!seasons.length"
-                  x-text="newSession.open?'Cancel':'New session'"></button>
+                  x-text="newSession.open?'Cancel':'Add session'"></button>
         </div>
       </div>
 
@@ -2574,7 +2539,7 @@ values (
         <div style="min-width:0;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <button class="btn sm" :class="onlyWaiting ? 'pri' : ''"
                   @click="onlyWaiting=!onlyWaiting"
-                  x-text="onlyWaiting ? 'Showing what is waiting' : 'Show only what is waiting'"></button>
+                  x-text="'Waiting on you only'"></button>
           <span class="note" style="margin:0">A session appears here once anybody in it is fully
             rated, or a disagreement is waiting on your call.</span>
         </div>
@@ -2585,7 +2550,7 @@ values (
       </p>
 
       <div class="pbody">
-        <div x-show="newSession.open" class="srow" style="background:#fbfaf8">
+        <div x-show="newSession.open" class="srow" style="background:var(--card2)">
           <div class="field"><label class="fl">Session name</label>
             <input type="text" x-model="newSession.name" placeholder="e.g. U14 Trials 2027"></div>
           <div class="row2">
@@ -2594,7 +2559,7 @@ values (
             <div class="field"><label class="fl">Last day</label>
               <input type="date" x-model="newSession.closes" :min="newSession.opens"></div>
           </div>
-          <div class="field"><label class="fl">Rubric — most clubs want Core</label>
+          <div class="field"><label class="fl">Rubric</label>
             <select x-model="newSession.rubric_id">
               <template x-for="r in rubrics" :key="r.id">
                 <option :value="r.id" x-text="r.name+' ('+measuresOf(r.id).length+' measures)'"></option>
@@ -2603,7 +2568,7 @@ values (
           <p class="note" style="margin-bottom:8px">Every day you add must fall on or between
             these two dates. This trial lands in <b x-text="seasonName(seasonId)"></b>.</p>
           <button class="btn pri" @click="createSession()"
-            :disabled="!newSession.name||!newSession.opens||!newSession.closes||busy">Create session</button>
+            :disabled="!newSession.name||!newSession.opens||!newSession.closes||busy">Save</button>
           <p x-show="err" x-text="err" class="err"></p>
         </div>
 
@@ -2643,7 +2608,7 @@ values (
               <span class="c" :class="{'':s.status==='draft','grp':s.status==='open',
                     'wn':s.status==='closed','ok':s.status==='confirmed'}" x-text="s.status"></span>
               <span class="c wn" x-show="q(s.id)?.outside_window"
-                    title="Ratings are gated by status, never the clock — this is a reminder, not a block"
+                    title="Reminder only. Ratings are gated by session status, never by the clock."
                     >outside its window</span>
               <span class="c acc" x-show="q(s.id)?.to_settle"
                     x-text="q(s.id)?.to_settle + ' to settle'"></span>
@@ -2684,8 +2649,7 @@ values (
               <p x-show="blockErr" x-text="blockErr" class="err"></p>
 
               <div class="cath">Authorised raters <b x-text="auths.length"></b></div>
-              <p class="note" style="margin:0 0 5px">Being a coach in the club is not enough.
-                Authorisation is explicit and per session.</p>
+              <p class="note" style="margin:0 0 5px">Authorisation is explicit and per session.</p>
               <template x-if="!auths.length">
                 <div class="note" style="margin:0">Nobody authorised yet.</div></template>
               <template x-for="a in auths" :key="a.id">
@@ -2729,85 +2693,9 @@ values (
                  style="margin:4px 0 0">
                 Before this can open it needs <b x-text="openBlockers()"></b>.
               </p>
-              <p class="note" x-show="s.status==='closed'" style="margin:4px 0 0">
-                Closed stops new ratings but is not final — reopen it if a coach still has players
-                to get through. Confirming is the step that cannot be undone.
-              </p>
+              <p class="note" x-show="s.status==='closed'" style="margin:4px 0 0">Closed can be reopened. Confirming cannot be undone.</p>
               <p x-show="statusErr" x-text="statusErr" class="err"></p>
 
-              <div class="cath" x-show="s.status==='confirmed'">Form teams</div>
-              <template x-if="s.status==='confirmed'">
-                <div>
-                  <p class="note" style="margin-top:0">Runs on the approved record from this
-                    session. It is a constraint solver, not a guess — the same session and the same
-                    plan always produce the same teams, and anything it cannot place is named.</p>
-                  <div class="inline">
-                    <input type="text" x-model="fm.plan" style="flex:1;min-width:200px"
-                           placeholder="Gold 8, Navy 8, White 8">
-                    <button class="btn pri" @click="runFormation(s)"
-                            :disabled="fm.busy || !fm.plan.trim()"
-                            x-text="fm.busy ? 'Working…' : 'Propose teams'"></button>
-                  </div>
-                  <p class="note" style="margin:4px 0 0">Name each team and how many it holds.
-                    Add <b>F</b> or <b>M</b> for a single-gender team — <i>Girls 8 F, Open 10</i>.</p>
-                  <p x-show="fm.err" x-text="fm.err" class="err"></p>
-                </div>
-              </template>
-
-              <template x-if="fm.result && fm.sessionId===s.id">
-                <div style="margin-top:10px">
-                  <div class="statrow" style="border:1px solid var(--line);border-radius:8px;margin-bottom:10px">
-                    <div><b x-text="fm.result.teams.length"></b>teams</div>
-                    <div><b x-text="fm.result.teams.reduce((n,t)=>n+t.size,0)"></b>placed</div>
-                    <div><b x-text="fm.result.unplaced.length"></b>unplaced</div>
-                    <div><b x-text="fm.result.spread"></b>spread</div>
-                    <div><b x-text="fm.result.swaps"></b>swaps</div>
-                  </div>
-                  <div class="grid3">
-                    <template x-for="t in fm.result.teams" :key="t.label">
-                      <div class="tcol">
-                        <div class="h"><b x-text="t.label"></b>
-                          <span class="c" x-text="t.size + '/' + t.planned_size"></span>
-                          <span class="c grp" x-text="'avg ' + (t.average ?? '–')"></span></div>
-                        <template x-for="pl in t.players" :key="pl.person_id">
-                          <div class="p">
-                            <span x-text="pl.name"></span>
-                            <span class="c ok" x-show="pl.forced">HC</span>
-                            <span class="c" x-show="pl.locked && !pl.forced">locked</span>
-                            <span class="r" x-text="Number(pl.rating).toFixed(2)"></span>
-                            <button class="btn sm" @click="toggleLock(s, pl, t.label)"
-                                    x-text="pl.locked ? 'Unlock' : 'Lock'"></button>
-                          </div>
-                        </template>
-                        <template x-if="!t.players.length">
-                          <div class="p" style="color:var(--ink3)">nobody yet</div>
-                        </template>
-                      </div>
-                    </template>
-                  </div>
-
-                  <template x-if="fm.result.unplaced.length">
-                    <div class="warnbar" style="border-radius:8px;border:1px solid var(--warnline);margin-top:10px">
-                      <b x-text="fm.result.unplaced.length + ' not placed'"></b> — nobody is dropped
-                      silently.
-                      <template x-for="u in fm.result.unplaced" :key="u.person_id">
-                        <div style="margin-top:3px"><b x-text="u.name"></b>
-                          <span x-text="' — ' + u.reason"></span></div>
-                      </template>
-                    </div>
-                  </template>
-
-                  <template x-if="fm.result.notes.length">
-                    <div style="margin-top:8px">
-                      <div class="cath">Decisions the engine was told to respect</div>
-                      <template x-for="(n, ix) in fm.result.notes" :key="ix">
-                        <div class="note" style="margin:2px 0" x-text="n"></div>
-                      </template>
-                    </div>
-                  </template>
-                  <p class="note" x-text="fm.result.method"></p>
-                </div>
-              </template>
 
               <div class="cath">Do the work</div>
               <div class="inline" style="margin-top:0">
@@ -2824,13 +2712,13 @@ values (
                 <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
                   <div class="inline" style="margin:0">
                     <button class="btn sm" x-show="delConfirm!==s.id"
-                            @click="delConfirm=s.id; delErr=''">Delete this session</button>
+                            @click="delConfirm=s.id; delErr=''">Delete…</button>
                     <template x-if="delConfirm===s.id">
                       <span class="inline" style="margin:0;gap:8px">
                         <span class="note" style="margin:0">Delete
                           <b x-text="s.name"></b> permanently?</span>
-                        <button class="btn sm pri" @click="deleteSession(s)">Yes, delete</button>
-                        <button class="btn sm" @click="delConfirm=''">Keep it</button>
+                        <button class="btn sm pri" @click="deleteSession(s)">Delete</button>
+                        <button class="btn sm" @click="delConfirm=''">Cancel</button>
                       </span>
                     </template>
                   </div>
@@ -2903,13 +2791,12 @@ values (
             </div>
           </template>
 
-          <p class="note" style="margin-top:0">Lands <b>unverified</b> — verify it on the record once
-            you have matched the registration. Flagged <b>DEMO</b>: this version holds fabricated
-            data only.</p>
+          <p class="note" style="margin-top:0">Lands <b>unverified</b> — verify it on the record once you have matched the registration.
+            Flagged <b>DEMO</b> — this version holds fabricated data only.</p>
           <div class="inline">
             <button class="btn pri" @click="savePerson()"
                     :disabled="pe.busy || !pe.given.trim() || !pe.family.trim()"
-                    x-text="pe.busy ? 'Saving…' : 'Add player'"></button>
+                    x-text="pe.busy ? 'Saving…' : 'Save'"></button>
             <button class="btn" @click="pm.adding=false">Cancel</button>
           </div>
           <p x-show="pe.err" x-text="pe.err" class="err"></p>
@@ -2985,7 +2872,7 @@ values (
               </template>
             </select>
             <button class="btn sm" @click="fAddTeam(fp.newdiv)">Enter a team</button>
-            <button class="btn sm" style="margin-left:auto" @click="fNameOpen()">Division names…</button>
+            <button class="btn sm" style="margin-left:auto" @click="fNameOpen()">Division names</button>
           </div>
 
           <!-- ── what the association calls each division ────────────────────
@@ -3018,14 +2905,13 @@ values (
             <p class="note" style="margin-bottom:6px" x-show="!fNameRanks().length">
               Enter a team above and its division will appear here to be named.</p>
             <div class="inline">
-              <button class="btn pri sm" @click="fSaveNames()" :disabled="fp.busy">Save the names</button>
+              <button class="btn pri sm" @click="fSaveNames()" :disabled="fp.busy">Save</button>
               <button class="btn sm" @click="fp.naming=false">Cancel</button>
               <span class="c bad" x-show="fp.namesErr" x-text="fp.namesErr"></span>
             </div>
           </div>
-          <p class="note">Enter the divisions the association actually offers you — they do not have
-            to run 1, 2, 3. <b>Two teams entered in the same division share one band</b> and are
-            balanced against each other.</p>
+          <p class="note">Enter the divisions the association actually offers you — they need not run 1, 2, 3.
+            <b>Two teams in the same division share one band</b> and are balanced against each other.</p>
 
           <!-- ONE ROW OF SETTINGS. Ming, 20 Aug 2026: "in formation engine, I
                want to make lock player section smaller." The lock was a full
@@ -3036,7 +2922,7 @@ values (
           <div class="ladder" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;
                                      margin-top:10px">
             <label class="fchk" :class="fp.lock?'on':''"
-                   title="Both conditions hold: they are in a team, and they are still in this age group. A child who has aged up has no place here to keep.">
+                   title="Locks players already in a team in this age group.">
               <input type="checkbox" x-model="fp.lock">
               <span>Lock players already placed</span>
               <span class="c" x-show="fp.lock" x-text="fLocked().length"></span>
@@ -3067,9 +2953,8 @@ values (
               no band below.</p>
           </template>
 
-          <p class="note">A line is the floor of the team above it — for the top team that floor
-            <b>is</b> the entry standard. <b>A team's target is what the players in its band actually
-            average</b>, so it can never be a number this cohort cannot reach.</p>
+          <p class="note">A line is the floor of the team above it — for the top team that floor <b>is</b> the entry
+            standard. A team's target is what its own band averages.</p>
 
           <table class="fbt">
             <tr><th>Entered as</th><th x-text="fp.basis==='points'?'Scoring band':'Rating band'"></th>
@@ -3108,6 +2993,15 @@ values (
             <div class="cath">What this plan builds
               <span class="c wn" x-show="fp.stale">the lines have moved — build again</span>
             </div>
+            <!-- THE ENGINE IS A DETERMINISTIC CONSTRAINT SOLVER AND MUST NEVER BE
+                 DESCRIBED AS ANYTHING ELSE. The distinction has real compliance
+                 consequences in the school market — see ST4S_ASSESSMENT.md.
+                 This sentence moved here on 21 Aug when the retired formation
+                 path was removed from the Rating stage; it was the only place
+                 the engine was characterised. Do not delete it. -->
+            <p class="note" style="margin:0 0 6px">A constraint solver, not a guess. The same
+              session and the same plan always produce the same teams, and anything it cannot
+              place is named.</p>
             <div :style="fp.stale?'opacity:.5':''">
           <p class="note" style="margin-top:0">
             <b x-text="(fp.result?.squads.length||0) + ' teams'"></b> ·
@@ -3194,9 +3088,8 @@ values (
             </template>
           </div>
 
-          <div class="warnbox">A team can sit exactly on its target and still be built entirely of
-            guards. The bars are each category against what a team at this level should look like —
-            a bar left of centre is a category this team is short in.</div>
+          <div class="warnbox">Each bar is a category against what a team at this level should look like. Left of centre
+            means this team is short in it.</div>
 
           <!-- NOBODY IS DROPPED SILENTLY. -->
           <div x-show="fp.result?.unplaced.length">
@@ -3228,44 +3121,35 @@ values (
                exactly once. It is saved now, so the caption says that instead,
                and it says WHEN rather than just "saved": a save that silently
                stopped working reads identically to one that never runs. -->
-          <p class="note" style="margin:0 0 8px" x-show="fp.resumed && !fbd.err">
-            Picked up where you left it.</p>
-          <p class="note" style="margin:0 0 8px" x-show="fbd.at && !fbd.err">
-            This board is saved as you work — <span x-text="'last written '+fBoardAgo(fbd.at)"></span>.
-            Closing the tab no longer loses it. Accept when you are done with it.</p>
+          <p class="note" style="margin:0 0 8px" x-show="fp.resumed && !fbd.err">Board restored.</p>
+          <p class="note" style="margin:0 0 8px" x-show="fbd.at && !fbd.err">Saved as you work — <span x-text="'last written '+fBoardAgo(fbd.at)"></span>.</p>
           <!-- A SAVE THAT FAILED SAYS SO, ON THE BOARD, AND DOES NOT STOP THE
                WORK. The coach can keep dragging; what they cannot do is find
                out afterwards that none of it was being written. -->
           <p class="warnbar" style="margin:0 0 8px;border-radius:8px;border:1px solid var(--warnline)"
-             x-show="fbd.err">
-            <b>This board is not being saved.</b> <span x-text="fbd.err"></span> Your work is still
-            on screen and still accepts normally — but a reload would lose it, so finish here.</p>
+             x-show="fbd.err"><b>This board is not being saved.</b> <span x-text="fbd.err"></span> Reloading will lose
+            the work on screen; accepting still works.</p>
           <!-- THE BUILD IS ON THE RECORD, AND IT SAYS SO. Or it says it is not:
                an audit row that quietly failed to write is worse than none. -->
           <p class="note" style="margin:0 0 6px" x-show="fp.run">
             This build is recorded. Every offer accepted from it will name it.</p>
           <p class="warnbar" style="margin:0 0 6px;border-radius:8px;border:1px solid var(--warnline)"
-             x-show="fp.runErr">
-            <b>This build was not recorded.</b> You can carry on and accept it — the teams and the
-            offers are unaffected — but the offers will not be able to name the build they came
-            from. <span x-text="fp.runErr"></span></p>
-          <p class="note" style="margin:0 0 8px" x-show="fMovedCount()">
-            <b x-text="fMovedCount()+' player'+(fMovedCount()===1?'':'s')+' moved by hand.'"></b>
-            Every move is on screen and against the proposal — the engine is not re-running, so
-            nothing you have decided gets undone.</p>
-          <p class="note" style="margin:0 0 8px" x-show="!fMovedCount()">
-            Drag a name from one team to another. The engine's proposal is frozen and it is not
-            running again: from here every change is yours, and each team shows what it costs
-            against the number its band set. <b>Nothing here is written</b> until you accept.</p>
+             x-show="fp.runErr"><b>This build was not recorded.</b> The teams and the offers are unaffected; the offers
+            will not name the build they came from. <span x-text="fp.runErr"></span></p>
+          <p class="note" style="margin:0 0 8px" x-show="fMovedCount()"><b x-text="fMovedCount()+' player'+(fMovedCount()===1?'':'s')+' moved by hand.'"></b>
+            Every move is on screen and measured against the proposal.</p>
+          <p class="note" style="margin:0 0 8px" x-show="!fMovedCount()">Drag a name from one team to another. The proposal is frozen and the engine is not running
+            again; each team shows what a move costs against its band's number.
+            <b>Nothing is written</b> until you accept.</p>
 
           <!-- THREE LENSES OVER ONE ROSTER, and they are sport-scoped. -->
           <div class="lens">
             <template x-for="l in fLensList()" :key="l.k">
-              <button class="lb" :class="l.k===(fLens()||{}).k?'on':''"
+              <button class="tgl" :class="l.k===(fLens()||{}).k?'on':''"
                       @click="fSetLens(l.k)" x-text="l.t"></button>
             </template>
             <span class="c" x-text="fLensNote()"></span>
-            <span class="c">three separate questions — a stretch five is a Big who is a Shooter</span>
+            <span class="c">a stretch five is a Big who is a Shooter</span>
           </div>
 
           <div class="cmp">
@@ -3343,7 +3227,7 @@ values (
                         <b x-text="fp.nt.err"></b></div>
                       <div class="inline" style="margin:0">
                         <button class="btn sm pri" @click="fNewTeamSave()"
-                                :disabled="!fp.nt.name.trim() || fp.nt.busy">Create and link</button>
+                                :disabled="!fp.nt.name.trim() || fp.nt.busy">Save and link</button>
                         <button class="btn sm" @click="fNewTeamClose()">Cancel</button>
                       </div>
                     </div>
@@ -3387,14 +3271,15 @@ values (
 
                 <template x-for="z in col.slots" :key="z.k">
                   <div class="zsec" @dragover.prevent @drop.prevent.stop="fDrop($event,col.ci,z.k)">
-                    <div class="zh"><i :style="'background:'+z.c"></i>
+                    <div class="fzh"><i :style="'background:'+z.c"></i>
                       <span x-text="z.t" style="margin-left:0"></span>
                       <span x-text="z.n"></span></div>
                     <ul class="pl">
                       <template x-for="p in z.players" :key="p.person_id">
                         <li draggable="true" @dragstart="fDragStartPlayer($event,p.person_id)">
                           <button class="st" :class="fIsStar(col.ci,p.person_id)?'on':''"
-                                  @click.stop="fToggleStar(col.ci,p.person_id)" title="star">★</button>
+                                  @click.stop="fToggleStar(col.ci,p.person_id)"
+                                  :title="fIsStar(col.ci,p.person_id)?'Starred':'Mark as a key player'">★</button>
                           <span :class="fMoved(p.person_id)?'mvn':''"
                                 x-text="(p.given_name+' '+p.family_name).replace('DEMO_','')"></span>
                           <span class="mk" x-show="fMoved(p.person_id)">MOVED</span>
@@ -3486,12 +3371,12 @@ values (
                         <span class="who"><b x-text="u.name"></b>
                           <span x-text="u.dob+' · '+u.gender+' · '+u.grp"></span></span>
                         <button class="btn sm" :disabled="fvfy.busy===u.id"
-                                @click="fVerify(u.id,'association')">Matched the registration</button>
+                                @click="fVerify(u.id,'association')">Association registration</button>
                         <button class="btn sm" :disabled="fvfy.busy===u.id"
-                                @click="fVerify(u.id,'attested')">Parent attested</button>
+                                @click="fVerify(u.id,'attested')">Parent attestation</button>
                         <button class="btn sm" :class="fvfy.open===u.id?'pri':''"
                                 @click="fvfy.note=''; fvfy.err='';
-                                        fvfy.open = fvfy.open===u.id?'':u.id">My own authority…</button>
+                                        fvfy.open = fvfy.open===u.id?'':u.id">Own authority…</button>
                       </div>
                       <!-- the stated reason is the whole difference between an
                            override and a bypass, so it is required here exactly
@@ -3516,8 +3401,7 @@ values (
                the button row, which is where a message goes to be missed. -->
           <div class="stop" x-show="fp.acc.err">
             <b x-text="fp.acc.err"></b>
-            <div class="how">Nothing was written. Fix what is named here or above, then press it
-              again.</div>
+            <div class="how">Nothing was written. Resolve what is named above, then press again.</div>
           </div>
 
           <div class="warnbox" x-show="!fAcceptStops().length && !fp.acc.err">
@@ -3534,19 +3418,19 @@ values (
         <div class="mfoot">
           <button class="btn pri" x-show="fp.phase==='setup'"
                   @click="fGenerate()" :disabled="fp.busy || !fp.teams.length"
-                  x-text="fp.result ? (fp.stale?'Build again':'Build again') : 'Build the rosters'"></button>
+                  x-text="fp.result ? 'Build again' : 'Build rosters'"></button>
           <button class="btn" x-show="fp.phase==='setup'"
-                  @click="fSavePlan()" :disabled="fp.busy">Save without building</button>
+                  @click="fSavePlan()" :disabled="fp.busy">Save plan</button>
           <!-- THE DRAFT BOARD FREEZES THE ENGINE, and writes nothing. From here
                every change is the coach's. -->
           <button class="btn pri" x-show="fp.phase==='setup' && fp.result && !fp.stale"
-                  @click="fOpenDraft()">Open the draft board →</button>
-          <button class="btn" x-show="fp.phase==='draft'" @click="fp.phase='setup'">← Back to the plan</button>
+                  @click="fOpenDraft()">Draft board →</button>
+          <button class="btn" x-show="fp.phase==='draft'" @click="fp.phase='setup'">← Plan</button>
           <button class="btn" x-show="fp.phase==='draft'" @click="fRestoreProposal()"
                   :disabled="!fMovedCount()">Restore the proposal</button>
           <button class="btn pri" x-show="fp.phase==='draft'"
-                  @click="fp.acc.err=''; fp.acc.done=null; fp.phase='accept'">Accept these teams…</button>
-          <button class="btn" x-show="fp.phase==='accept'" @click="fp.phase='draft'">← Back to the draft board</button>
+                  @click="fp.acc.err=''; fp.acc.done=null; fp.phase='accept'">Accept…</button>
+          <button class="btn" x-show="fp.phase==='accept'" @click="fp.phase='draft'">← Draft board</button>
           <!-- A CONTROL IS NEVER DISABLED BY A DERIVED METHOD. Ming, 20 Aug 2026,
                sat in front of a dead button with nothing on screen explaining it:
                `:disabled` was computed from `fAcceptStops().length`, it evaluated
@@ -3558,15 +3442,15 @@ values (
                and the refusal is shown. -->
           <button class="btn pri" x-show="fp.phase==='accept' && !fp.acc.done"
                   @click="fAccept()" :disabled="fp.acc.busy">
-            Enter the teams and send the offers</button>
+            Send offers</button>
           <button class="btn pri" x-show="fp.phase==='accept' && fp.acc.done"
-                  @click="fAcceptToTeams()">Open the rosters →</button>
+                  @click="fAcceptToTeams()">Rosters →</button>
           <button class="btn" @click="modal=''">Close</button>
           <span class="c" x-show="fp.busy || fp.acc.busy">working…</span>
           <span class="note" style="margin:0;margin-left:auto" x-show="fp.err" x-text="fp.err"></span>
           <span class="note" style="margin:0;margin-left:auto"
                 x-show="!fp.err && fp.phase==='setup' && fp.result && !fp.stale">
-            Open the draft board to move players by hand, then accept.</span>
+            Move players by hand, then accept.</span>
           <span class="note" style="margin:0;margin-left:auto" x-show="!fp.err && fp.phase==='draft'">
             A draft — nothing is written until you accept. Move players by hand, then accept the teams.</span>
         </div>
@@ -3582,11 +3466,11 @@ values (
     <div class="modal" @click.self="modal=''">
       <div class="box">
         <div class="mhead"><h3>Setup</h3>
-          <button class="lb" :class="setupTab==='club'?'on':''"
+          <button class="tgl" :class="setupTab==='club'?'on':''"
                   @click="setupTab='club'">This club</button>
-          <button class="lb" :class="setupTab==='rubrics'?'on':''"
+          <button class="tgl" :class="setupTab==='rubrics'?'on':''"
                   @click="setupTab='rubrics'">Rubrics</button>
-          <button class="lb" :class="setupTab==='import'?'on':''"
+          <button class="tgl" :class="setupTab==='import'?'on':''"
                   @click="setupTab='import'">Import</button>
           <span class="c" x-show="setupTab==='rubrics'">locked · scale 1–5</span>
           <button class="x" @click="modal=''" title="Close">×</button></div>
@@ -3599,17 +3483,12 @@ values (
              a children's-check number, and consent basis S3 is unsettled. Two
              different risks must not share one control. -->
         <div class="mbody" x-show="setupTab==='import'">
-          <p class="note" style="margin-top:0">Load a <b>Basketball Connect statistics</b> export
-            into the season selected above. Nothing is written until you have read what it found —
-            and <b>identity is the Basketball Connect User Id, never a name</b>. A name match is
-            offered as a proposal, applied only if you confirm it, and once confirmed the id is what
-            is stored, so it is never proposed again.</p>
+          <p class="note" style="margin-top:0">Load a <b>Basketball Connect statistics</b> export into the season selected above. Identity
+            is the Basketball Connect User Id; a name match is a proposal and applies only on
+            confirmation.</p>
 
-          <p class="warnbar" style="margin:0 0 10px;border-radius:8px;border:1px solid var(--warnline)">
-            <b>The registration export cannot be loaded here, on purpose.</b> It carries contact
-            details, addresses, medical conditions and a children's-check number. That is the
-            consent question (S3), not an import question, and it needs an answer before a door is
-            built for it.</p>
+          <p class="warnbar" style="margin:0 0 10px;border-radius:8px;border:1px solid var(--warnline)"><b>The registration export cannot be loaded here.</b> It carries contact details, addresses,
+            medical conditions and a children's-check number. Consent for that data is unresolved.</p>
 
           <div class="cath">The file</div>
           <div class="inline" style="margin-top:0">
@@ -3620,11 +3499,9 @@ values (
           <p class="err" x-show="bc.err" x-text="bc.err"></p>
           <p class="note" x-show="bcSetHint()" style="margin-top:6px"
              x-text="bcSetHint()"></p>
-          <p class="note" x-show="!bc.kind" style="margin-top:6px">
-            Three kinds are recognised, by their own column headings —
-            <b>play time</b> (Play Time · Player's Current Team), <b>scoring</b> (PTS · FG · 2P · 3P
-            · FT) and <b>fouls</b> (PF · TF · DF · UF). Each writes only its own figures, so they
-            load in any order and loading one twice never doubles a point.</p>
+          <p class="note" x-show="!bc.kind" style="margin-top:6px">Three kinds are recognised by their own column headings — <b>play time</b> (Play Time ·
+            Player's Current Team), <b>scoring</b> (PTS · FG · 2P · 3P · FT) and <b>fouls</b>
+            (PF · TF · DF · UF). Files load in any order; re-loading one does not double a figure.</p>
 
           <template x-if="bc.report">
             <div>
@@ -3646,9 +3523,7 @@ values (
               <template x-if="bcProposals().length">
                 <div>
                   <div class="cath">Matched by name — confirm each one</div>
-                  <p class="note" style="margin-top:0">These have no Basketball Connect id on file
-                    yet. Confirming one records the id, so this is the last time you will be asked
-                    about that player.</p>
+                  <p class="note" style="margin-top:0">No Basketball Connect id on file yet. Confirming one records the id.</p>
                   <div class="fopts">
                     <template x-for="p in bcProposals()" :key="p.ext">
                       <label class="fopt" :class="bc.ok.includes(p.ext)?'on':''">
@@ -3665,9 +3540,7 @@ values (
               <template x-if="(bc.report.misses||[]).length">
                 <div>
                   <div class="cath">Left out, and why</div>
-                  <p class="note" style="margin-top:0">Nothing here is written. A player this club
-                    has never heard of is not created by a statistics file — that is what the roster
-                    import is for.</p>
+                  <p class="note" style="margin-top:0">Nothing here is written. A statistics file never creates a player record.</p>
                   <div class="chips">
                     <template x-for="m in (bc.report.misses||[]).slice(0,40)" :key="m.ext+m.name">
                       <span class="c wn" x-text="m.name+' — '+m.why"></span>
@@ -3678,15 +3551,7 @@ values (
                 </div>
               </template>
 
-              <div class="inline" style="margin-top:10px">
-                <button class="btn pri" @click="bcApply()"
-                        :disabled="bc.busy || !seasonId || !bcWillWrite()">
-                  <span x-text="'Load '+bcWillWrite()+' players into '+seasonName(seasonId)"></span>
-                </button>
-                <button class="btn" @click="bcReset()" :disabled="bc.busy">Clear</button>
-                <span class="note" style="margin:0" x-show="!seasonId">Choose a season first —
-                  a statistics record belongs to one.</span>
-              </div>
+              <div class="inline" style="margin-top:10px">Choose a season.</div>
               <p class="err" x-show="bc.applyErr" x-text="bc.applyErr"></p>
             </div>
           </template>
@@ -3738,7 +3603,7 @@ values (
               </div>
             </div>
           </template>
-          <p class="note">A tenant never authors a measure. Adding a sport is seeding, not coding.</p>
+          <p class="note">The measures belong to the sport, not to your club.</p>
         </div>
 
         <div class="mbody" x-show="setupTab==='club'">
@@ -3773,26 +3638,18 @@ values (
                provenance. Where a number came from is written beside it, because
                a default nobody can trace is a number nobody can argue with. -->
           <div class="cath">Playing up and playing down</div>
-          <p class="note" style="margin-top:0">A rating is given at the player's <b>own</b> age
-            group. A 4 for defence means a 4 among the U12s — ask that child to play in the U14s and
-            the same defending is not a 4 any more. These decide what a bracket is worth when a
-            rating is counted <b>towards a team</b>. <b>A player's own record never moves</b>, and
-            neither does what their family sees.</p>
+          <p class="note" style="margin-top:0">Applies only where a rating is counted <b>towards a team</b>. A player's own record never
+            moves, and neither does what their family sees.</p>
           <div class="row2">
-            <div class="field"><label class="fl">Playing up an age group takes this off
-              each adjusted rating</label>
+            <div class="field"><label class="fl">Playing up — deduction per bracket</label>
               <input type="number" step="0.1" min="0" max="5" x-model.number="cfg2.up"
                      style="width:90px">
               <p class="note" style="margin:4px 0 0">Counted per bracket above their own.
                 <b>TMS default 1.0.</b></p></div>
-            <div class="field"><label class="fl">Playing down adds this onto
-              each adjusted rating</label>
+            <div class="field"><label class="fl">Playing down — addition per bracket</label>
               <input type="number" step="0.1" min="0" max="5" x-model.number="cfg2.down"
                      style="width:90px">
-              <p class="note" style="margin:4px 0 0"><b>It starts at 0, deliberately.</b> Four
-                players in three seasons have moved down here — far too few to say what it is worth,
-                and it is usually done for a reason that means the child is <i>not</i> above the
-                younger group.</p></div>
+              <p class="note" style="margin:4px 0 0">Default 0 — too few players have moved down to derive a value.</p></div>
           </div>
 
           <!-- THE EXEMPTION. Which measures are relative to the company a player
@@ -3800,10 +3657,8 @@ values (
                first; a club overrides only if its own coaches read a measure
                differently. -->
           <div class="cath">Which ratings move with the age group</div>
-          <p class="note" style="margin-top:0">Shooting, size and defence are relative to the company
-            a player keeps, so they move. <b>Toughness, resilience and coachability are character —
-            they travel with the child</b>, so they are left alone. The sport has already answered
-            this for every measure; untick one only if your coaches read it differently.</p>
+          <p class="note" style="margin-top:0">The sport sets a default for every measure. Untick one only where your coaches read it
+            differently.</p>
           <div class="fopts" data-t="ageshift">
             <template x-for="m in shiftMeasures()" :key="m.id">
               <label class="fopt" :class="cfgMoves(m)?'on':''">
@@ -3843,8 +3698,7 @@ values (
               <div class="inline" style="margin-top:0">
                 <input type="number" step="1" min="0" max="6" x-model.number="cfg2.div"
                        style="width:80px"><span class="note" style="margin:0">divisions down</span></div>
-              <p class="note" style="margin:4px 0 0">Your rule. Measured at about 22% in this club's
-                own history; two divisions is 28%.</p></div>
+              <p class="note" style="margin:4px 0 0">Club history: about 22%; two divisions is 28%.</p></div>
           </div>
           <label class="fopt" :class="cfg2.compound?'on':''" style="margin-top:6px">
             <input type="checkbox" x-model="cfg2.compound">
@@ -3855,7 +3709,7 @@ values (
 
           <div class="cath">Squads</div>
           <div class="field" style="max-width:320px">
-            <label class="fl">Most players in a squad, unless a reason is given</label>
+            <label class="fl">Squad cap</label>
             <input type="number" step="1" min="1" max="30" x-model.number="cfg2.cap"
                    style="width:90px">
             <p class="note" style="margin:4px 0 0">The starting point on every formation. Going over
@@ -3872,11 +3726,8 @@ values (
                know what's on a roster in the setting doing at the moment." It was
                named for the data it wrote rather than for what a club would see
                change — so the copy now names the screen. -->
-          <p class="note" style="margin-top:0">These become the buttons above a squad on
-            <b>Teams</b> and on the formation comparison board — flip between them and the roster
-            regroups. Tick the ones your club uses. The slots inside each are the sport's, the same
-            for every club: you are choosing which questions your coaches are asked, not inventing
-            the answers.</p>
+          <p class="note" style="margin-top:0">The grouping buttons above a squad on <b>Teams</b> and on the comparison board. The slots
+            inside each are set by the sport.</p>
           <div class="fopts" data-t="lenses">
             <template x-for="l in sportLenses()" :key="l.k">
               <label class="fopt" :class="cfg2.lenses.includes(l.k)?'on':''">
@@ -3892,8 +3743,7 @@ values (
             </template>
           </div>
           <p class="note" x-show="!sportLenses().length">This sport does not define any yet.</p>
-          <p class="note" x-show="!cfg2.lenses.length && sportLenses().length">
-            None ticked means <b>all of them</b>. Untick everything to keep it that way.</p>
+          <p class="note" x-show="!cfg2.lenses.length && sportLenses().length">None ticked means <b>all of them</b>.</p>
 
           <div class="inline" style="margin-top:10px">
             <button class="btn pri" @click="saveClubCfg()" :disabled="cfg2.busy">Save</button>
@@ -3962,7 +3812,7 @@ values (
                 </div>
                 <div class="inline" style="margin-top:0">
                   <button class="btn pri" @click="saveRating()"
-                          :disabled="!Object.keys(rate.scores).length||busy">Save rating</button>
+                          :disabled="!Object.keys(rate.scores).length||busy">Save and next</button>
                   <button class="btn" @click="rate.scores={};rate.note=''">Clear</button>
                 </div>
                 <p class="note">Saved ratings cannot be edited. A correction is recorded as a
@@ -4077,9 +3927,8 @@ values (
           </dl>
 
           <div class="cath">Tenant isolation</div>
-          <p class="note" style="margin-top:0">Every count comes from an unfiltered query — there is
-            no <code>where org_id</code> anywhere in this app. The database returns only your
-            organisation's rows.</p>
+          <p class="note" style="margin-top:0">Every count comes from an unfiltered query. The database returns only your organisation's
+            rows.</p>
           <div class="statrow" style="border:1px solid var(--line);border-radius:8px">
             <div><b x-text="orgs.length"></b>organisations</div>
             <div><b x-text="people.length"></b>players</div>
@@ -4093,8 +3942,7 @@ values (
             <button class="btn" @click="resetCfg()">Change database</button>
             <button class="btn" @click="signOut()">Sign out</button>
           </div>
-          <p class="note">v0.1 · foundation. Rating capture, the formation engine and imports are
-            the next increments.</p>
+          <p class="note">v0.1</p>
         </div>
       </div>
     </div>
@@ -4139,7 +3987,6 @@ function app(){ return {
   //  The app opens on the Dashboard: what has to happen next, before you
   //  choose where to go and do it. Ming, 19 Aug 2026.
   stage:'dash', queueRows:[], onlyWaiting:false,
-  fm:{plan:'Gold 8, Navy 8, White 8', busy:false, err:'', result:null, sessionId:''},
   court:{sessions:[],session:null,people:[],measures:[],rated:{},person:null,
          scores:{},note:'',err:'',msg:''},
   queue:[], rejected:[], syncing:false, online:true,
@@ -4165,7 +4012,7 @@ function app(){ return {
     this.err='';
     try{
       if(!/^https:\/\/.+\.supabase\.co\/?$/.test(this.cfg.url.trim()))
-        throw new Error('That does not look like a Supabase project URL.');
+        throw new Error('Not a Supabase project URL.');
       this.cfg.url = this.cfg.url.trim().replace(/\/$/,'');
       this.cfg.key = this.cfg.key.trim();
       if(this.cfg.key.includes('service_role'))
@@ -4184,7 +4031,7 @@ function app(){ return {
     });
     this.busy=false;
     if(error){ this.err = error.message; }
-    else { this.msg = 'Check your email — the link signs you straight in.'; }
+    else { this.msg = 'Sign-in link sent.'; }
   },
 
   async signOut(){ await this.sb.auth.signOut(); location.reload(); },
@@ -4482,8 +4329,7 @@ function app(){ return {
     }).eq('org_id', this.org.id);
     this.cfg2.busy=false;
     if(error){ this.cfg2.err = error.message; return; }
-    this.cfg2.msg = 'Saved. Age groups are recomputed from this for every player, '
-                  + 'and every team average is re-read with the new shift.';
+    this.cfg2.msg = 'Saved. Age groups and team averages recomputed.';
     await this.loadTeams();
   },
 
@@ -4927,15 +4773,12 @@ function app(){ return {
     const kind=this.bcSniff(objs[0]);
     if(kind==='registration'){
       this.bc.busy=false;
-      this.bc.err='That is the registration export. It carries contact details, addresses, '
-        +'medical conditions and a children’s-check number, and it has no path into this '
-        +'database until the consent question is settled. Load a statistics file instead.';
+      this.bc.err='Registration export not accepted. Load a statistics file.';
       return;
     }
     if(!kind){
       this.bc.busy=false;
-      this.bc.err='That does not look like a Basketball Connect statistics export — no Play Time, '
-        +'PTS or PF column was found.';
+      this.bc.err='Not a Basketball Connect statistics export — no Play Time, PTS or PF column.';
       return;
     }
     this.bc.kind=kind;
@@ -4956,7 +4799,7 @@ function app(){ return {
   },
   async bcPreview(){
     if(!this.seasonId){ this.bc.busy=false;
-      this.bc.err='Choose a season on any section first — a statistics record belongs to one.';
+      this.bc.err='Choose a season first.';
       return; }
     this.bc.busy=true; this.bc.err='';
     const {data,error}=await this.sb.rpc('bc_stats_preview',{
@@ -5048,7 +4891,7 @@ function app(){ return {
   //  it asks "who has not answered". So the index IS the work list, and each list
   //  carries exactly one action.
   pl:{busy:'', err:'', bucket:'answer', decline:'', ref:{}, rows:[], q:''},
-  plFeeStates:[{k:'unpaid',label:'Unpaid'},{k:'part_paid',label:'Part'},
+  plFeeStates:[{k:'unpaid',label:'Unpaid'},{k:'part_paid',label:'Part paid'},
                {k:'paid',label:'Paid'},{k:'waived',label:'Waived'}],
 
   //  ARRIVING WITH A LIST IN MIND. A dashboard tile knows which list it counted,
@@ -5109,10 +4952,9 @@ function app(){ return {
     const f=(fn)=>all.filter(fn);
     return [
       {k:'answer', label:'Awaiting an answer', act:'answer', col:'Standing', tone:'wn',
-       rule:'A place has been offered and the family has not answered. Accepting puts them on the '
-           +'roster; declining takes them off it and returns them to the pool — still training with '
-           +'the club. The place is then backfilled by hand, never by re-running the engine.',
-       empty:'Nobody is waiting on a family right now.',
+       rule:'Offered, not yet answered. Declining returns the player to the pool, still training '
+           +'with the club, and the place is backfilled by hand.',
+       empty:'Nobody is waiting on a family.',
        rows:f(r=>r.offer_response==='pending')},
       {k:'register', label:'Accepted, not registered', act:'register', col:'Standing', tone:'wn',
        rule:'A place is binding at REGISTRATION, not at acceptance and not at payment. Registration '
@@ -5125,7 +4967,7 @@ function app(){ return {
        empty:'No fees outstanding against a place.',
        rows:f(r=>r.offer_response==='accepted' && (r.fees==='unpaid' || r.fees==='part_paid'))},
       {k:'backfill', label:'Declined — a place to fill', act:'backfill', col:'Standing',
-       rule:'The team is one short. Backfill by hand from the pool — re-running the engine would '
+       rule:'The team is one short. Backfill by hand from the pool; re-running the engine would '
            +'reshuffle families who have already been told.',
        empty:'No place has come back.',
        rows:f(r=>r.offer_response==='declined')},
@@ -5860,7 +5702,7 @@ function app(){ return {
   //  The lenses belong to the SPORT (migration 018). Colour is presentation and
   //  is taken by position from one palette, so adding a sport never touches this
   //  file and no basketball position is named here.
-  fLensPalette:['#3c7dc4','#1d9e75','#1F3864','#4d9ec4','#8fc7db','#7b96bd','#c9a227'],
+  fLensPalette:['#3c7dc4','#1d9e75','#1F3864','#4d9ec4','#4e93ad','#7b96bd','#a67c00'],
   fLensList(){
     const used=this.clubCfg?.lenses_used||[];
     const all=(this.fp.lenses||[]).map(l=>({...l,
@@ -6370,7 +6212,7 @@ function app(){ return {
     if(unver.length) out.push({k:'unver', people:unver, t:unver.length+
       (unver.length===1?' record has':' records have')+' not been checked against the registration: '+
       unver.map(u=>u.name).join(', '),
-      how:'Check each one here — the gate is on the offer, not on the rating, and nothing on this board is lost.'});
+      how:'Check each one here. Nothing on this board is lost.'});
     const caps=rows.filter(r=>r.over>0 && !r.note.trim()).map(r=>r.name||('#'+(r.ci+1)));
     if(caps.length) out.push({k:'cap', t:caps.join(', ')+
       (caps.length===1?' is':' are')+' over the squad cap of '+this.fp.cap,
@@ -6411,9 +6253,8 @@ function app(){ return {
   //  the club matches the association's registration, which is already
   //  parent-attested and paid against. It is never a "confirm your details"
   //  email to the family.
-  fVerifyWhy(){ return 'Checking a record means matching it to the association’s registration — '
-    +'the name, the date of birth and the gender the child is registered under. '
-    +'It is not a second birthday check, and it is not a question for the parent.'; },
+  fVerifyWhy(){ return 'Match the record to the association’s registration: the name, the date '
+    +'of birth and the gender the child is registered under.'; },
   async fAccept(){
     //  IT ALWAYS ANSWERS THE PRESS. Returning silently was survivable while the
     //  button disabled itself; now that it does not, a press with something
@@ -6612,8 +6453,8 @@ function app(){ return {
       && (ts.age_group||'')===(this.tm.grp||''));
     if(!here) return null;
     return { t:team.name+' is already entered in '+(this.tm.grp||'this season with no age group')+'.',
-      how:'Two squads of one name are one team on a team sheet. Give this one a name of its own — '
-          +(this.tmPrefix()?this.tmPrefix()+' in front of it is the usual way.':'') };
+      how:'Give this team a name of its own'
+          +(this.tmPrefix()?' — '+this.tmPrefix()+' in front of it is the usual way.':'.') };
   },
   async createTeam(){
     this.tm.err='';
@@ -6777,54 +6618,6 @@ function app(){ return {
     await this.load();
   },
 
-  // ── forming teams ──────────────────────────────────────────────────────
-  // The engine itself is NOT here. It runs as a Supabase Edge Function, because
-  // this file is served from a public repository and the solver is the one
-  // piece of the product worth protecting. All this does is describe the teams,
-  // ask, and show what came back.
-  parsePlan(text){
-    // "Gold 8, Navy 8 F, U12 White 10" -> [{label,size,gender}]
-    return String(text).split(',').map(x => x.trim()).filter(Boolean).map(part => {
-      const m = part.match(/^(.*?)\s+(\d+)\s*([FM])?$/i);
-      if(!m) return {label: part, size: 10, gender: null};
-      return {label: m[1].trim(), size: Number(m[2]),
-              gender: m[3] ? m[3].toUpperCase() : null};
-    }).filter(t => t.label && t.size > 0);
-  },
-
-  async runFormation(s){
-    this.fm.err = ''; this.fm.busy = true; this.fm.sessionId = s.id;
-    const teams = this.parsePlan(this.fm.plan);
-    if(!teams.length){ this.fm.busy=false; this.fm.err='Describe at least one team.'; return; }
-    const dup = teams.map(t=>t.label).filter((l,i,a)=>a.indexOf(l)!==i);
-    if(dup.length){ this.fm.busy=false; this.fm.err='Two teams cannot share the name "'+dup[0]+'".'; return; }
-    const {data, error} = await this.sb.functions.invoke('formation', {
-      body: {session_id: s.id, teams}
-    });
-    this.fm.busy = false;
-    if(error){ this.fm.err = error.message || String(error); return; }
-    if(data?.error){ this.fm.err = data.error; return; }
-    this.fm.result = data;
-  },
-
-  // A lock says "leave this player here when you re-run". It belongs to the
-  // SESSION, not to the run, so it survives a regenerate — which is the whole
-  // point of it.
-  async toggleLock(s, pl, label){
-    this.fm.err = '';
-    if(pl.locked){
-      const {error} = await this.sb.from('formation_lock').delete()
-        .eq('session_id', s.id).eq('person_id', pl.person_id);
-      if(error){ this.fm.err = error.message; return; }
-    } else {
-      const {error} = await this.sb.from('formation_lock').insert({
-        org_id: this.org.id, session_id: s.id, person_id: pl.person_id,
-        team_label: label, locked_by: this.me.id
-      });
-      if(error){ this.fm.err = error.message; return; }
-    }
-    await this.runFormation(s);
-  },
 
   // ── what is waiting ────────────────────────────────────────────────────
   // One read for the whole club: how far each session got, how many calls are
